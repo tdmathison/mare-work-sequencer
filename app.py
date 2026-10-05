@@ -577,7 +577,8 @@ def archive(cid):
 
 def build_archive(cid,archive_type):
     c=case(cid);root=ensure_package(cid);issues=review_issues(cid)
-    name=datetime.now(timezone.utc).strftime('%Y%m%d')+'-MIP-'+slugify(c['name'])+('-RAW' if archive_type=='raw' else '')
+    title=re.sub(r'^\d{8}:\s*','',c['name'])
+    name=datetime.now(timezone.utc).strftime('%Y%m%d')+'-MIP-'+slugify(title)+('-RAW' if archive_type=='raw' else '')
     statuses=readiness(cid); metadata=[{k:a[k] for k in a.keys() if k!='usage'} for a in db().execute('SELECT * FROM artifacts WHERE case_id=?',(cid,))]
     manifest={'archive_type':archive_type,'schema':'mare-mip/2.0','package_id':name,'title':c['name'],'case_number':c['number'],'external_reference':{'system':c['external_system'],'number':c['external_number']},'description':c['description'],'created_at':c['created'],'packaged_at':now(),'readiness':statuses,'acknowledged_issues':issues,'artifacts':metadata,'files':[]}
     contents={}

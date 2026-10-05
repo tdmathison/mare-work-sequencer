@@ -8,7 +8,7 @@ from reporting import TOKENS,fill_template
 def test_archive_modes_previews_and_alignment(tmp_path):
     with app.app_context():
         uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('archive-user',generate_password_hash('password-long-123'),'User')).lastrowid
-        cid=run("INSERT INTO cases(number,name,created,stage) VALUES('ARCH-1','Archive modes','2026',2)").lastrowid
+        cid=run("INSERT INTO cases(number,name,created,stage) VALUES('ARCH-1','20261005: Archive modes','2026',2)").lastrowid
         root=ensure_package(cid)
         (root/'reports/sections/assets').mkdir(parents=True)
         (root/'reports/sections/executive_summary.md').write_text('Editor text')
@@ -21,6 +21,8 @@ def test_archive_modes_previews_and_alignment(tmp_path):
     def post(endpoint,**data):return client.post(f'/cases/{cid}'+endpoint,data={'csrf':'archive-token',**data})
     for kind in ('standard','raw'):
         response=post('/archive',archive_type=kind,acknowledge='1');assert response.status_code==200
+        expected_suffix='-MIP-Archive_modes'+('-RAW' if kind=='raw' else '')+'.zip'
+        assert response.headers['Content-Disposition'].endswith(expected_suffix)
         z=zipfile.ZipFile(io.BytesIO(response.data));names=z.namelist()
         assert any(n.endswith('malware-analysis-report.docx') for n in names)
         assert not any('/backups/' in n for n in names)
