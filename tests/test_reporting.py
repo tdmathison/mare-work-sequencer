@@ -1,10 +1,23 @@
-import io,json,zipfile
+import io,json,shutil,subprocess,zipfile
 from pathlib import Path
 from docx import Document
 from werkzeug.security import generate_password_hash
 from app import app,db,run,package,ROOT,ensure_package
-from reporting import TOKENS,OUTPUT,template_sections,defang
+from reporting import TOKENS,OUTPUT,template_sections,defang,convert_docx_to_pdf
 import report_routes
+
+def test_docx_to_pdf_uses_headless_libreoffice(monkeypatch,tmp_path):
+    source=tmp_path/'report.docx';source.write_bytes(b'docx')
+    destination=tmp_path/'report.pdf'
+    monkeypatch.setattr(shutil,'which',lambda name:'/usr/bin/soffice' if name=='soffice' else None)
+    def fake_run(command,**kwargs):
+        output=Path(command[command.index('--outdir')+1])
+        (output/(source.stem+'.pdf')).write_bytes(b'%PDF-1.4\n%%EOF\n')
+        assert '--headless' in command and kwargs['timeout']==120
+        return subprocess.CompletedProcess(command,0,'','')
+    monkeypatch.setattr(subprocess,'run',fake_run)
+    convert_docx_to_pdf(source,destination)
+    assert destination.read_bytes().startswith(b'%PDF-')
 
 def test_report_pipeline_and_private_settings(monkeypatch,tmp_path):
     with app.app_context():
@@ -56,7 +69,7 @@ def test_report_pipeline_and_private_settings(monkeypatch,tmp_path):
     post(f'/cases/{cid}/stage',expected='1')
     post(f'/cases/{cid}/stage',expected='2')
     archive=post(f'/cases/{cid}/archive',acknowledge='1');assert archive.status_code==200
-    z=zipfile.ZipFile(io.BytesIO(archive.data));assert all('/backups/' not in n for n in z.namelist());assert any(n.endswith('.docx') for n in z.namelist())
+    z=zipfile.ZipFile(io.BytesIO(archive.data));assert all('/backups/' not in n for n in z.namelist());assert any(n.endswith('.pdf') for n in z.namelist());assert not any(n.endswith('/'+report_rel) for n in z.namelist())
     # Preserve a Word file for internal render QA outside the deliverable archive.
     import shutil
     shutil.copy2(report,'/tmp/mare-report-qa.docx')
@@ -88,14 +101,15 @@ def test_manual_generation_and_final_word_upload(monkeypatch,tmp_path):
     assert any('Formatting saved Markdown locally' in m for m in status['job']['messages'])
     with app.app_context():assert not db().execute("SELECT 1 FROM sqlite_master WHERE name='ai_settings'").fetchone()
     report_rel=client.get(f'/cases/{cid}/report-job').json['report_path'];report=root/report_rel;old=report.read_bytes();document=Document(report);document.add_paragraph('FINAL ANALYST REVISION');final=tmp_path/'edited.docx';document.save(final)
+    assert report.with_suffix('.pdf').is_file()
     response=post(f'/cases/{cid}/final-report',report=(io.BytesIO(final.read_bytes()),'Edited report.docx'),backup='1');assert response.status_code==200
-    assert report.read_bytes()==final.read_bytes()
+    assert report.read_bytes()==final.read_bytes() and report.with_suffix('.pdf').is_file()
     backups=list((root/'reports/backups').glob('*.docx'));assert len(backups)==1 and backups[0].read_bytes()==old
     page=client.get(f'/cases/{cid}').data;assert b'Open latest Word report' in page and b'Expand editor' in page
     download=client.get(f'/cases/{cid}/file?path={report_rel}&download=1');assert download.data==final.read_bytes()
     post(f'/cases/{cid}/stage',expected='1')
     post(f'/cases/{cid}/stage',expected='2')
     archive=post(f'/cases/{cid}/archive',acknowledge='1');assert archive.status_code==200
-    z=zipfile.ZipFile(io.BytesIO(archive.data));assert z.read(next(n for n in z.namelist() if n.endswith('/'+report_rel)))==final.read_bytes();assert all('/backups/' not in n for n in z.namelist())
+    z=zipfile.ZipFile(io.BytesIO(archive.data));assert z.read(next(n for n in z.namelist() if n.endswith('/'+report_rel)))==final.read_bytes();assert any(n.endswith('.pdf') for n in z.namelist()) and all('/backups/' not in n for n in z.namelist())
     import shutil
     shutil.copy2(report,'/tmp/mare-manual-report-qa.docx')

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from reporting import is_backup, OUTPUT, current_report
+from reporting import is_backup, OUTPUT, current_report, convert_docx_to_pdf
 from mip import create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
 
 STAGES=['Not started','Malware Analysis','Packaging & Delivery','Completed']
@@ -185,6 +185,7 @@ def raw_package_file(rel):
 
 def deliverable_file(cid,rel):
     if not raw_package_file(rel):return False
+    if rel.startswith('reports/') and Path(rel).suffix.lower()=='.docx' and rel==current_report(case(cid),package(cid)):return False
     if rel.startswith('reports/sections/'):return False
     if rel.startswith('reports/') and Path(rel).suffix.lower()=='.md':return False
     p=package(cid)/rel
@@ -572,6 +573,14 @@ def archive(cid):
     word=root/current_report(c,root)
     if not (word.is_file() and word.stat().st_size>0) and (not report.exists() or not report.read_text(errors='replace').strip() or report.read_text(errors='replace').strip()==REPORT_TEMPLATE.strip()): flash('A completed analysis report is required.'); return redirect(f'/cases/{cid}')
     if archive_type=='standard' and not (word.is_file() and word.stat().st_size>0):flash('Generate or upload the Word report before downloading the Standard archive.');return redirect(f'/cases/{cid}?tab=report')
+    if word.is_file() and word.stat().st_size>0:
+        pdf=word.with_suffix('.pdf')
+        needs_pdf=not pdf.is_file() or pdf.stat().st_mtime_ns<word.stat().st_mtime_ns
+        if not needs_pdf:
+            with pdf.open('rb') as source:needs_pdf=source.read(5)!=b'%PDF-'
+        if needs_pdf:
+            try:convert_docx_to_pdf(word,pdf)
+            except ValueError as exc:flash(str(exc));return redirect(f'/cases/{cid}?tab=report')
     out,name=backup_helpers['case_backup'](cid) if archive_type=='raw' else build_archive(cid,archive_type)
     audit(f'Exported MIP for case {cid}');response=send_file(out,as_attachment=True,download_name=name+'.zip',mimetype='application/zip');response.call_on_close(out.close);return response
 

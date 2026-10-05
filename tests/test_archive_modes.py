@@ -24,7 +24,8 @@ def test_archive_modes_previews_and_alignment(tmp_path):
         expected_suffix='-MIP-Archive_modes'+('-RAW' if kind=='raw' else '')+'.zip'
         assert response.headers['Content-Disposition'].endswith(expected_suffix)
         z=zipfile.ZipFile(io.BytesIO(response.data));names=z.namelist()
-        assert any(n.endswith('malware-analysis-report.docx') for n in names)
+        assert any(n.endswith('malware-analysis-report.pdf') for n in names)
+        assert any(n.endswith('malware-analysis-report.docx') for n in names)==(kind=='raw')
         assert not any('/backups/' in n for n in names)
         assert any(n.endswith('reports/malware-analysis-report.md') for n in names)==(kind=='raw')
         assert any('/reports/sections/assets/' in n for n in names)==(kind=='raw')

@@ -1,5 +1,5 @@
 """Report extraction and Word rendering. Uploaded content is data, never executed."""
-import re, zipfile
+import os, re, shutil, subprocess, tempfile, zipfile
 from pathlib import Path
 from docx import Document
 from docx.oxml import OxmlElement
@@ -10,6 +10,20 @@ SECTIONS={'executive_summary':'Executive Summary','key_findings':'Key Findings',
 GENERATED={'mitre_attack_mapping':'MITRE ATT&CK Mapping','mitre_mbc_mapping':'MITRE MBC Mapping','indicators_of_compromise':'Indicators of Compromise','appendices':'Appendices'}
 TOKENS={**SECTIONS,**GENERATED}
 OUTPUT='reports/malware-analysis-report.docx'
+
+def convert_docx_to_pdf(source,destination):
+    executable=shutil.which('libreoffice') or shutil.which('soffice')
+    if not executable:raise ValueError('Install LibreOffice Writer to generate PDF reports.')
+    source=Path(source);destination=Path(destination)
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='mare-pdf-') as directory:
+        temporary=Path(directory);output=temporary/'output';output.mkdir()
+        command=[executable,'-env:UserInstallation='+(temporary/'profile').as_uri(),'--headless','--convert-to','pdf','--outdir',str(output),str(source)]
+        try:result=subprocess.run(command,capture_output=True,text=True,timeout=120)
+        except (OSError,subprocess.TimeoutExpired) as exc:raise ValueError('LibreOffice could not render the Word report as PDF.') from exc
+        converted=output/(source.stem+'.pdf')
+        if result.returncode or not converted.is_file() or not converted.stat().st_size:raise ValueError('LibreOffice could not render the Word report as PDF.')
+        os.replace(converted,destination)
 
 def report_filename(c,date=None):
     from datetime import datetime,timezone
