@@ -105,7 +105,8 @@ def test_manual_generation_and_final_word_upload(monkeypatch,tmp_path):
     response=post(f'/cases/{cid}/final-report',report=(io.BytesIO(final.read_bytes()),'Edited report.docx'),backup='1');assert response.status_code==200
     assert report.read_bytes()==final.read_bytes() and report.with_suffix('.pdf').is_file()
     backups=list((root/'reports/backups').glob('*.docx'));assert len(backups)==1 and backups[0].read_bytes()==old
-    page=client.get(f'/cases/{cid}').data;assert b'Open latest Word report' in page and b'Expand editor' in page
+    page=client.get(f'/cases/{cid}').data.decode();reports_directory=page.split('id="readiness-reports"',1)[1].split('</article>',1)[0]
+    assert 'Open latest Word report' in page and 'Expand editor' in page and report_rel in reports_directory and report.with_suffix('.pdf').name in reports_directory
     download=client.get(f'/cases/{cid}/file?path={report_rel}&download=1');assert download.data==final.read_bytes()
     post(f'/cases/{cid}/stage',expected='1')
     post(f'/cases/{cid}/stage',expected='2')

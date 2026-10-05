@@ -36,6 +36,9 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         expired();row=db().execute('SELECT * FROM report_jobs WHERE case_id=? ORDER BY started DESC,rowid DESC LIMIT 1',(cid,)).fetchone()
         if not row:return None
         return {'id':row['id'],'status':row['status'],'messages':json.loads(row['progress']),'updated':row['updated']}
+    def report_outputs(cid):
+        root=package(cid);word=Path(current_report(case(cid),root))
+        return [{'path':path.as_posix(),'size':(root/path).stat().st_size} for path in (word,word.with_suffix('.pdf')) if (root/path).is_file()]
     @app.context_processor
     def report_context():
         if not g.get('user'):return {}
@@ -67,8 +70,8 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         run('DELETE FROM word_templates WHERE id=?',(tid,));run("UPDATE report_settings SET template_id='' WHERE user_id=? AND template_id=?",(g.user['id'],tid));(ROOT/'users'/str(g.user['id'])/'templates'/(tid+'.docx')).unlink(missing_ok=True);flash('Template removed.');return redirect('/account')
     @app.get('/cases/<int:cid>/report-data')
     def report_data(cid):
-        case(cid)
-        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(package(cid)/current_report(case(cid),package(cid))).exists(),'report_path':current_report(case(cid),package(cid))}
+        c=case(cid);root=package(cid);path=current_report(c,root)
+        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid)}
     def persist_sections(cid,form):
         root=ensure_package(cid)/'reports/sections';root.mkdir(exist_ok=True)
         for key in TOKENS:
@@ -85,7 +88,8 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         return {'saved':True} if request.form.get('ajax')=='1' else redirect(f'/cases/{cid}')
     @app.get('/cases/<int:cid>/report-job')
     def report_job(cid):
-        case(cid);return {'job':job_data(cid),'report_exists':(package(cid)/current_report(case(cid),package(cid))).exists(),'report_path':current_report(case(cid),package(cid))}
+        c=case(cid);root=package(cid);path=current_report(c,root)
+        return {'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid)}
     def worker(jid,cid,uid,template,snapshot,sections,mode,expected_digest,indicator_snapshot,reference_snapshot,previous_path,output_path):
         import hashlib
         def progress(message,status='running'):
@@ -179,7 +183,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
             if target.exists() and request.form.get('backup')=='1':
                 folder=package(cid)/'reports/backups';folder.mkdir(exist_ok=True);shutil.copy2(target,folder/(now().replace(':','').replace('+','_')+'-'+secrets.token_hex(4)+'-'+target.name))
             os.replace(temp,target);os.replace(pdf_temp,target.with_suffix('.pdf'));connection.execute('UPDATE cases SET report_path=? WHERE id=?',(path,cid));connection.commit();mark_pending(cid,path);audit(f'Uploaded edited Word report for case {cid}')
-            return {'saved':True,'report_exists':True,'report_path':path}
+            return {'saved':True,'report_exists':True,'report_path':path,'report_files':report_outputs(cid)}
         except ValueError as exc:return {'error':str(exc)},400
         except Exception:return {'error':'The edited report could not be saved. Check that it is a valid DOCX.'},400
         finally:
