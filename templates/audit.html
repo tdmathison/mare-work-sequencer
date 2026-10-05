@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h1>Audit history</h1><section class="panel"><div class="table-scroll"><table><tr><th>Time (UTC)</th><th>Actor</th><th>Action</th></tr>{% for e in events %}<tr><td>{{e.created}}</td><td>{{e.actor}}</td><td>{{e.action}}</td></tr>{% endfor %}</table></div></section>{% endblock %}
