@@ -71,7 +71,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     @app.get('/cases/<int:cid>/report-data')
     def report_data(cid):
         c=case(cid);root=package(cid);path=current_report(c,root)
-        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid)}
+        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid),'pdf_converter_available':bool(shutil.which('libreoffice') or shutil.which('soffice'))}
     def persist_sections(cid,form):
         root=ensure_package(cid)/'reports/sections';root.mkdir(exist_ok=True)
         for key in TOKENS:
@@ -90,7 +90,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     def report_job(cid):
         c=case(cid);root=package(cid);path=current_report(c,root)
         return {'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid)}
-    def worker(jid,cid,uid,template,snapshot,sections,mode,expected_digest,indicator_snapshot,reference_snapshot,previous_path,output_path):
+    def worker(jid,cid,uid,template,snapshot,sections,mode,expected_digest,indicator_snapshot,reference_snapshot,previous_path,output_path,generate_pdf):
         import hashlib
         def progress(message,status='running'):
             row=db().execute('SELECT progress FROM report_jobs WHERE id=?',(jid,)).fetchone();messages=json.loads(row['progress']);messages.append(message)
@@ -110,8 +110,10 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
                 if manual(cid)!=sections:raise ValueError('The saved manual report sections changed during generation. The existing report was preserved; retry using the updated sections.')
                 temp=snapshot/'report.docx';fill_template(template,temp,{**sections,**generated},case(cid)['number'],case(cid)['name'],indicators=indicator_snapshot,references=reference_snapshot,assets_root=package(cid)/'reports/sections')
                 progress('Populating the Word template and saving the report.')
-                progress('Rendering the report as PDF.')
-                pdf_temp=snapshot/'report.pdf';convert_docx_to_pdf(temp,pdf_temp)
+                pdf_temp=snapshot/'report.pdf'
+                if generate_pdf:
+                    progress('Rendering the report as PDF.')
+                    convert_docx_to_pdf(temp,pdf_temp)
                 (package(cid)/'reports/indicators-of-compromise.md').unlink(missing_ok=True)
                 target=package(cid)/previous_path
                 digest=hashlib.sha256(target.read_bytes()).hexdigest() if target.exists() else ''
@@ -121,7 +123,8 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
                 destination=package(cid)/output_path
                 if destination!=target and destination.exists():raise ValueError('The new report filename already exists. Rename that asset before generating.')
                 os.replace(temp,destination)
-                os.replace(pdf_temp,destination.with_suffix('.pdf'))
+                if generate_pdf:os.replace(pdf_temp,destination.with_suffix('.pdf'))
+                else:destination.with_suffix('.pdf').unlink(missing_ok=True)
                 if target!=destination:
                     target.unlink(missing_ok=True)
                     target.with_suffix('.pdf').unlink(missing_ok=True)
@@ -129,9 +132,12 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
                 if previous_path!=output_path:run('DELETE FROM artifacts WHERE case_id=? AND path=?',(cid,previous_path))
                 mark_pending(cid,output_path)
                 run('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(str(uid),f'Generated Word report for case {cid}',now()))
-                progress('Complete. The Word and PDF reports are saved in reports/. Finish editing in Word, then upload the final copy before delivery.','completed')
+                complete='Complete. The Word report and its PDF are saved in reports. ' if generate_pdf else 'Complete. The Word report is saved in reports without a PDF. Upload a manually converted PDF to Reports/ when ready. '
+                progress(complete+'Finish editing in Word, then upload the final copy before delivery.','completed')
             except Exception as exc:
-                message=str(exc)[:500] if isinstance(exc,ValueError) else 'Report generation failed. Verify the template and source files, then retry.'
+                message=str(exc).strip() or type(exc).__name__
+                if not isinstance(exc,ValueError):message=type(exc).__name__+': '+message
+                message=message[:500]
                 progress(message,'failed')
             finally:shutil.rmtree(snapshot,ignore_errors=True)
     @app.post('/cases/<int:cid>/generate-report')
@@ -143,7 +149,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         if not s['template_id']:return {'error':'Select a Word template in Settings first.'},400
         template_row=db().execute('SELECT * FROM word_templates WHERE id=? AND user_id=?',(s['template_id'],uid)).fetchone()
         if not template_row:return {'error':'Select an available template in Settings.'},400
-        root=ensure_package(cid);previous_path=current_report(c,root);output_path='reports/'+report_filename(c);target=root/previous_path;mode=request.form.get('previous','')
+        root=ensure_package(cid);previous_path=current_report(c,root);output_path='reports/'+report_filename(c);target=root/previous_path;mode=request.form.get('previous','');generate_pdf=request.form.get('generate_pdf','1')!='0'
         if output_path!=previous_path and (root/output_path).exists():return {'error':'The new report filename already exists. Rename that asset before generating.'},409
         if target.exists() and mode not in ('backup','overwrite'):return {'error':'Choose whether to back up the existing report before replacement.','needs_choice':True},409
         expired()
@@ -159,7 +165,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
             if not any(v.strip() for v in sections.values()):raise ValueError('Enter manual report content before generating a report.')
             template=snapshot/'template.docx';shutil.copy2(ROOT/'users'/str(uid)/'templates'/(s['template_id']+'.docx'),template)
             expected=hashlib.sha256(target.read_bytes()).hexdigest() if target.exists() else ''
-            thread=threading.Thread(target=worker,args=(jid,cid,uid,template,snapshot,sections,mode,expected,report_table(load_table(db,cid)),load_references(db,cid),previous_path,output_path),daemon=True);thread.start()
+            thread=threading.Thread(target=worker,args=(jid,cid,uid,template,snapshot,sections,mode,expected,report_table(load_table(db,cid)),load_references(db,cid),previous_path,output_path,generate_pdf),daemon=True);thread.start()
             audit(f'Started report generation for case {cid}');return {'job_id':jid},202
         except Exception as exc:
             run("UPDATE report_jobs SET status='failed',progress=? WHERE id=?",(json.dumps(['Could not start report generation. '+(str(exc) if isinstance(exc,ValueError) else 'Check saved settings and template.')]),jid));shutil.rmtree(snapshot,ignore_errors=True)
@@ -174,7 +180,9 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         try:
             f.save(temp)
             if temp.stat().st_size>20*1024*1024:raise ValueError('Final report limit is 20 MiB.')
-            validate_docx(temp);convert_docx_to_pdf(temp,pdf_temp);expired();connection=db();connection.execute('BEGIN IMMEDIATE')
+            validate_docx(temp);generate_pdf=request.form.get('generate_pdf','1')!='0'
+            if generate_pdf:convert_docx_to_pdf(temp,pdf_temp)
+            expired();connection=db();connection.execute('BEGIN IMMEDIATE')
             if connection.execute("SELECT 1 FROM report_jobs WHERE case_id=? AND status IN ('queued','running')",(cid,)).fetchone():
                 connection.rollback();return {'error':'Wait for active report generation to finish before uploading an edited copy.'},409
             c=case(cid);root=ensure_package(cid);path=current_report(c,root)
@@ -182,7 +190,10 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
             target=root/path
             if target.exists() and request.form.get('backup')=='1':
                 folder=package(cid)/'reports/backups';folder.mkdir(exist_ok=True);shutil.copy2(target,folder/(now().replace(':','').replace('+','_')+'-'+secrets.token_hex(4)+'-'+target.name))
-            os.replace(temp,target);os.replace(pdf_temp,target.with_suffix('.pdf'));connection.execute('UPDATE cases SET report_path=? WHERE id=?',(path,cid));connection.commit();mark_pending(cid,path);audit(f'Uploaded edited Word report for case {cid}')
+            os.replace(temp,target)
+            if generate_pdf:os.replace(pdf_temp,target.with_suffix('.pdf'))
+            else:target.with_suffix('.pdf').unlink(missing_ok=True)
+            connection.execute('UPDATE cases SET report_path=? WHERE id=?',(path,cid));connection.commit();mark_pending(cid,path);audit(f'Uploaded edited Word report for case {cid}')
             return {'saved':True,'report_exists':True,'report_path':path,'report_files':report_outputs(cid)}
         except ValueError as exc:return {'error':str(exc)},400
         except Exception:return {'error':'The edited report could not be saved. Check that it is a valid DOCX.'},400

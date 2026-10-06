@@ -13,16 +13,18 @@ OUTPUT='reports/malware-analysis-report.docx'
 
 def convert_docx_to_pdf(source,destination):
     executable=shutil.which('libreoffice') or shutil.which('soffice')
-    if not executable:raise ValueError('Install LibreOffice Writer to generate PDF reports.')
+    if not executable:raise ValueError('PDF conversion unavailable: LibreOffice Writer was not found on PATH (expected libreoffice or soffice).')
     source=Path(source);destination=Path(destination)
     destination.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='mare-pdf-') as directory:
         temporary=Path(directory);output=temporary/'output';output.mkdir()
         command=[executable,'-env:UserInstallation='+(temporary/'profile').as_uri(),'--headless','--convert-to','pdf','--outdir',str(output),str(source)]
-        try:result=subprocess.run(command,capture_output=True,text=True,timeout=120)
-        except (OSError,subprocess.TimeoutExpired) as exc:raise ValueError('LibreOffice could not render the Word report as PDF.') from exc
+        try:result=subprocess.run(command,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=120)
+        except (OSError,subprocess.TimeoutExpired) as exc:raise ValueError('LibreOffice PDF conversion failed: '+str(exc)[:300]) from exc
         converted=output/(source.stem+'.pdf')
-        if result.returncode or not converted.is_file() or not converted.stat().st_size:raise ValueError('LibreOffice could not render the Word report as PDF.')
+        if result.returncode or not converted.is_file() or not converted.stat().st_size:
+            detail=(result.stderr or result.stdout).strip()
+            raise ValueError('LibreOffice PDF conversion failed'+(': '+detail[:300] if detail else ' (exit '+str(result.returncode)+', no output PDF).'))
         os.replace(converted,destination)
 
 def report_filename(c,date=None):

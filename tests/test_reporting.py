@@ -96,21 +96,25 @@ def test_manual_generation_and_final_word_upload(monkeypatch,tmp_path):
     monkeypatch.setattr(report_routes.threading,'Thread',InlineThread)
     sections={key:'Analyst content for '+label for key,label in TOKENS.items()}
     sections['indicators_of_compromise']='| Type | Value | Description |\n|---|---|---|\n| Domain | manual[.]example | Analyst observed |'
-    assert post(f'/cases/{cid}/generate-report',generation_mode='manual',**sections).status_code==202
+    assert post(f'/cases/{cid}/generate-report',generation_mode='manual',generate_pdf='0',**sections).status_code==202
     status=client.get(f'/cases/{cid}/report-job').json;assert status['job']['status']=='completed',status
     assert any('Formatting saved Markdown locally' in m for m in status['job']['messages'])
+    assert not any('Rendering the report as PDF' in m for m in status['job']['messages'])
     with app.app_context():assert not db().execute("SELECT 1 FROM sqlite_master WHERE name='ai_settings'").fetchone()
     report_rel=client.get(f'/cases/{cid}/report-job').json['report_path'];report=root/report_rel;old=report.read_bytes();document=Document(report);document.add_paragraph('FINAL ANALYST REVISION');final=tmp_path/'edited.docx';document.save(final)
-    assert report.with_suffix('.pdf').is_file()
-    response=post(f'/cases/{cid}/final-report',report=(io.BytesIO(final.read_bytes()),'Edited report.docx'),backup='1');assert response.status_code==200
-    assert report.read_bytes()==final.read_bytes() and report.with_suffix('.pdf').is_file()
+    assert not report.with_suffix('.pdf').exists()
+    response=post(f'/cases/{cid}/final-report',report=(io.BytesIO(final.read_bytes()),'Edited report.docx'),backup='1',generate_pdf='0');assert response.status_code==200
+    assert report.read_bytes()==final.read_bytes() and not report.with_suffix('.pdf').exists()
     backups=list((root/'reports/backups').glob('*.docx'));assert len(backups)==1 and backups[0].read_bytes()==old
+    pdf_rel=report.with_suffix('.pdf').relative_to(root).as_posix()
+    upload=post(f'/cases/{cid}/upload',category='reports',file=(io.BytesIO(b'%PDF-1.4\n%%EOF\n'),Path(pdf_rel).name))
+    assert upload.status_code==302 and (root/pdf_rel).is_file()
     page=client.get(f'/cases/{cid}').data.decode();reports_directory=page.split('id="readiness-reports"',1)[1].split('</article>',1)[0]
-    assert 'Open latest Word report' in page and 'Expand editor' in page and report_rel in reports_directory and report.with_suffix('.pdf').name in reports_directory
+    assert 'Open latest Word report' in page and 'Expand editor' in page and report_rel in reports_directory and Path(pdf_rel).name in reports_directory
     download=client.get(f'/cases/{cid}/file?path={report_rel}&download=1');assert download.data==final.read_bytes()
     post(f'/cases/{cid}/stage',expected='1')
     post(f'/cases/{cid}/stage',expected='2')
     archive=post(f'/cases/{cid}/archive',acknowledge='1');assert archive.status_code==200
-    z=zipfile.ZipFile(io.BytesIO(archive.data));assert z.read(next(n for n in z.namelist() if n.endswith('/'+report_rel)))==final.read_bytes();assert any(n.endswith('.pdf') for n in z.namelist()) and all('/backups/' not in n for n in z.namelist())
+    z=zipfile.ZipFile(io.BytesIO(archive.data));assert not any(n.endswith('/'+report_rel) for n in z.namelist());assert any(n.endswith('/'+pdf_rel) for n in z.namelist()) and all('/backups/' not in n for n in z.namelist())
     import shutil
     shutil.copy2(report,'/tmp/mare-manual-report-qa.docx')

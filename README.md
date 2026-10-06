@@ -6,7 +6,6 @@ A self-hosted Python workbench for building a Malware Intelligence Package while
 
 ```bash
 cd mare-work-sequencer
-sudo apt install libreoffice-writer
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -125,7 +124,7 @@ The Report tab contains four Markdown editors: Executive Summary, Key Findings, 
 
 Generate Word Report inserts the saved IOC table and References table along with narrative Markdown. Under Appendices it creates a Links subsection containing Link and Description columns; HTTP/HTTPS URLs are clickable in Word. MITRE sections remain available in the template for analyst editing; local generation does not infer mappings.
 
-Newly generated reports are saved as matching `.docx` and `.pdf` files under `reports/`; PDF rendering uses headless LibreOffice Writer. Install the `libreoffice-writer` system package before generating or exporting reports. Uploading an edited DOCX replaces the tracked Word report and refreshes its PDF. The case number uses the external reference when present, otherwise the six-digit system sequence. A leading `YYYYMMDD:` is stripped from the title; spaces, dots, slashes, and other filename-unsafe characters become underscores, with consecutive underscores collapsed. Open latest Word report downloads the tracked report for local editing. Existing legacy report filenames remain usable until regeneration. RAW backups preserve the tracked report path. Regeneration asks whether to back up the old copy first. Backups are excluded from exports, previews, and source collection.
+Newly generated reports are saved under `reports/`. The Generate Word Report control can also create a matching PDF using headless LibreOffice Writer; it defaults on when `libreoffice` or `soffice` is available and can be unchecked to generate DOCX only on other platforms. To provide a PDF manually, convert the Word file and upload the PDF with the same base filename to the Reports category using the Asset manager. The same checkbox controls PDF conversion when saving an edited DOCX. The case number uses the external reference when present, otherwise the six-digit system sequence. A leading `YYYYMMDD:` is stripped from the title; spaces, dots, slashes, and other filename-unsafe characters become underscores, with consecutive underscores collapsed. Open latest Word report downloads the tracked report for local editing. Existing legacy report filenames remain usable until regeneration. RAW backups preserve the tracked report path. Regeneration asks whether to back up the old copy first. Backups are excluded from exports, previews, and source collection.
 
 ### Indicators
 
@@ -163,7 +162,7 @@ This update adds Pillow, linkify-it-py, and mdit-py-plugins. Run `pip install -r
 
 ## Standard and RAW archives
 
-Review & Export offers two download buttons and matching Standard/RAW preview tabs. Standard is the stakeholder deliverable: it includes the PDF report and deliverable files, but excludes the tracked Word report, Markdown under reports/, and all report editor source/image assets under reports/sections/. RAW includes both Word and PDF reports, working Markdown, report images, untouched scaffold files, and export-selected notes within the six MIP directories. RAW filenames end in -RAW.zip. Both archives exclude backups, symlinks, legacy sample payload directories, and application secrets; neither exports unsaved browser editor changes. README.md and manifest.json are generated in both modes, and the manifest records archive_type. Standard requires a Word report. The Package tab and its file counts show Standard deliverable content.
+Review & Export offers two download buttons and matching Standard/RAW preview tabs. Standard is the stakeholder deliverable: it includes the matching PDF report and deliverable files, but excludes the tracked Word report, Markdown under reports/, and all report editor source/image assets under reports/sections/. RAW includes both Word and PDF reports when available, working Markdown, report images, untouched scaffold files, and export-selected notes within the six MIP directories. RAW filenames end in -RAW.zip. Both archives exclude backups, symlinks, legacy sample payload directories, and application secrets; neither exports unsaved browser editor changes. README.md and manifest.json are generated in both modes, and the manifest records archive_type. Standard requires a Word report and a matching PDF; provide the PDF manually on platforms without LibreOffice. The Package tab and its file counts show Standard deliverable content.
 
 Report toolbars now offer Word wrap (enabled by default), Left/Center/Right alignment, and Paragraph/Heading 1–6/Quote/Code block styles. Word wrap is a view setting and does not alter saved text. Line-number heights follow wrapped logical lines. Alignment commands wrap the selected/current block in ::: align-left, ::: align-center, or ::: align-right containers; these are supported in preview and Word generation. Save editor changes before downloading RAW so its sources match your work.
 
