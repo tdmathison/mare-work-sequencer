@@ -2,7 +2,10 @@
  document.addEventListener('paste',event=>{
   const area=event.target.closest?.('.markdown-input');
   if(!area||area.closest('fieldset:disabled'))return;
-  const files=Array.from(event.clipboardData?.items||[])
+    const clipboard=event.clipboardData,items=Array.from(clipboard?.items||[]);
+    const types=new Set([...Array.from(clipboard?.types||[]),...items.map(item=>item.type)].map(type=>type.toLowerCase()));
+    if([...types].some(type=>type.startsWith('text/')||type==='application/rtf'))return;
+    const files=items
    .filter(item=>item.kind==='file'&&item.type.startsWith('image/'))
    .map(item=>item.getAsFile())
    .filter(Boolean);
