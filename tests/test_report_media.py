@@ -63,3 +63,31 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     assert post('/assets/delete',path='../../session.key').status_code==400
     page=client.get(base).data
     assert b'line-numbers' in page and b'data-md="table"' in page and b'Asset manager' in page
+
+def test_asset_manager_hides_and_protects_managed_report_markdown():
+    with app.app_context():
+        uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('report-assets',generate_password_hash('password-long-123'),'User')).lastrowid
+        cid=run("INSERT INTO cases(number,name,created,stage) VALUES('REPORT-ASSETS','Report assets','2026',1)").lastrowid
+        root=ensure_package(cid)
+        (root/'reports/sections').mkdir(exist_ok=True)
+        editor_paths=[f'reports/sections/{key}.md' for key in ('executive_summary','key_findings','detection_opportunities','reverse_engineering_findings')]
+        for path in editor_paths:(root/path).write_text('Managed report editor content')
+        (root/'reports/indicators-of-compromise.md').write_text('Generated indicators')
+        (root/'reports/custom-analysis.md').write_text('# User-authored report notes')
+        (root/'reports/sections/user-authored.md').write_text('# User-authored section notes')
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='report-assets-token')
+    base=f'/cases/{cid}'
+    def post(endpoint,**data):return client.post(base+endpoint,data={'csrf':'report-assets-token',**data})
+    listed={item['path'] for item in client.get(base+'/assets?category=reports').json['files']}
+    protected=editor_paths+['reports/indicators-of-compromise.md','reports/executive-summary.md','reports/malware-analysis-report.md']
+    assert not listed.intersection(protected)
+    assert {'reports/custom-analysis.md','reports/sections/user-authored.md'}<=listed
+    assert post('/assets/delete',path='reports/sections/user-authored.md').json['deleted']
+    for rel in protected:
+        assert post('/assets/delete',path=rel).status_code==400
+        assert (root/rel).is_file()
+    (root/'reports/executive-summary.md').write_text('# Analyst executive summary')
+    (root/'reports/malware-analysis-report.md').write_text('# Analyst final report')
+    listed={item['path'] for item in client.get(base+'/assets?category=reports').json['files']}
+    assert {'reports/executive-summary.md','reports/malware-analysis-report.md'}<=listed

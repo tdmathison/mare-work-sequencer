@@ -2,6 +2,17 @@ import io,re,secrets
 from pathlib import Path
 from flask import request,send_file,abort
 from reporting import SECTIONS,is_backup
+from mip import OPTIONAL_TEMPLATES,REPORT_TEMPLATE
+
+REPORT_EDITOR_MARKDOWN={f'reports/sections/{key}.md' for key in SECTIONS}
+REPORT_EDITOR_MARKDOWN.add('reports/sections/threat_overview.md')
+PROTECTED_REPORT_MARKDOWN=REPORT_EDITOR_MARKDOWN|{'reports/indicators-of-compromise.md'}
+INTERNAL_REPORT_SCAFFOLDS={'reports/executive-summary.md':OPTIONAL_TEMPLATES['reports/executive-summary.md'],'reports/malware-analysis-report.md':REPORT_TEMPLATE}
+
+def hidden_internal_markdown(rel,path):
+    if rel in PROTECTED_REPORT_MARKDOWN:return True
+    template=INTERNAL_REPORT_SCAFFOLDS.get(rel)
+    return template is not None and path.read_text(errors='replace').strip()==template.strip()
 
 def register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,audit):
     with app.app_context():
@@ -81,7 +92,7 @@ def register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,au
         for path in sorted((root/category).rglob('*')):
             rel=path.relative_to(root).as_posix()
             if not path.is_file() or path.is_symlink() or is_backup(rel):continue
-            if rel=='reports/indicators-of-compromise.md' or (rel.startswith('reports/sections/') and not rel.startswith('reports/sections/assets/')):continue
+            if hidden_internal_markdown(rel,path):continue
             files.append({'path':rel,'size':path.stat().st_size})
         return {'files':files}
     @app.post('/cases/<int:cid>/assets/delete')
@@ -92,7 +103,9 @@ def register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,au
         if busy(cid):return {'error':'Wait for report generation to finish before deleting assets.'},409
         path=safe_path(cid,rel)
         if not path.is_file():abort(404)
-        if rel.startswith('reports/sections/') and not rel.startswith('reports/sections/assets/'):abort(400)
+        if rel in PROTECTED_REPORT_MARKDOWN:abort(400)
+        template=INTERNAL_REPORT_SCAFFOLDS.get(rel)
+        if template is not None and path.read_text(errors='replace').strip()==template.strip():abort(400)
         if rel.startswith('reports/sections/assets/'):remove_image(cid,path.name)
         else:path.unlink();mark_pending(cid,rel)
         db().execute('DELETE FROM artifacts WHERE case_id=? AND path=?',(cid,rel));db().commit()
