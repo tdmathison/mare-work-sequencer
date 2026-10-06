@@ -1,5 +1,5 @@
 import shutil
-import os, sqlite3, secrets, functools, json, re, io, zipfile, hashlib
+import os, sqlite3, secrets, functools, json, re, io, zipfile, hashlib, csv
 from pathlib import Path
 from datetime import datetime, timezone
 from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g
@@ -651,7 +651,30 @@ def user_action(uid,action):
     audit(f'{action} user {u["username"]}'); return redirect('/users')
 @app.get('/audit')
 @admin
-def audit_view(): return render_template('audit.html',events=db().execute('SELECT * FROM audit ORDER BY id DESC LIMIT 500').fetchall())
+def audit_view():
+    actors=[row['actor'] for row in db().execute("SELECT DISTINCT actor FROM audit WHERE actor IS NOT NULL AND actor!='' ORDER BY actor")]
+    selected_actor=request.args.get('actor','')
+    query='SELECT * FROM audit';args=()
+    if selected_actor:query+=' WHERE actor=?';args=(selected_actor,)
+    events=db().execute(query+' ORDER BY id DESC LIMIT 500',args).fetchall()
+    grouped={}
+    for event in events:
+        created=event['created'] or ''
+        day=created[:10] if len(created)>=10 else 'Unknown date'
+        grouped.setdefault(day,[]).append(event)
+    days=[{'date':day,'events':items} for day,items in grouped.items()]
+    return render_template('audit.html',actors=actors,selected_actor=selected_actor,days=days)
+@app.get('/audit/export.csv')
+@admin
+def audit_export_csv():
+    actor=request.args.get('actor','')
+    query='SELECT created,actor,action FROM audit';args=()
+    if actor:query+=' WHERE actor=?';args=(actor,)
+    output=io.StringIO(newline='');writer=csv.writer(output)
+    writer.writerow(['Time (UTC)','User','Action'])
+    for event in db().execute(query+' ORDER BY id DESC',args):writer.writerow([event['created'],event['actor'],event['action']])
+    data=io.BytesIO(output.getvalue().encode('utf-8-sig'))
+    return send_file(data,as_attachment=True,download_name='audit-events.csv',mimetype='text/csv')
 @app.cli.command('create-admin')
 def create_admin():
     import click
