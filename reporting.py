@@ -180,7 +180,12 @@ def inline(paragraph,tokens,assets_root=None):
                 path=Path(assets_root)/source
                 if not path.is_file():raise ValueError('A report image is missing. Remove its Markdown reference or upload it again.')
                 from docx.shared import Inches
-                picture=paragraph.add_run().add_picture(str(path),width=Inches(5.5))
+                picture=paragraph.add_run().add_picture(str(path))
+                maximum_width=Inches(5.5)
+                if picture.width>maximum_width:
+                    scale=maximum_width/picture.width
+                    picture.height=int(picture.height*scale)
+                    picture.width=maximum_width
                 line=OxmlElement('a:ln');line.set('w','9525')
                 fill=OxmlElement('a:solidFill');color=OxmlElement('a:srgbClr');color.set('val','444444');fill.append(color);line.append(fill)
                 picture._inline.graphic.graphicData.pic.spPr.append(line)

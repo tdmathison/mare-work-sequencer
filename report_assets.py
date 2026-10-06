@@ -61,11 +61,13 @@ def register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,au
         raw=file.read(10*1024*1024+1)
         if len(raw)>10*1024*1024:return {'error':'Images are limited to 10 MiB.'},400
         try:
-            from PIL import Image
+            from PIL import Image,ImageOps
             with Image.open(io.BytesIO(raw)) as image:
                 if image.width*image.height>20000000:raise ValueError('Too large')
-                image.load();clean=image.convert('RGBA' if image.mode in ('RGBA','LA','P') else 'RGB')
-                encoded=io.BytesIO();clean.save(encoded,format='PNG')
+                image.load();image=ImageOps.exif_transpose(image)
+                clean=image.convert('RGBA' if image.mode in ('RGBA','LA','P') else 'RGB')
+                options={key:image.info[key] for key in ('dpi','icc_profile') if key in image.info}
+                encoded=io.BytesIO();clean.save(encoded,format='PNG',**options)
         except Exception:return {'error':'Upload a readable image of at most 20 megapixels.'},400
         ensure_package(cid);folder=package(cid)/'reports/sections/assets';folder.mkdir(parents=True,exist_ok=True)
         name='report-image-'+secrets.token_hex(16)+'.png';(folder/name).write_bytes(encoded.getvalue())

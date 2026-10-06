@@ -2,6 +2,7 @@ import io,json,subprocess,zipfile
 from pathlib import Path
 from PIL import Image
 from docx import Document
+from docx.shared import Inches
 from werkzeug.security import generate_password_hash
 from app import app,db,run,ensure_package,package
 from reporting import TOKENS,OUTPUT
@@ -28,11 +29,12 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='media-token')
     base=f'/cases/{cid}'
     def post(endpoint,**data):return client.post(base+endpoint,data={'csrf':'media-token',**data})
-    image=io.BytesIO();Image.new('RGB',(120,60),'red').save(image,format='PNG')
+    image=io.BytesIO();Image.new('RGB',(120,60),'red').save(image,format='PNG',dpi=(300,300))
     result=post('/report-images',section='executive_summary',image=(io.BytesIO(image.getvalue()),'screenshot.png'))
     assert result.status_code==200
     name=result.json['name'];relative=result.json['markdown_url'];path=package(cid)/'reports/sections'/relative
     assert name!='screenshot.png' and path.exists()
+    with Image.open(path) as saved_image:assert saved_image.size==(120,60) and saved_image.info['dpi'][0]>290
     assert client.get(base+'/report-images/'+name).mimetype=='image/png'
     assert post('/report-images',section='executive_summary',image=(io.BytesIO(b'not image'),'bad.png')).status_code==400
     assert result.json['figure']==1
@@ -53,6 +55,7 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     assert client.get(base+'/report-job').json['job']['status']=='completed'
     report=Document(package(cid)/client.get(f'/cases/{cid}/report-job').json['report_path'])
     assert len(report.inline_shapes)==1
+    assert report.inline_shapes[0].width==Inches(120/300)
     assert '444444' in report.inline_shapes[0]._inline.xml
     caption=next(p for p in report.paragraphs if p.text=='Figure 1:')
     assert caption.alignment==1 and any(r.italic for r in caption.runs)
