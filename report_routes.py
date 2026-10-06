@@ -108,7 +108,8 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
                 if report_table(load_table(db,cid))!=indicator_snapshot:raise ValueError('The indicator table changed during generation. Retry using the updated table.')
                 if case(cid)['stage'] not in (1,2): raise ValueError('This case is locked. Reopen it before generating a report.')
                 if manual(cid)!=sections:raise ValueError('The saved manual report sections changed during generation. The existing report was preserved; retry using the updated sections.')
-                temp=snapshot/'report.docx';fill_template(template,temp,{**sections,**generated},case(cid)['number'],case(cid)['name'],indicators=indicator_snapshot,references=reference_snapshot,assets_root=package(cid)/'reports/sections')
+                report_case=case(cid)
+                temp=snapshot/'report.docx';fill_template(template,temp,{**sections,**generated},report_case['number'],report_case['name'],indicators=indicator_snapshot,references=reference_snapshot,assets_root=package(cid)/'reports/sections',external_system=report_case['external_system'],external_number=report_case['external_number'])
                 progress('Populating the Word template and saving the report.')
                 pdf_temp=snapshot/'report.pdf'
                 if generate_pdf:

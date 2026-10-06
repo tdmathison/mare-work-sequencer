@@ -2,7 +2,7 @@ import io
 import pytest
 from docx import Document
 from app import app,db,run,ensure_package,package
-from reporting import TOKENS,OUTPUT,report_filename
+from reporting import TOKENS,OUTPUT,report_filename,fill_template
 from werkzeug.security import generate_password_hash
 import report_routes
 
@@ -14,6 +14,22 @@ import report_routes
 ])
 def test_report_filename(external,title,expected):
  assert report_filename({'external_number':external,'number':'MARE-2026-000001','name':title},'20261005')==expected
+
+@pytest.mark.parametrize('external_system,external_number,expected_number',[
+ ('','', 'MARE #2026-000001'),
+ ('Vortex','1234','Vortex #1234'),
+ ('XSIAM','1234','XSIAM #1234'),
+ ('JIRA','1234','JIRA #1234'),
+])
+def test_case_identity_template_placeholders(tmp_path,external_system,external_number,expected_number):
+ template=tmp_path/'identity.docx';output=tmp_path/'filled.docx';document=Document()
+ for key,label in TOKENS.items():document.add_heading(label,1);document.add_paragraph('{{ '+key+' }}')
+ document.add_paragraph('{{ case_title }}');document.add_paragraph('{{ case_number }}')
+ document.sections[0].header.paragraphs[0].text='{{ case_title }} | {{ case_name }}';document.save(template)
+ fill_template(template,output,{key:'Content' for key in TOKENS},'MARE-2026-000001','20261006: Malware X',external_system=external_system,external_number=external_number)
+ result=Document(output);paragraphs=[p.text for p in result.paragraphs]
+ assert 'Malware X' in paragraphs and expected_number in paragraphs
+ assert result.sections[0].header.paragraphs[0].text=='Malware X | 20261006: Malware X'
 
 
 def test_named_report_links_replacement_upload_and_backup_import(monkeypatch,tmp_path):

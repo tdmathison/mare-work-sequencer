@@ -209,7 +209,7 @@ def add_markdown(doc,text,assets_root=None):
     if not elements:elements=[doc.add_paragraph('No applicable findings recorded.')._p]
     return elements
 
-def fill_template(template,destination,sections,case_number,case_name,indicators=None,references=None,assets_root=None):
+def fill_template(template,destination,sections,case_number,case_name,indicators=None,references=None,assets_root=None,external_system='',external_number=''):
     doc=Document(template)
     anchors={}
     for p in list(paragraphs(doc)):
@@ -267,8 +267,18 @@ def fill_template(template,destination,sections,case_number,case_name,indicators
             node.getparent().remove(node)
         else:
             for block in blocks:cursor.addnext(block);cursor=block
-    for p in paragraphs(doc):
-        for key,value in [('case_number',case_number),('case_name',case_name)]:
+    case_title=re.sub(r'^\d{8}:\s*','',case_name.strip())
+    if external_system and external_number:
+        display_case_number=f'{external_system} #{external_number}'
+    else:
+        match=re.fullmatch(r'MARE-(\d{4}-\d+)',case_number)
+        display_case_number=f'MARE #{match.group(1)}' if match else case_number
+    all_paragraphs=list(paragraphs(doc))
+    for section in doc.sections:
+        for story in (section.header,section.footer,section.first_page_header,section.first_page_footer,section.even_page_header,section.even_page_footer):
+            all_paragraphs.extend(paragraphs(story))
+    for p in all_paragraphs:
+        for key,value in [('case_number',display_case_number),('case_name',case_name),('case_title',case_title)]:
             if '{{'+key+'}}' in p.text or '{{ '+key+' }}' in p.text:
                 p.text=p.text.replace('{{'+key+'}}',value).replace('{{ '+key+' }}',value)
     doc.save(destination)
