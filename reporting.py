@@ -16,7 +16,7 @@ def convert_docx_to_pdf(source,destination):
     if not executable:raise ValueError('PDF conversion unavailable: LibreOffice Writer was not found on PATH (expected libreoffice or soffice).')
     source=Path(source);destination=Path(destination)
     destination.parent.mkdir(parents=True,exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='mare-pdf-') as directory:
+    with tempfile.TemporaryDirectory(prefix='mare-pdf-',dir=destination.parent) as directory:
         temporary=Path(directory);output=temporary/'output';output.mkdir()
         command=[executable,'-env:UserInstallation='+(temporary/'profile').as_uri(),'--headless','--convert-to','pdf','--outdir',str(output),str(source)]
         try:result=subprocess.run(command,capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=120)

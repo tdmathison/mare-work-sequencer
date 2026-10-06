@@ -4,11 +4,17 @@ from docx import Document
 from werkzeug.security import generate_password_hash
 from app import app,db,run,package,ROOT,ensure_package
 from reporting import TOKENS,OUTPUT,template_sections,defang,convert_docx_to_pdf
+import reporting
 import report_routes
 
 def test_docx_to_pdf_uses_headless_libreoffice(monkeypatch,tmp_path):
     source=tmp_path/'report.docx';source.write_bytes(b'docx')
     destination=tmp_path/'report.pdf'
+    original_tempdir=reporting.tempfile.TemporaryDirectory
+    def same_filesystem_tempdir(**kwargs):
+        assert kwargs['dir']==destination.parent
+        return original_tempdir(**kwargs)
+    monkeypatch.setattr(reporting.tempfile,'TemporaryDirectory',same_filesystem_tempdir)
     monkeypatch.setattr(shutil,'which',lambda name:'/usr/bin/soffice' if name=='soffice' else None)
     def fake_run(command,**kwargs):
         output=Path(command[command.index('--outdir')+1])
