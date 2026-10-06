@@ -96,6 +96,29 @@ def md_table(headers,rows):
     def cell(v):return str(v).replace('|','\\|').replace('\n',' ')
     return '| '+' | '.join(headers)+' |\n| '+' | '.join('---' for _ in headers)+' |\n'+''.join('| '+' | '.join(cell(v) for v in row)+' |\n' for row in rows)
 
+def replace_word_placeholders(paragraph,replacements):
+    for key,value in replacements.items():
+        pattern=re.compile(r'\{\{\s*'+re.escape(key)+r'\s*\}\}')
+        text_nodes=list(paragraph.iter(qn('w:t')))
+        full_text=''.join(node.text or '' for node in text_nodes)
+        for match in reversed(list(pattern.finditer(full_text))):
+            offsets=[];total=0
+            for index,node in enumerate(text_nodes):
+                node_text=node.text or ''
+                offsets.append((total,total+len(node_text),index))
+                total+=len(node_text)
+            first=next(item for item in offsets if item[0]<=match.start()<item[1])
+            last=next(item for item in offsets if item[0]<match.end()<=item[1])
+            first_text=text_nodes[first[2]].text or ''
+            if first[2]==last[2]:
+                text_nodes[first[2]].text=first_text[:match.start()-first[0]]+value+first_text[match.end()-first[0]:]
+            else:
+                text_nodes[first[2]].text=first_text[:match.start()-first[0]]+value
+                for index in range(first[2]+1,last[2]):text_nodes[index].text=''
+                last_text=text_nodes[last[2]].text or ''
+                text_nodes[last[2]].text=last_text[match.end()-last[0]:]
+    return
+
 def style_report_table(doc,table):
     """Match the supplied Grid Table 4 sample without changing document branding."""
     from docx.oxml import parse_xml
@@ -273,13 +296,13 @@ def fill_template(template,destination,sections,case_number,case_name,indicators
     else:
         match=re.fullmatch(r'MARE-(\d{4}-\d+)',case_number)
         display_case_number=f'MARE #{match.group(1)}' if match else case_number
-    all_paragraphs=list(paragraphs(doc))
+    parts={doc.part.partname:doc.part}
     for section in doc.sections:
         for story in (section.header,section.footer,section.first_page_header,section.first_page_footer,section.even_page_header,section.even_page_footer):
-            all_paragraphs.extend(paragraphs(story))
-    for p in all_paragraphs:
-        for key,value in [('case_number',display_case_number),('case_name',case_name),('case_title',case_title)]:
-            if '{{'+key+'}}' in p.text or '{{ '+key+' }}' in p.text:
-                p.text=p.text.replace('{{'+key+'}}',value).replace('{{ '+key+' }}',value)
+            parts[story.part.partname]=story.part
+    replacements={'case_number':display_case_number,'case_name':case_name,'case_title':case_title}
+    for part in parts.values():
+        for paragraph in part.element.iter(qn('w:p')):
+            replace_word_placeholders(paragraph,replacements)
     doc.save(destination)
 

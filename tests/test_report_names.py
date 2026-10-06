@@ -1,6 +1,9 @@
 import io
 import pytest
 from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import RGBColor
 from app import app,db,run,ensure_package,package
 from reporting import TOKENS,OUTPUT,report_filename,fill_template
 from werkzeug.security import generate_password_hash
@@ -24,11 +27,16 @@ def test_report_filename(external,title,expected):
 def test_case_identity_template_placeholders(tmp_path,external_system,external_number,expected_number):
  template=tmp_path/'identity.docx';output=tmp_path/'filled.docx';document=Document()
  for key,label in TOKENS.items():document.add_heading(label,1);document.add_paragraph('{{ '+key+' }}')
- document.add_paragraph('{{ case_title }}');document.add_paragraph('{{ case_number }}')
+ title_paragraph=document.add_paragraph();title_run=title_paragraph.add_run('{{ case_title }}');title_run.bold=True;title_run.font.color.rgb=RGBColor(255,255,255)
+ shading=OxmlElement('w:shd');shading.set(qn('w:fill'),'000000');title_paragraph._p.get_or_add_pPr().append(shading)
+ number_paragraph=document.add_paragraph();number_paragraph.add_run('{{ case_');number_paragraph.add_run('number }}')
  document.sections[0].header.paragraphs[0].text='{{ case_title }} | {{ case_name }}';document.save(template)
  fill_template(template,output,{key:'Content' for key in TOKENS},'MARE-2026-000001','20261006: Malware X',external_system=external_system,external_number=external_number)
  result=Document(output);paragraphs=[p.text for p in result.paragraphs]
  assert 'Malware X' in paragraphs and expected_number in paragraphs
+ formatted_title=next(p for p in result.paragraphs if p.text=='Malware X')
+ assert formatted_title.runs[0].bold and formatted_title.runs[0].font.color.rgb==RGBColor(255,255,255)
+ assert formatted_title._p.pPr.find(qn('w:shd')).get(qn('w:fill'))=='000000'
  assert result.sections[0].header.paragraphs[0].text=='Malware X | 20261006: Malware X'
 
 
