@@ -1,5 +1,5 @@
 import shutil
-import os, sqlite3, secrets, functools, json, re, io, zipfile, hashlib, csv
+import os, sqlite3, secrets, functools, json, re, io, zipfile, hashlib, csv, tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g
@@ -675,6 +675,24 @@ def audit_export_csv():
     for event in db().execute(query+' ORDER BY id DESC',args):writer.writerow([event['created'],event['actor'],event['action']])
     data=io.BytesIO(output.getvalue().encode('utf-8-sig'))
     return send_file(data,as_attachment=True,download_name='audit-events.csv',mimetype='text/csv')
+@app.get('/audit/export-all.zip')
+@admin
+def audit_export_all_zip():
+    output=tempfile.SpooledTemporaryFile(max_size=8*1024*1024)
+    with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as archive:
+        with archive.open('audit-events.csv','w') as csv_bytes:
+            text=io.TextIOWrapper(csv_bytes,encoding='utf-8-sig',newline='')
+            try:
+                writer=csv.writer(text)
+                writer.writerow(['Time (UTC)','User','Action'])
+                for event in db().execute('SELECT created,actor,action FROM audit ORDER BY id DESC'):
+                    writer.writerow([event['created'],event['actor'],event['action']])
+                text.flush()
+            finally:text.detach()
+    output.seek(0)
+    response=send_file(output,as_attachment=True,download_name='audit-events-all.zip',mimetype='application/zip')
+    response.call_on_close(output.close)
+    return response
 @app.cli.command('create-admin')
 def create_admin():
     import click
