@@ -1,9 +1,26 @@
-import io,json
+import io,json,subprocess
+from pathlib import Path
 from docx import Document
 from app import app,db,run,package,ensure_package
 from werkzeug.security import generate_password_hash
 from reporting import TOKENS,OUTPUT
 import indicators,report_routes
+
+def test_indicator_defang_refang_rules():
+ source=Path('static/indicators.js').read_text()
+ script='''const virtualMachine=require('vm'),assertions=require('assert');
+ const context={window:{},document:{getElementById:()=>null}};
+ virtualMachine.runInNewContext(SOURCE,context);
+ const values=context.window.MareIndicatorValues;
+ assertions.equal(values.defang('192.168.1.1'),'192.168.1[.]1');
+ assertions.equal(values.defang('evil.example.com'),'evil.example[.]com');
+ assertions.equal(values.defang('evil[.]example.com'),'evil[.]example[.]com');
+ assertions.equal(values.defang('https://evil.example.com/path'),'hxxps://evil.example[.]com/path');
+ assertions.equal(values.defang('http://192.168.1.1:80/path'),'hxxp://192.168.1[.]1:80/path');
+ assertions.equal(values.refang('hxxps://evil[.]example[.]com'),'https://evil.example.com');
+ assertions.equal(values.refang('192.168[.]1[.]1'),'192.168.1.1');
+ assertions.equal(values.refang('ordinary-value'),'ordinary-value');'''.replace('SOURCE',json.dumps(source))
+ subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
 
 def setup():
     with app.app_context():

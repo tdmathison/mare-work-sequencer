@@ -1,10 +1,22 @@
-import io,json,zipfile
+import io,json,subprocess,zipfile
+from pathlib import Path
 from PIL import Image
 from docx import Document
 from werkzeug.security import generate_password_hash
 from app import app,db,run,ensure_package,package
 from reporting import TOKENS,OUTPUT
 import report_routes
+
+def test_clipboard_image_paste_uses_editor_drop_upload():
+    source=Path('static/clipboard-images.js').read_text()
+    script='''const virtualMachine=require('vm'),assertions=require('assert');let pasteHandler,dropEvent;
+    const area={closest:selector=>selector==='fieldset:disabled'?null:null,dispatchEvent:event=>dropEvent=event};
+    const context={document:{addEventListener:(name,handler)=>{if(name==='paste')pasteHandler=handler;}},Event:function(type,options){this.type=type;Object.assign(this,options);}};
+    virtualMachine.runInNewContext(SOURCE,context);
+    let prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{items:[{kind:'file',type:'image/png',getAsFile:()=>({name:'screenshot.png'})}]},preventDefault:()=>prevented=true});
+    assertions.equal(prevented,true);assertions.equal(dropEvent.type,'drop');assertions.equal(dropEvent.dataTransfer.files[0].name,'screenshot.png');
+    prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{items:[{kind:'string',type:'text/plain'}]},preventDefault:()=>prevented=true});assertions.equal(prevented,false);'''.replace('SOURCE',json.dumps(source))
+    subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
 
 def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     with app.app_context():
