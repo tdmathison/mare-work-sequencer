@@ -337,7 +337,12 @@ def metrics():
       (SELECT count(*) FROM cases WHERE owner=u.id AND stage IN (1,2)) AS progress_count,
       (SELECT count(*) FROM cases WHERE owner=u.id AND stage=3) AS completed_count
       FROM users u ORDER BY u.username''').fetchall()
-    return render_template('metrics.html',metrics_users=users)
+    stage_counts={row['stage']:row['count'] for row in db().execute('SELECT stage,count(*) AS count FROM cases GROUP BY stage')}
+    chart_data={
+        'completed':[{'label':user['username'],'value':user['completed_count']} for user in users if user['completed_count']],
+        'stages':[{'label':label,'value':sum(stage_counts.get(stage,0) for stage in stage_values)} for label,stage_values in [('Not started',(0,)),('In progress',(1,2)),('Completed',(3,))]],
+    }
+    return render_template('metrics.html',metrics_users=users,chart_data=chart_data)
 
 def external_reference(form):
     system=form.get('external_system','').strip(); number=form.get('external_number','').strip()

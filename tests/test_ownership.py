@@ -24,6 +24,9 @@ def test_assignment_creator_metrics_and_settings():
     assert b'Creator:' in board and b'owner-assignee' in board and b'owner-creator' in board
     metrics=client.get('/metrics').data
     assert b'In Progress' in metrics and b'owner-assignee' in metrics
+    assert b'id="completed-cases-chart"' in metrics and b'id="case-stage-chart"' in metrics
+    assert b'Completed cases by user' in metrics and b'Cases by stage' in metrics
+    assert metrics.index(b'id="case-stage-chart"')<metrics.index(b'<h2>User metrics</h2>')
     settings=client.get('/account').data
     assert b'OpenAI configuration' not in settings and b'name="template_id"' not in settings
     assert post('/cases',name='Assigned on creation',owner_id=str(owner)).status_code==302
