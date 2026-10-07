@@ -110,8 +110,8 @@ def register_backups(app,ROOT,db,case,package,ensure_package,build_archive,alloc
         data['images']=[dict(row) for row in db().execute('SELECT section,name,figure FROM report_images WHERE case_id=?',(cid,)) if (package(cid)/'reports/sections/assets'/row['name']).is_file()]
         seq=db().execute('SELECT value FROM figure_sequence WHERE case_id=?',(cid,)).fetchone();data['figure_sequence']=seq[0] if seq else 0
         return data
-    def case_backup(cid,email_safe=False):
-        raw,name=build_archive(cid,'raw');out=tempfile.SpooledTemporaryFile(max_size=8*1024**2)
+    def case_backup(cid,email_safe=False,include_samples=False):
+        raw,name=build_archive(cid,'raw',include_samples=include_samples);out=tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
             meta=case_metadata(cid);renamed={}
             with zipfile.ZipFile(raw) as source:

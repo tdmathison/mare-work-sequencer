@@ -39,6 +39,8 @@ with app.app_context():
     CREATE TABLE IF NOT EXISTS history(id INTEGER PRIMARY KEY,case_id INTEGER REFERENCES cases(id),stage INTEGER,author TEXT,created TEXT);
     CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,actor TEXT,action TEXT,created TEXT);
     CREATE TABLE IF NOT EXISTS attempts(username TEXT PRIMARY KEY,count INTEGER,window INTEGER);
+    CREATE TABLE IF NOT EXISTS site_settings(name TEXT PRIMARY KEY,value TEXT NOT NULL);
+    INSERT OR IGNORE INTO site_settings VALUES('sample_archive_password','infected');
     ''')
 # Additive migrations preserve existing accounts, cases, and notes.
 with app.app_context():
@@ -182,12 +184,14 @@ def package_files(cid):
     root=ensure_package(cid)
     return [{'path':p.relative_to(root).as_posix(),'dir':p.is_dir(),'size':p.stat().st_size if p.is_file() else 0} for p in sorted(root.rglob('*')) if not p.is_symlink() and not is_backup(p.relative_to(root))]
 
-def raw_package_file(rel):
+def raw_package_file(rel,include_samples=False):
     # RAW includes working content in the MIP structure, never backups or symlinks.
-    return rel.split('/')[0] in CATEGORIES and not is_backup(rel)
+    is_sample=rel.startswith('samples/')
+    return rel.split('/')[0] in CATEGORIES and not is_backup(rel) and (not is_sample or (include_samples and Path(rel).suffix.lower()=='.zip'))
 
 def deliverable_file(cid,rel):
     if not raw_package_file(rel):return False
+    if rel.startswith('samples/'):return False
     if rel.startswith('reports/') and Path(rel).suffix.lower()=='.docx' and rel==current_report(case(cid),package(cid)):return False
     if rel.startswith('reports/sections/'):return False
     if rel.startswith('reports/') and Path(rel).suffix.lower()=='.md':return False
@@ -200,7 +204,7 @@ def readiness(cid):
     result=[]
     for category,label in CATEGORIES.items():
         r=saved.get(category,{'status':'Pending','reason':''})
-        count=sum(1 for p in (root/category).rglob('*') if p.is_file() and not p.is_symlink() and deliverable_file(cid,p.relative_to(root).as_posix()))
+        count=sum(1 for p in (root/category).rglob('*') if p.is_file() and not p.is_symlink() and (p.suffix.lower()=='.zip' if category=='samples' else deliverable_file(cid,p.relative_to(root).as_posix())))
         if r['status']=='Populated' and not count: r['status']='Pending'
         result.append(dict(category=category,label=label,status=r['status'],reason=r['reason'],count=count))
     return result
@@ -284,6 +288,9 @@ def case(cid):
     if not c: abort(404)
     return c
 def package(cid): return ROOT/'cases'/str(cid)/'mip'
+def sample_archive_password():
+    row=db().execute("SELECT value FROM site_settings WHERE name='sample_archive_password'").fetchone()
+    return row['value'] if row else 'infected'
 def safe_path(cid,rel):
     if is_backup(rel): abort(404)
     root=package(cid).resolve(); p=(root/rel).resolve()
@@ -314,7 +321,8 @@ def account():
         elif len(p)<12 or p!=request.form.get('confirm'): flash('Use at least 12 characters and matching passwords.')
         else:
             run('UPDATE users SET password=?,forced=0,version=version+1 WHERE id=?',(generate_password_hash(p),g.user['id'])); session['version']+=1; audit('Changed own password'); flash('Password changed.'); return redirect('/')
-    return render_template('account.html')
+    password=sample_archive_password() if g.user['role']=='Administrator' else None
+    return render_template('account.html',sample_archive_password=password)
 @app.post('/account/autosave')
 def save_autosave_settings():
     raw=request.form.get('autosave_minutes','').strip()
@@ -325,6 +333,15 @@ def save_autosave_settings():
         flash('Enter a positive whole number of minutes.');return redirect('/account')
     run('UPDATE users SET autosave_minutes=? WHERE id=?',(minutes,g.user['id']))
     flash('Autosave interval saved. It applies when case pages are opened or refreshed.')
+    return redirect('/account')
+@app.post('/account/sample-password')
+@admin
+def save_sample_archive_password():
+    password=request.form.get('sample_archive_password','')
+    if not password or len(password)>256 or '\x00' in password:
+        flash('Enter a sample archive password of 1–256 characters.');return redirect('/account')
+    run("INSERT INTO site_settings(name,value) VALUES('sample_archive_password',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value",(password,))
+    audit('Changed the sample archive password');flash('Sample archive password saved. It applies to future uploads only.')
     return redirect('/account')
 
 @app.get('/')
@@ -400,6 +417,7 @@ def detail(cid):
     root=package(cid);files=package_files(cid);report_path=current_report(c,root)
     export_files=[f for f in files if not f['dir'] and deliverable_file(cid,f['path'])]
     package_view_files=list(export_files)
+    package_view_files.extend(f for f in files if not f['dir'] and f['path'].startswith('samples/') and all(existing['path']!=f['path'] for existing in package_view_files))
     tracked_word=next((f for f in files if f['path']==report_path and not f['dir']),None)
     if tracked_word and all(f['path']!=report_path for f in package_view_files):package_view_files.append(tracked_word)
     report_output_paths=[report_path,Path(report_path).with_suffix('.pdf').as_posix()]
@@ -557,13 +575,30 @@ def upload(cid):
     ensure_package(cid)
     f=request.files.get('file'); name=secure_filename(f.filename if f else '')
     if not name: abort(400)
-    target=safe_path(cid,folder+'/'+name)
-    if target.exists(): flash('A file with that name already exists. Rename it before uploading.'); return redirect(f'/cases/{cid}')
-    with target.open('xb') as out: f.save(out)
-    run('INSERT OR REPLACE INTO artifacts VALUES(?,?,?,?)',(cid,folder+'/'+name,request.form.get('description','').strip(),''))
-    mark_pending(cid,folder+'/'+name)
-    audit(f'Uploaded case {cid}: {folder}/{name}')
-    if request.form.get('ajax')=='1':return {'saved':True,'path':folder+'/'+name}
+    relative_name=name
+    if folder=='samples':
+        raw=f.read(100*1024*1024+1)
+        if len(raw)>100*1024*1024:abort(413)
+        relative_name=name+'.zip'
+        target=safe_path(cid,folder+'/'+relative_name)
+        if target.exists():flash('A sample with that name already exists. Rename it before uploading.');return redirect(f'/cases/{cid}')
+        import pyzipper
+        out=tempfile.SpooledTemporaryFile(max_size=8*1024*1024)
+        try:
+            with pyzipper.AESZipFile(out,'w',compression=pyzipper.ZIP_DEFLATED,encryption=pyzipper.WZ_AES) as archive:
+                archive.setpassword(sample_archive_password().encode('utf-8'))
+                archive.writestr(name,raw)
+            out.seek(0)
+            with target.open('xb') as destination:shutil.copyfileobj(out,destination)
+        finally:out.close()
+    else:
+        target=safe_path(cid,folder+'/'+relative_name)
+        if target.exists(): flash('A file with that name already exists. Rename it before uploading.'); return redirect(f'/cases/{cid}')
+        with target.open('xb') as out: f.save(out)
+    run('INSERT OR REPLACE INTO artifacts VALUES(?,?,?,?)',(cid,folder+'/'+relative_name,request.form.get('description','').strip(),''))
+    mark_pending(cid,folder+'/'+relative_name)
+    audit(f'Uploaded case {cid}: {folder}/{relative_name}')
+    if request.form.get('ajax')=='1':return {'saved':True,'path':folder+'/'+relative_name}
     flash('Asset added to '+folder+'/'); return redirect(f'/cases/{cid}')
 
 def mark_pending(cid,rel):
@@ -587,21 +622,22 @@ def archive(cid):
     word=root/current_report(c,root)
     if not (word.is_file() and word.stat().st_size>0) and (not report.exists() or not report.read_text(errors='replace').strip() or report.read_text(errors='replace').strip()==REPORT_TEMPLATE.strip()): flash('A completed analysis report is required.'); return redirect(f'/cases/{cid}')
     if archive_type=='standard' and not (word.is_file() and word.stat().st_size>0):flash('Generate or upload the Word report before downloading the Standard archive.');return redirect(f'/cases/{cid}?tab=report')
-    out,name=backup_helpers['case_backup'](cid) if archive_type=='raw' else build_archive(cid,archive_type)
+    include_samples=request.form.get('include_samples')=='1'
+    out,name=backup_helpers['case_backup'](cid,include_samples=include_samples) if archive_type=='raw' else build_archive(cid,archive_type,include_samples=include_samples)
     audit(f'Exported MIP for case {cid}');response=send_file(out,as_attachment=True,download_name=name+'.zip',mimetype='application/zip');response.call_on_close(out.close);return response
 
-def build_archive(cid,archive_type):
+def build_archive(cid,archive_type,include_samples=False):
     c=case(cid);root=ensure_package(cid);issues=review_issues(cid)
     title=re.sub(r'^\d{8}:\s*','',c['name'])
-    name=datetime.now(timezone.utc).strftime('%Y%m%d')+'-MIP-'+slugify(title)+('-RAW' if archive_type=='raw' else '')
+    name=datetime.now(timezone.utc).strftime('%Y%m%d')+'-MIP-'+slugify(title)+('-RAW' if archive_type=='raw' else '')+('-MAL' if include_samples else '')
     statuses=readiness(cid); metadata=[{k:a[k] for k in a.keys() if k!='usage'} for a in db().execute('SELECT * FROM artifacts WHERE case_id=?',(cid,))]
-    manifest={'archive_type':archive_type,'schema':'mare-mip/2.0','package_id':name,'title':c['name'],'case_number':c['number'],'external_reference':{'system':c['external_system'],'number':c['external_number']},'description':c['description'],'created_at':c['created'],'packaged_at':now(),'readiness':statuses,'acknowledged_issues':issues,'artifacts':metadata,'files':[]}
+    manifest={'archive_type':archive_type,'include_samples':include_samples,'schema':'mare-mip/2.0','package_id':name,'title':c['name'],'case_number':c['number'],'external_reference':{'system':c['external_system'],'number':c['external_number']},'description':c['description'],'created_at':c['created'],'packaged_at':now(),'readiness':statuses,'acknowledged_issues':issues,'artifacts':metadata,'files':[]}
     contents={}
     for p in sorted(root.rglob('*')):
         rel=p.relative_to(root).as_posix()
         # Deliverable allowlist excludes legacy sample payload directories and obsolete scaffold files.
         if rel.split('/')[0] not in CATEGORIES or p.is_symlink() or is_backup(rel): continue
-        if p.is_file() and (raw_package_file(rel) if archive_type=='raw' else deliverable_file(cid,rel)): contents[rel]=p
+        if p.is_file() and (raw_package_file(rel,include_samples) if archive_type=='raw' else deliverable_file(cid,rel) or (include_samples and rel.startswith('samples/') and p.suffix.lower()=='.zip')): contents[rel]=p
     selected=db().execute('SELECT * FROM notes WHERE case_id=? AND include_export=1 ORDER BY id',(cid,)).fetchall()
     if selected and archive_type=='raw':
         contents['reports/reverse-engineering-notes.md']=('# Reverse Engineering Notes\n\n'+'\n\n'.join('## '+(n['title'] or 'Note')+'\n'+n['author']+' · '+n['created']+'\n\n'+n['body'] for n in selected)).encode()

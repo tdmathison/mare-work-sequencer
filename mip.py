@@ -1,6 +1,6 @@
 from pathlib import Path
 import re
-CATEGORIES={'reports':'Reports','iocs':'IOCs','signatures':'Signatures','scripts':'Scripts','mappings':'MITRE tables','supporting':'Supporting evidence'}
+CATEGORIES={'reports':'Reports','iocs':'IOCs','signatures':'Signatures','scripts':'Scripts','mappings':'MITRE tables','supporting':'Supporting evidence','samples':'Samples'}
 REPORT_TEMPLATE='''# Malware Analysis Report
 
 ## Executive Summary

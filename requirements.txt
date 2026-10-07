@@ -5,3 +5,4 @@ markdown-it-py>=3,<5
 linkify-it-py>=2,<3
 mdit-py-plugins>=0.4,<1
 Pillow>=10,<13
+pyzipper>=0.3.6,<1

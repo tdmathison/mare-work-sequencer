@@ -37,7 +37,7 @@ The workflow has four stages: **Not started → Malware Analysis → Packaging &
 
 Restrictions are enforced by the server as well as the UI. Existing cases migrate automatically on startup: Initial Triage, Data Collection, and the former Reports stage map to Malware Analysis, with history and deferred reasons preserved. Packaging & Delivery and Completed retain their meaning. Stop the service before replacing application files, then restart it after the upgrade.
 
-The MIP board shows each case's stage and six deliverable readiness indicators, separately. Create case opens a dedicated creation page. New cases automatically receive a unique, immutable number such as `MARE-2026-000001`, plus a package and report/table templates. An optional Vortex, XSIAM, or JIRA reference is stored separately and included in the exported README and manifest. Existing case numbers are preserved on upgrade.
+The MIP board shows each case's stage and seven package readiness indicators, separately. Create case opens a dedicated creation page. New cases automatically receive a unique, immutable number such as `MARE-2026-000001`, plus a package and report/table templates. An optional Vortex, XSIAM, or JIRA reference is stored separately and included in the exported README and manifest. Existing case numbers are preserved on upgrade.
 
 ### Workbench
 
@@ -47,7 +47,7 @@ Close a stage as Done, No applicable work, or Deferred. Skipped and deferred wor
 
 ### Package
 
-The package has six folders:
+The package has seven folders:
 
 | Folder | Contents |
 |---|---|
@@ -57,8 +57,11 @@ The package has six folders:
 | scripts | Decoders, extractors, utility scripts |
 | mappings | MITRE ATT&CK and MBC tables |
 | supporting | Screenshots, configurations, OSINT references, other evidence |
+| samples | AES-encrypted ZIPs created from uploaded samples |
 
 Uploads are routed by category, with a description and optional usage command. They are stored directly in the case's package. Duplicate filenames are rejected; rename before uploading a replacement. Maximum request size is 100 MiB. Scripts are stored and can be edited as text; they are never run.
+
+Uploads to Samples are immediately wrapped in AES-encrypted ZIP archives using the site-wide password configured by an administrator under Settings. The default is `infected`. Changing the password affects future uploads only; existing sample archives retain their original password.
 
 Mark each category Pending, Populated, or Not applicable after reviewing it. Not applicable requires a reason. Reports always apply. New uploads and text edits reset that category to Pending so the dashboard reflects the need for review.
 
@@ -68,11 +71,11 @@ Edit the four narrative sections and generate a Word report locally from a selec
 
 ### Review & Export
 
-Review the file preview and checklist. Pending categories, open tasks, and deferred stages are listed. They can be resolved or explicitly acknowledged for export; acknowledgments are included in the manifest and README. The untouched report template or an empty report cannot be exported. The site checks presence and template state, not analytical quality.
+Review the file preview and checklist. Pending categories, open tasks, and deferred stages are listed. They can be resolved or explicitly acknowledged for export; acknowledgments are included in the manifest and README. The untouched report template or an empty report cannot be exported. The site checks presence and template state, not analytical quality. Samples are excluded by default. Explicitly check the red danger option to include password-protected sample archives; exports containing samples end in `-MAL`.
 
-Export generates `YYYYMMDD-MIP-Case_Name.zip`, containing the six folders, README.md, manifest.json, selected notes, and file hashes. Empty folders are preserved. Untouched executive-summary and MITRE table templates are omitted from export; the archive preview reflects this. The ZIP is not password protected. Export does not automatically complete the case. Completing Packaging & Delivery requires the readiness checklist to be resolved.
+Export generates `YYYYMMDD-MIP-Case_Name.zip`, containing the seven folders, README.md, manifest.json, selected notes, and file hashes. Empty folders are preserved. Untouched executive-summary and MITRE table templates are omitted from export; the archive preview reflects this. Sample archives are excluded by default; checking the red warning adds them and appends `-MAL` to the archive filename. Export does not automatically complete the case. Completing Packaging & Delivery requires the readiness checklist to be resolved.
 
-Raw sample payloads are outside this workflow. There is no SAFE/FULL selector. Export includes only the six deliverable folders; it does not inspect or classify uploaded file contents. Analysts should review supporting evidence before release.
+Sample uploads are wrapped in AES-encrypted ZIP files under `samples/`; they are never stored as loose source files. The default password is `infected`, and administrators can change it under Settings. A password change applies to future uploads only. There is no SAFE/FULL selector. Sample ZIPs are included in Standard or RAW MIP exports only when the red warning checkbox is selected. Analysts should review supporting evidence before release.
 
 ## Upgrade from v0.1
 
@@ -164,7 +167,7 @@ This update adds Pillow, linkify-it-py, and mdit-py-plugins. Run `pip install -r
 
 ## Standard and RAW archives
 
-Review & Export offers two download buttons and matching Standard/RAW preview tabs. Standard is the stakeholder deliverable: it includes a matching PDF report if present and deliverable files, but excludes the tracked Word report, Markdown under reports/, and all report editor source/image assets under reports/sections/. RAW includes both Word and PDF reports when available, working Markdown, report images, untouched scaffold files, and export-selected notes within the six MIP directories. RAW filenames end in -RAW.zip. Both archives exclude backups, symlinks, legacy sample payload directories, and application secrets; neither exports unsaved browser editor changes or generates PDFs during download. README.md and manifest.json are generated in both modes, and the manifest records archive_type. Standard requires a Word report; provide its PDF separately if needed. The Package tab and its file counts show Standard deliverable content.
+Review & Export offers two download buttons and matching Standard/RAW preview tabs. Standard is the stakeholder deliverable: it includes a matching PDF report if present and deliverable files, but excludes the tracked Word report, Markdown under reports/, and all report editor source/image assets under reports/sections/. RAW includes both Word and PDF reports when available, working Markdown, report images, untouched scaffold files, and export-selected notes within the seven MIP directories. RAW filenames end in -RAW.zip, with -MAL appended when samples are included. Both archives exclude backups, symlinks, legacy sample payload directories, and application secrets; neither exports unsaved browser editor changes or generates PDFs during download. README.md and manifest.json are generated in both modes, and the manifest records archive_type. Standard requires a Word report; provide its PDF separately if needed. The Package tab and its file counts show Standard deliverable content.
 
 Report toolbars now offer Word wrap (enabled by default), Left/Center/Right alignment, and Paragraph/Heading 1–6/Quote/Code block styles. Word wrap is a view setting and does not alter saved text. Line-number heights follow wrapped logical lines. Alignment commands wrap the selected/current block in ::: align-left, ::: align-center, or ::: align-right containers; these are supported in preview and Word generation. Save editor changes before downloading RAW so its sources match your work.
 
