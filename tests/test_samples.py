@@ -1,4 +1,5 @@
-import io,zipfile
+import io,json,subprocess,zipfile
+from pathlib import Path
 import pyzipper
 from docx import Document
 from werkzeug.security import generate_password_hash
@@ -14,6 +15,7 @@ def test_samples_are_encrypted_and_only_in_mal_archives():
         Document().save(root/OUTPUT)
     client=app.test_client()
     with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='sample-token')
+    assert b'<input type="text" name="sample_archive_password" value="infected"' in client.get('/account').data
     def post(url,**data):return client.post(url,data={'csrf':'sample-token',**data})
     assert b'value="infected"' in client.get('/account').data
     source=b'harmless test sample bytes'
@@ -47,3 +49,12 @@ def test_samples_are_encrypted_and_only_in_mal_archives():
         with pyzipper.AESZipFile(io.BytesIO(nested)) as encrypted:
             encrypted.setpassword(b'new sample secret')
             assert encrypted.read('second.exe')==source
+
+def test_sample_export_checkbox_tracks_uploaded_samples():
+    source=Path('static/sample-export.js').read_text()
+    script='''const virtualMachine=require('vm'),assertions=require('assert');let files=[],listener,label=null;
+    const standard={before:node=>label=node},form={querySelector:()=>standard},category={addEventListener:()=>{}},assetForm={dataset:{caseId:'17'}};
+    const document={querySelector:selector=>selector==='#panel-review form[action$="/archive"]'?form:selector==='.asset-form select[name="category"]'?category:selector==='.asset-form'?assetForm:null,createElement:()=>({append(...items){this.items=items},remove(){label=null}})};
+    const context={document,window:{addEventListener:(name,handler)=>listener=handler},fetch:async()=>({ok:true,json:async()=>({files})})};
+    (async()=>{virtualMachine.runInNewContext(SOURCE,context);await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(label,null);files=[{path:'samples/file.exe.zip'}];listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.ok(label);assertions.equal(label.items[0].name,'include_samples');files=[];listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(label,null)})().catch(error=>{console.error(error);process.exitCode=1});'''.replace('SOURCE',json.dumps(source))
+    subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
