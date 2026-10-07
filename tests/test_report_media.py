@@ -96,6 +96,13 @@ def test_mitre_mapping_editors_save_canonical_report_sources():
     assert (root/'mappings/mitre-mbc.md').read_text()==mbc
     assert client.get(f'/cases/{cid}/report-data').json['mitre_mappings']=={'attack':attack,'mbc':mbc}
 
+def test_mitre_mapping_save_has_autosave_countdown_and_manual_reset():
+    source=Path('static/report-workspace.js').read_text()
+    assert "mappingCountdown.id='save-mitre-mappings-countdown'" in source
+    assert 'mitreAutosaveTimer=window.MareAutosave.register' in source
+    assert 'canSave:()=>mitreMappingsDirty&&!mitreMappingsSaving&&!loading' in source
+    assert 'mitreAutosaveTimer.reset();saveMitreMappings()' in source
+
 def test_asset_manager_hides_and_protects_managed_report_markdown():
     with app.app_context():
         uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('report-assets',generate_password_hash('password-long-123'),'User')).lastrowid
