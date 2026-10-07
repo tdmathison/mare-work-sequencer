@@ -80,6 +80,22 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     page=client.get(base).data
     assert b'line-numbers' in page and b'data-md="table"' in page and b'Asset manager' in page
 
+def test_mitre_mapping_editors_save_canonical_report_sources():
+    with app.app_context():
+        uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('mitre-editor',generate_password_hash('password-long-123'),'User')).lastrowid
+        cid=run("INSERT INTO cases(number,name,created,stage) VALUES('MITRE-EDITOR','MITRE editor','2026',1)").lastrowid
+        root=ensure_package(cid)
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='mitre-editor-token')
+    assert client.get(f'/cases/{cid}/report-data').json['mitre_mappings']=={'attack':'','mbc':''}
+    attack='### MITRE Attack\n\n| Technique | Evidence |\n|---|---|\n| T1059 | Script execution |'
+    mbc='### MITRE MBC\n\n| Behavior | Evidence |\n|---|---|\n| B0001 | Observed |'
+    response=client.post(f'/cases/{cid}/mitre-mappings',data={'csrf':'mitre-editor-token','mitre_attack_markdown':attack,'mitre_mbc_markdown':mbc})
+    assert response.status_code==200 and response.json['saved']
+    assert (root/'mappings/mitre-attack.md').read_text()==attack
+    assert (root/'mappings/mitre-mbc.md').read_text()==mbc
+    assert client.get(f'/cases/{cid}/report-data').json['mitre_mappings']=={'attack':attack,'mbc':mbc}
+
 def test_asset_manager_hides_and_protects_managed_report_markdown():
     with app.app_context():
         uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('report-assets',generate_password_hash('password-long-123'),'User')).lastrowid

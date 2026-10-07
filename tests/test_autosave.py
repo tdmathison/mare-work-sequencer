@@ -11,12 +11,12 @@ def test_user_autosave_interval_is_private_and_validated():
     client=app.test_client()
     with client.session_transaction() as s:s.update(uid=uid,version=1,csrf='autosave-token')
     def post(value):return client.post('/account/autosave',data={'csrf':'autosave-token','autosave_minutes':value})
-    assert b'value="1"' in client.get('/account').data
+    assert b'value="5"' in client.get('/account').data
     for value in ['1','7','60','1440']:
         assert post(value).status_code==302
         with app.app_context():
             assert db().execute('SELECT autosave_minutes FROM users WHERE id=?',(uid,)).fetchone()[0]==int(value)
-            assert db().execute('SELECT autosave_minutes FROM users WHERE id=?',(other,)).fetchone()[0]==1
+            assert db().execute('SELECT autosave_minutes FROM users WHERE id=?',(other,)).fetchone()[0]==5
     for value in ['0','-2','2.5','invalid','']:
         post(value)
         with app.app_context():assert db().execute('SELECT autosave_minutes FROM users WHERE id=?',(uid,)).fetchone()[0]==1440

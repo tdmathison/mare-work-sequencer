@@ -39,6 +39,9 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     def report_outputs(cid):
         root=package(cid);word=Path(current_report(case(cid),root))
         return [{'path':path.as_posix(),'size':(root/path).stat().st_size} for path in (word,word.with_suffix('.pdf')) if (root/path).is_file()]
+    def mitre_mappings(cid):
+        root=package(cid)/'mappings'
+        return {key:(root/filename).read_text(encoding='utf-8') if (root/filename).is_file() else '' for key,filename in (('attack','mitre-attack.md'),('mbc','mitre-mbc.md'))}
     @app.context_processor
     def report_context():
         if not g.get('user'):return {}
@@ -71,7 +74,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     @app.get('/cases/<int:cid>/report-data')
     def report_data(cid):
         c=case(cid);root=package(cid);path=current_report(c,root)
-        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid),'pdf_converter_available':bool(shutil.which('libreoffice') or shutil.which('soffice'))}
+        return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid),'pdf_converter_available':bool(shutil.which('libreoffice') or shutil.which('soffice')),'mitre_mappings':mitre_mappings(cid)}
     def persist_sections(cid,form):
         root=ensure_package(cid)/'reports/sections';root.mkdir(exist_ok=True)
         for key in TOKENS:
@@ -86,6 +89,19 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         if request.form.get('automatic')=='1' and all(request.form.get(key,'')==manual(cid).get(key,'') for key in SECTIONS):return {'saved':True}
         persist_sections(cid,request.form);audit(f'Saved report sections for case {cid}')
         return {'saved':True} if request.form.get('ajax')=='1' else redirect(f'/cases/{cid}')
+    @app.post('/cases/<int:cid>/mitre-mappings')
+    def save_mitre_mappings(cid):
+        case(cid)
+        if db().execute("SELECT 1 FROM report_jobs WHERE case_id=? AND status IN ('queued','running')",(cid,)).fetchone():return {'error':'Wait for report generation to finish before saving MITRE mappings.'},409
+        root=ensure_package(cid)/'mappings';root.mkdir(exist_ok=True)
+        values={'attack':request.form.get('mitre_attack_markdown',''),'mbc':request.form.get('mitre_mbc_markdown','')}
+        if any(len(value)>100000 for value in values.values()):abort(413)
+        for key,filename in (('attack','mitre-attack.md'),('mbc','mitre-mbc.md')):
+            path=root/filename;value=values[key]
+            if value.strip():path.write_text(value,encoding='utf-8')
+            else:path.unlink(missing_ok=True)
+        mark_pending(cid,'mappings/mitre-attack.md');audit(f'Saved MITRE mappings for case {cid}')
+        return {'saved':True,'mappings':mitre_mappings(cid)}
     @app.get('/cases/<int:cid>/report-job')
     def report_job(cid):
         c=case(cid);root=package(cid);path=current_report(c,root)

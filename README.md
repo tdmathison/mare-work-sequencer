@@ -194,7 +194,7 @@ Indicator sections have an Edit section action for changing the title and descri
 
 ## Automatic saving
 
-Settings → Autosave controls your personal interval in whole minutes (default 1, minimum 1). Reopen or refresh case pages after changing it. Report sections, all indicator sections, and references save automatically at that interval, even when their tabs are hidden. Manual save remains available. Autosave preserves edits made during a save and does not rerender table cells or move editor focus. The status beside each editor/table shows save confirmation or errors; failed saves retain unsaved edits and retry at the next interval. Keep the case page open for autosave to run; it is not a substitute for saving before closing the browser. Not-started/completed cases are read-only, and report autosave pauses during generation.
+Settings → Autosave controls your personal interval in whole minutes (default 5, minimum 1). Reopen or refresh case pages after changing it. Report sections, all indicator sections, and references save automatically at that interval, even when their tabs are hidden. Manual save remains available. Autosave preserves edits made during a save and does not rerender table cells or move editor focus. The status beside each editor/table shows save confirmation or errors; failed saves retain unsaved edits and retry at the next interval. Keep the case page open for autosave to run; it is not a substitute for saving before closing the browser. Not-started/completed cases are read-only, and report autosave pauses during generation.
 
 ## Import & Export: portable case backups
 

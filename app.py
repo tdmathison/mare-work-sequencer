@@ -69,12 +69,12 @@ with app.app_context():
         db().execute("ALTER TABLE tasks ADD COLUMN state TEXT DEFAULT 'Not Started'")
         db().execute("UPDATE tasks SET state=CASE WHEN done=1 THEN 'Completed' ELSE 'Not Started' END")
     if 'priority' not in columns:db().execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'Normal'")
-    if 'autosave_minutes' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute('ALTER TABLE users ADD COLUMN autosave_minutes INTEGER NOT NULL DEFAULT 1')
+    if 'autosave_minutes' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute('ALTER TABLE users ADD COLUMN autosave_minutes INTEGER NOT NULL DEFAULT 5')
     if 'user_uuid' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute('ALTER TABLE users ADD COLUMN user_uuid TEXT')
     db().execute("UPDATE users SET user_uuid=lower(hex(randomblob(16))) WHERE user_uuid IS NULL")
     db().executescript('''CREATE UNIQUE INDEX IF NOT EXISTS user_uuid_unique ON users(user_uuid);
     CREATE TRIGGER IF NOT EXISTS user_identity_new AFTER INSERT ON users WHEN NEW.user_uuid IS NULL BEGIN
-      UPDATE users SET user_uuid=lower(hex(randomblob(16))),autosave_minutes=1 WHERE id=NEW.id;
+    UPDATE users SET user_uuid=lower(hex(randomblob(16))),autosave_minutes=5 WHERE id=NEW.id;
     END;
     CREATE TRIGGER IF NOT EXISTS user_identity_fixed BEFORE UPDATE OF user_uuid ON users WHEN OLD.user_uuid IS NOT NULL AND NEW.user_uuid IS NOT OLD.user_uuid BEGIN SELECT RAISE(ABORT,'User identifiers are immutable'); END;''')
     case_columns={row[1] for row in db().execute('PRAGMA table_info(cases)')}
@@ -152,6 +152,9 @@ with app.app_context():
     if not db().execute("SELECT 1 FROM schema_migrations WHERE name='one-minute-autosave'").fetchone():
         db().execute('UPDATE users SET autosave_minutes=1 WHERE autosave_minutes=5')
         db().execute("INSERT INTO schema_migrations VALUES('one-minute-autosave')");db().commit()
+    if not db().execute("SELECT 1 FROM schema_migrations WHERE name='five-minute-autosave-default'").fetchone():
+        db().execute('UPDATE users SET autosave_minutes=5 WHERE autosave_minutes=1')
+        db().execute("INSERT INTO schema_migrations VALUES('five-minute-autosave-default')");db().commit()
 
 
 def ensure_package(cid):
