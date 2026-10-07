@@ -18,6 +18,7 @@ def test_samples_are_encrypted_and_only_in_mal_archives():
     assert b'<input type="text" name="sample_archive_password" value="infected"' in client.get('/account').data
     def post(url,**data):return client.post(url,data={'csrf':'sample-token',**data})
     assert b'value="infected"' in client.get('/account').data
+        assert b'id="include-samples-option" class="dangerous-sample-export" hidden' in client.get(f'/cases/{cid}').data
     source=b'harmless test sample bytes'
     upload=post(f'/cases/{cid}/upload',category='samples',ajax='1',file=(io.BytesIO(source),'demo.exe'))
     assert upload.status_code==200 and upload.json['path']=='samples/demo.exe.zip'
@@ -27,6 +28,9 @@ def test_samples_are_encrypted_and_only_in_mal_archives():
         archive.setpassword(b'infected')
         assert archive.read('demo.exe')==source
     assert client.get(f'/cases/{cid}/assets?category=samples').json['files'][0]['path']=='samples/demo.exe.zip'
+    review=client.get(f'/cases/{cid}').data
+    assert b'name="include_samples"' in review
+    assert b'The MIP archive itself is not password-protected' in review
     assert post('/account/sample-password',sample_archive_password='new sample secret').status_code==302
     changed=post(f'/cases/{cid}/upload',category='samples',ajax='1',file=(io.BytesIO(source),'second.exe'))
     with pyzipper.AESZipFile(package(cid)/changed.json['path']) as archive:
@@ -52,9 +56,9 @@ def test_samples_are_encrypted_and_only_in_mal_archives():
 
 def test_sample_export_checkbox_tracks_uploaded_samples():
     source=Path('static/sample-export.js').read_text()
-    script='''const virtualMachine=require('vm'),assertions=require('assert');let files=[],listener,label=null;
-    const standard={before:node=>label=node},form={querySelector:()=>standard},category={addEventListener:()=>{}},assetForm={dataset:{caseId:'17'}};
-    const document={querySelector:selector=>selector==='#panel-review form[action$="/archive"]'?form:selector==='.asset-form select[name="category"]'?category:selector==='.asset-form'?assetForm:null,createElement:()=>({append(...items){this.items=items},remove(){label=null}})};
+    script='''const virtualMachine=require('vm'),assertions=require('assert');let files=[],listener;
+    const checkbox={name:'include_samples',checked:false},option={hidden:true,querySelector:()=>checkbox},standard={},form={querySelector:selector=>selector==='#include-samples-option'?option:standard},category={addEventListener:()=>{}},assetForm={dataset:{caseId:'17'}};
+    const document={querySelector:selector=>selector==='#panel-review form[action$="/archive"]'?form:selector==='.asset-form select[name="category"]'?category:selector==='.asset-form'?assetForm:null};
     const context={document,window:{addEventListener:(name,handler)=>listener=handler},fetch:async()=>({ok:true,json:async()=>({files})})};
-    (async()=>{virtualMachine.runInNewContext(SOURCE,context);await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(label,null);files=[{path:'samples/file.exe.zip'}];listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.ok(label);assertions.equal(label.items[0].name,'include_samples');files=[];listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(label,null)})().catch(error=>{console.error(error);process.exitCode=1});'''.replace('SOURCE',json.dumps(source))
+    (async()=>{virtualMachine.runInNewContext(SOURCE,context);await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(option.hidden,true);files=[{path:'samples/file.exe.zip'}];listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(option.hidden,false);files=[];checkbox.checked=true;listener({detail:{category:'samples'}});await new Promise(resolve=>setTimeout(resolve,0));assertions.equal(option.hidden,true);assertions.equal(checkbox.checked,false)})().catch(error=>{console.error(error);process.exitCode=1});'''.replace('SOURCE',json.dumps(source))
     subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)

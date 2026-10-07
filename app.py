@@ -416,12 +416,13 @@ def detail(cid):
     draft=db().execute('SELECT * FROM drafts WHERE case_id=? AND user_id=?',(cid,g.user['id'])).fetchone()
     root=package(cid);files=package_files(cid);report_path=current_report(c,root)
     export_files=[f for f in files if not f['dir'] and deliverable_file(cid,f['path'])]
+    sample_archive_paths=[f['path'] for f in files if not f['dir'] and f['path'].startswith('samples/') and f['path'].lower().endswith('.zip')]
     package_view_files=list(export_files)
     package_view_files.extend(f for f in files if not f['dir'] and f['path'].startswith('samples/') and all(existing['path']!=f['path'] for existing in package_view_files))
     tracked_word=next((f for f in files if f['path']==report_path and not f['dir']),None)
     if tracked_word and all(f['path']!=report_path for f in package_view_files):package_view_files.append(tracked_word)
     report_output_paths=[report_path,Path(report_path).with_suffix('.pdf').as_posix()]
-    return render_template('case.html',manual_sections=report_helpers['manual'](cid),word_report_exists=(root/report_path).exists(),word_report_path=report_path,report_output_paths=report_output_paths,package_view_files=package_view_files,c=c,files=files,ready=readiness(cid),export_files=export_files,raw_files=[f for f in files if not f['dir'] and raw_package_file(f['path'])],issues=review_issues(cid),completion=completion_items(cid),draft=draft,notes=db().execute('SELECT * FROM notes WHERE case_id=? ORDER BY id DESC',(cid,)).fetchall(),tasks=db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id',(cid,)).fetchall(),history=db().execute('SELECT * FROM history WHERE case_id=? ORDER BY id DESC',(cid,)).fetchall(),artifacts={r['path']:r for r in db().execute('SELECT * FROM artifacts WHERE case_id=?',(cid,))},deferred=db().execute('SELECT * FROM deferred WHERE case_id=? AND resolved=0',(cid,)).fetchall())
+    return render_template('case.html',manual_sections=report_helpers['manual'](cid),word_report_exists=(root/report_path).exists(),word_report_path=report_path,report_output_paths=report_output_paths,package_view_files=package_view_files,sample_archive_paths=sample_archive_paths,c=c,files=files,ready=readiness(cid),export_files=export_files,raw_files=[f for f in files if not f['dir'] and raw_package_file(f['path'])],issues=review_issues(cid),completion=completion_items(cid),draft=draft,notes=db().execute('SELECT * FROM notes WHERE case_id=? ORDER BY id DESC',(cid,)).fetchall(),tasks=db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id',(cid,)).fetchall(),history=db().execute('SELECT * FROM history WHERE case_id=? ORDER BY id DESC',(cid,)).fetchall(),artifacts={r['path']:r for r in db().execute('SELECT * FROM artifacts WHERE case_id=?',(cid,))},deferred=db().execute('SELECT * FROM deferred WHERE case_id=? AND resolved=0',(cid,)).fetchall())
 @app.post('/cases/<int:cid>/delete')
 def delete_case(cid):
     c=case(cid)
