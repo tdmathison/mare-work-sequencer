@@ -17,7 +17,7 @@ from werkzeug.utils import secure_filename
 
 from authorization import PERMISSIONS, has_permission, role_records
 from indicators import DEFAULT_COLUMNS, indicator_csv, load_table, validate_sections, validate_table
-from mip import CATEGORIES
+from mip import CATEGORIES, dated_title
 from references import COLUMNS as REFERENCE_COLUMNS, load_references
 from reporting import SECTIONS, TOKENS, current_report, is_backup
 
@@ -250,7 +250,8 @@ def register_api(app,db,run,case,package,ensure_package,now,audit,allocate_case_
         if not isinstance(system,str) or not isinstance(external,str):return jsonify(error='External reference values must be strings.'),400
         reference=external_reference(value)
         if reference is None:return jsonify(error='External reference system and number must be supplied together.'),400
-        name=name.strip()
+        name=dated_title(name)
+        if len(name)>200:return jsonify(error='Case name with date prefix must be at most 200 characters.'),400
         owner=value.get('owner_id')
         if owner is not None and (type(owner) is not int or not db().execute('SELECT 1 FROM users WHERE id=? AND active=1',(owner,)).fetchone()):return jsonify(error='owner_id must identify an active user.'),400
         system,external=reference;connection=db()

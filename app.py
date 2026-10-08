@@ -6,7 +6,7 @@ from flask import Flask, request, session, redirect, render_template, abort, fla
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
-from mip import create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
+from mip import dated_title, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
 from authorization import has_permission, initialize_roles
 
 STAGES=['Not started','Malware Analysis','Packaging & Delivery','Completed']
@@ -405,7 +405,7 @@ def external_reference(form):
     return system,number
 
 @app.get('/cases/new')
-def create_case_page(): return render_template('create_case.html',values={})
+def create_case_page(): return render_template('create_case.html',values={'name':datetime.now().strftime('%Y%m%d')+': '})
 
 def allocate_case_number(connection):
     sequence=connection.execute('SELECT value FROM case_sequence WHERE id=1').fetchone()[0]
@@ -418,6 +418,7 @@ def allocate_case_number(connection):
 @app.post('/cases')
 def new_case():
     title=request.form.get('name','').strip(); reference=external_reference(request.form)
+    if title: title=dated_title(title)
     if not title or len(title)>200 or reference is None:
         flash('Enter a case name. For an external reference, provide both its system and number.')
         return render_template('create_case.html',values=request.form),400

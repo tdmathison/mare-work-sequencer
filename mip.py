@@ -1,5 +1,10 @@
 from pathlib import Path
 import re
+from datetime import datetime
+
+def dated_title(title):
+    title=title.strip()
+    return title if re.match(r'\d{8}: ',title) else datetime.now().strftime('%Y%m%d')+': '+title
 CATEGORIES={'reports':'Reports','iocs':'IOCs','signatures':'Signatures','scripts':'Scripts','mappings':'MITRE tables','supporting':'Supporting evidence','samples':'Samples'}
 REPORT_TEMPLATE='''# Malware Analysis Report
 

@@ -177,3 +177,12 @@ def test_api_page_lists_endpoints_and_tokens(admin):
     assert response.status_code == 302 and response.headers['Location'].endswith('/api#api-tokens')
     assert b'Copy this token now' in client.get('/api').data
     assert b'api-tokens' not in client.get('/account').data
+
+
+def test_case_name_gets_date_prefix(admin):
+    from datetime import datetime
+    client = app.test_client()
+    today = datetime.now().strftime('%Y%m%d')
+    plain = client.post('/api/v1/cases', json={'name': 'Plain'}, headers=admin[1]).json['case']['name']
+    dated = client.post('/api/v1/cases', json={'name': '20200102: Old'}, headers=admin[1]).json['case']['name']
+    assert plain == today + ': Plain' and dated == '20200102: Old'
