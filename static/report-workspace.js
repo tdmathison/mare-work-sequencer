@@ -35,38 +35,7 @@
   function highlight(area) {
     const pre = area.previousElementSibling;
     area.parentElement.classList.add("enhanced");
-    let fence = false;
-    pre.innerHTML =
-      area.value
-        .split("\n")
-        .map((line) => {
-          if (/^\s*```/.test(line)) {
-            fence = !fence;
-            return '<span class="md-code">' + escape(line) + "</span>";
-          }
-          if (fence) return '<span class="md-code">' + escape(line) + "</span>";
-          if (/^\s*#{1,6}\s/.test(line))
-            return '<span class="md-heading">' + escape(line) + "</span>";
-          let result = "",
-            last = 0;
-          const pattern = /`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^\)]+\)/g;
-          for (const m of line.matchAll(pattern)) {
-            result +=
-              escape(line.slice(last, m.index)) +
-              '<span class="' +
-              (m[0][0] === "["
-                ? "md-link"
-                : m[0][0] === "`"
-                  ? "md-code"
-                  : "md-emphasis") +
-              '">' +
-              escape(m[0]) +
-              "</span>";
-            last = m.index + m[0].length;
-          }
-          return result + escape(line.slice(last));
-        })
-        .join("\n") + "\n";
+    pre.innerHTML = window.MareMarkdownSyntax.renderMarkdown(area.value);
     pre.scrollTop = area.scrollTop;
     pre.scrollLeft = area.scrollLeft;
   }

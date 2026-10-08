@@ -5,6 +5,10 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from pygments import lex
+from pygments.lexers import TextLexer, get_lexer_by_name
+from pygments.token import Comment, Keyword, Literal, Name, Number, Operator, String
+from pygments.util import ClassNotFound
 
 SECTIONS={'executive_summary':'Executive Summary','key_findings':'Key Findings','detection_opportunities':'Detection Opportunities','reverse_engineering_findings':'Reverse Engineering Findings'}
 GENERATED={'mitre_attack_mapping':'MITRE ATT&CK Mapping','mitre_mbc_mapping':'MITRE MBC Mapping','indicators_of_compromise':'Indicators of Compromise','appendices':'Appendices'}
@@ -197,7 +201,36 @@ def inline(paragraph,tokens,assets_root=None):
                 h=OxmlElement('w:hyperlink');h.set(qn('r:id'),paragraph.part.relate_to(link,RT.HYPERLINK,is_external=True));r=OxmlElement('w:r');props=OxmlElement('w:rPr');style=OxmlElement('w:rStyle');style.set(qn('w:val'),'Hyperlink');props.append(style);r.append(props);node=OxmlElement('w:t');node.text=text;r.append(node);h.append(r);paragraph._p.append(h)
             else:
                 r=paragraph.add_run(text);r.bold=bold;r.italic=italic;r.font.strike=strike
-                if t.type=='code_inline':r.font.name='Consolas'
+                if t.type=='code_inline':
+                    from docx.shared import RGBColor
+                    r.font.name='Consolas';r.font.color.rgb=RGBColor.from_string('7B2CBF')
+                    rpr=r._r.get_or_add_rPr();shading=OxmlElement('w:shd');shading.set(qn('w:fill'),'EEF0F3');rpr.append(shading)
+
+def add_code_block(doc,token):
+    from docx.shared import Inches, Pt, RGBColor
+    language=token.info.strip().split(None,1)[0] if token.info.strip() else ''
+    try:lexer=get_lexer_by_name(language) if language else TextLexer()
+    except ClassNotFound:lexer=TextLexer()
+    paragraph=doc.add_paragraph()
+    paragraph.paragraph_format.left_indent=Inches(.1)
+    paragraph.paragraph_format.right_indent=Inches(.1)
+    paragraph.paragraph_format.space_before=Pt(4)
+    paragraph.paragraph_format.space_after=Pt(8)
+    paragraph.paragraph_format.line_spacing=1.05
+    ppr=paragraph._p.get_or_add_pPr()
+    shading=OxmlElement('w:shd');shading.set(qn('w:fill'),'F3F5F7');ppr.append(shading)
+    borders=OxmlElement('w:pBdr')
+    for edge in ('top','left','bottom','right'):
+        border=OxmlElement('w:'+edge)
+        for key,value in (('val','single'),('sz','6'),('space','5'),('color','87909A')):border.set(qn('w:'+key),value)
+        borders.append(border)
+    ppr.append(borders)
+    token_colors=((Comment,'65717C'),(Keyword,'7B2CBF'),(String,'146C43'),(Number,'A34300'),(Operator,'006D77'),(Name.Function,'005F9E'),(Name.Class,'8A4B08'),(Name.Builtin,'9A3412'),(Literal,'146C43'))
+    for kind,value in lex(token.content,lexer):
+        run=paragraph.add_run(value);run.font.name='Consolas';run.font.size=Pt(9)
+        color=next((color for token_type,color in token_colors if kind in token_type),None)
+        if color:run.font.color.rgb=RGBColor.from_string(color)
+    return paragraph._p
 
 def add_markdown(doc,text,assets_root=None):
     tokens=__import__('markdown_support').markdown_parser().parse(text);elements=[];i=0;list_style=None;alignment=[]
@@ -221,7 +254,7 @@ def add_markdown(doc,text,assets_root=None):
                 p.alignment={'left':WD_ALIGN_PARAGRAPH.LEFT,'center':WD_ALIGN_PARAGRAPH.CENTER,'right':WD_ALIGN_PARAGRAPH.RIGHT}[alignment[-1]]
             elements.append(p._p)
         elif t.type in ('fence','code_block'):
-            p=doc.add_paragraph();p.add_run(t.content.rstrip()).font.name='Consolas';elements.append(p._p)
+            elements.append(add_code_block(doc,t))
         elif t.type=='table_open':
             rows=[];row=[];i+=1
             while i<len(tokens) and tokens[i].type!='table_close':

@@ -20,6 +20,23 @@ def test_clipboard_image_paste_uses_editor_drop_upload():
     prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{types:['text/plain','text/html','image/png'],items:[{kind:'string',type:'text/plain'},{kind:'file',type:'image/png',getAsFile:()=>({name:'word-clipboard-image.png'})}]},preventDefault:()=>prevented=true});assertions.equal(prevented,false);'''.replace('SOURCE',json.dumps(source))
     subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
 
+def test_markdown_editor_highlights_python_and_bash_tokens():
+    source=Path('static/markdown-syntax.js').read_text()
+    script='''const virtualMachine=require('vm'),assertions=require('assert'),context={window:{}};
+    virtualMachine.runInNewContext(SOURCE,context);
+    const render=context.window.MareMarkdownSyntax.renderLine;
+    const python=render('def run(value): return print(value + 1) # note','python');
+    const shell=render('echo "hello" $HOME # note','bash');
+    const markdown=context.window.MareMarkdownSyntax.renderMarkdown('Inline `0x01`\\n\\n```python\\ndef run():\\n    return 42\\n```');
+    for(const token of ['md-token-keyword','md-token-function','md-token-builtin','md-token-number','md-token-comment'])assertions.ok(python.includes(token));
+    for(const token of ['md-token-keyword','md-token-string','md-token-variable','md-token-comment'])assertions.ok(shell.includes(token));
+    assertions.ok(markdown.includes('md-inline-code'));
+    assertions.ok(markdown.includes('md-code-block-first'));
+    assertions.ok(markdown.includes('md-code-block-last'));
+    assertions.ok(markdown.includes('md-token-keyword'));
+    assertions.ok(markdown.includes('md-token-number'));'''.replace('SOURCE',json.dumps(source))
+    subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
+
 def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     with app.app_context():
         uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('media-user',generate_password_hash('password-long-123'),'User')).lastrowid
@@ -78,7 +95,7 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     assert client.get(base+'/assets?category=scripts').json['files']==[]
     assert post('/assets/delete',path='../../session.key').status_code==400
     page=client.get(base).data
-    assert b'line-numbers' in page and b'data-md="table"' in page and b'data-md="html-table"' in page and b'Asset manager' in page
+    assert b'line-numbers' in page and b'data-md="table"' in page and b'data-md="html-table"' in page and b'markdown-syntax.js' in page and b'Asset manager' in page
 
 def test_mitre_mapping_editors_save_canonical_report_sources():
     with app.app_context():

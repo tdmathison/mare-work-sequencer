@@ -48,10 +48,13 @@ def test_report_pipeline_and_private_settings(monkeypatch,tmp_path):
     with client.session_transaction() as s:s['uid']=uid
     (root/'supporting/sandbox.json').write_text('{"c2":"evil.example.com","ip":"192.0.2.5"}')
     backup=root/'reports/backups';backup.mkdir();(backup/'private-old.txt').write_text('PRIVATE BACKUP')
-    sections={'executive_summary':'# Summary\nObserved persistence. Reference [research](https://example.org/paper).','key_findings':'Writes a Run key for persistence.','detection_opportunities':'Monitor relevant Run key changes.','reverse_engineering_findings':'**Configuration** uses `evil.example.com`.\n\n```python\nprint("decoded")\n```'}
+    sections={'executive_summary':'# Summary\nObserved persistence. Reference [research](https://example.org/paper).','key_findings':'Writes a Run key for persistence.','detection_opportunities':'Monitor relevant Run key changes.','reverse_engineering_findings':'**Configuration** uses `evil.example.com`.\n\n```python\nprint("decoded")\nprint("second line")\n```'}
     assert post(f'/cases/{cid}/report-sections',**sections).status_code==302
     data=client.get(f'/cases/{cid}/report-data').json
     assert all(data['sections'][k]==v for k,v in sections.items()) and all('backups' not in s['path'] for s in data['sources'])
+    preview=post(f'/cases/{cid}/markdown-preview',text='Inline `0x01`.\n\n```python\ndef first():\n    return 42\nsecond()\n```').json['html']
+    assert '<code>0x01</code>' in preview and '<pre class="code-block"><code class="language-python">' in preview
+    assert '<span class="k">def</span>' in preview and '<span class="nf">first</span>' in preview and '<span class="mi">42</span>' in preview
     assert post(f'/cases/{cid}/indicators',columns=json.dumps(['type','value','description']),rows=json.dumps([['domain','evil.example.com','C2'],['ipv4','192.0.2.5','C2']]),revision='0').status_code==200
     fake={'attack':[{'id':'T1547.001','name':'Registry Run Keys / Startup Folder','evidence':'Writes a Run key for persistence.','source':'key_findings'}],'mbc':[],'iocs':[{'type':'domain','value':'evil.example.com','description':'Observed C2 endpoint','source':'supporting/sandbox.json'},{'type':'ipv4','value':'192.0.2.5','description':'Observed C2 address','source':'supporting/sandbox.json'}],'warnings':[]}
     (root/'mappings/mitre-attack.md').write_text('### MITRE Attack\n\n| ID | Technique |\n|---|---|\n| T1547.001 | Registry Run Keys |')
@@ -65,6 +68,13 @@ def test_report_pipeline_and_private_settings(monkeypatch,tmp_path):
     report_rel=client.get(f'/cases/{cid}/report-job').json['report_path'];report=root/report_rel;assert report.exists()
     contents=Document(report);text='\n'.join(p.text for p in contents.paragraphs)+'\n'+'\n'.join(c.text for t in contents.tables for row in t.rows for c in row.cells)
     assert 'evil[.]example[.]com' in text and '192[.]0[.]2[.]5' in text and 'T1547.001' in text
+    inline_code=[run for paragraph in contents.paragraphs for run in paragraph.runs if run.text=='evil.example.com']
+    fenced_paragraph=next(paragraph for paragraph in contents.paragraphs if 'print("decoded")' in paragraph.text)
+    assert inline_code and inline_code[0].font.name=='Consolas' and 'w:shd' in inline_code[0]._r.xml
+    assert 'print("second line")' in fenced_paragraph.text and '\n' in fenced_paragraph.text
+    assert all(run.font.name=='Consolas' for run in fenced_paragraph.runs)
+    assert 'w:pBdr' in fenced_paragraph._p.xml and 'w:shd' in fenced_paragraph._p.xml
+    assert any(run.text=='print' and str(run.font.color.rgb)=='9A3412' for run in fenced_paragraph.runs)
     assert '{{' not in text
     assert client.get(f'/cases/{cid}/file?path=reports/backups/private-old.txt').status_code==404
     assert b'private-old.txt' not in client.get(f'/cases/{cid}').data
