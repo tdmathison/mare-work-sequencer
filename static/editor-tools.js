@@ -236,10 +236,43 @@
             );
             break;
           case "table":
-            insert(
-              area,
-              "\n| Column 1 | Column 2 |\n| --- | --- |\n| Value | Value |\n\n",
-            );
+            {
+              const start = area.selectionStart,
+                end = area.selectionEnd,
+                columnInput = prompt("Number of columns (1-10)", "2");
+              if (columnInput === null) break;
+              const columns = Number(columnInput);
+              if (!Number.isInteger(columns) || columns < 1 || columns > 10) {
+                status.textContent = "Choose between 1 and 10 columns.";
+                break;
+              }
+              const rowInput = prompt("Number of rows (1-10)", "2");
+              if (rowInput === null) break;
+              const rows = Number(rowInput);
+              if (!Number.isInteger(rows) || rows < 1 || rows > 10) {
+                status.textContent = "Choose between 1 and 10 rows.";
+                break;
+              }
+              const header = Array.from(
+                  { length: columns },
+                  (_, index) => "Column" + (index + 1),
+                ),
+                separator = Array(columns).fill("---"),
+                values = Array(columns).fill("Value"),
+                markdown =
+                  "\n| " +
+                  header.join(" | ") +
+                  " |\n| " +
+                  separator.join(" | ") +
+                  " |" +
+                  Array.from(
+                    { length: rows - 1 },
+                    () => "\n| " + values.join(" | ") + " |",
+                  ).join("") +
+                  "\n\n";
+              area.setSelectionRange(start, end);
+              insert(area, markdown);
+            }
             break;
           case "align-left":
           case "align-center":
