@@ -113,3 +113,4 @@ def register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,au
         db().execute('DELETE FROM artifacts WHERE case_id=? AND path=?',(cid,rel));db().commit()
         audit(f'Deleted case asset {cid}: {rel}')
         return {'deleted':True}
+    return {'list':report_images,'get':report_image,'upload':upload_report_image,'delete':delete_report_image}

@@ -1,5 +1,6 @@
 # Latest update
 
+- Completed the REST API (`/api/v1`): final report upload, report downloads, report images, Word template management, case and full backups, RAW imports, database backup, metrics, pagination, richer case detail, token expiry, per-token rate limiting, JSON errors, tests, and documentation. See the REST API section of the README.
 - Renamed the application folder and deployment examples to mare-work-sequencer; default and relative data locations follow app.py instead of the launch working directory.
 
 - Generated Word reports now use YYYYMMDD-MARE_<external number or system sequence>_RE_Report_<sanitized title>.docx. Open/edit, replacement backups, completion checks, exports, and RAW imports track the report filename.

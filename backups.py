@@ -318,4 +318,4 @@ def register_backups(app,ROOT,db,case,package,ensure_package,build_archive,alloc
             for folder in created:shutil.rmtree(folder)
             raise
 
-    return {'case_backup':case_backup}
+    return {'case_backup':case_backup,'single':backup_single_export,'export':backup_export,'import':backup_import,'database':database_backup}

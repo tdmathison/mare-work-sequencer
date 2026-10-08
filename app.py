@@ -7,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
 from mip import create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
+from authorization import has_permission, initialize_roles
 
 STAGES=['Not started','Malware Analysis','Packaging & Delivery','Completed']
 APP_DIR=Path(__file__).resolve().parent
@@ -72,6 +73,7 @@ with app.app_context():
         db().execute("UPDATE tasks SET state=CASE WHEN done=1 THEN 'Completed' ELSE 'Not Started' END")
     if 'priority' not in columns:db().execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'Normal'")
     if 'autosave_minutes' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute('ALTER TABLE users ADD COLUMN autosave_minutes INTEGER NOT NULL DEFAULT 5')
+    if 'board_view' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute("ALTER TABLE users ADD COLUMN board_view TEXT NOT NULL DEFAULT 'cards'")
     if 'user_uuid' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:db().execute('ALTER TABLE users ADD COLUMN user_uuid TEXT')
     db().execute("UPDATE users SET user_uuid=lower(hex(randomblob(16))) WHERE user_uuid IS NULL")
     db().executescript('''CREATE UNIQUE INDEX IF NOT EXISTS user_uuid_unique ON users(user_uuid);
@@ -151,6 +153,7 @@ with app.app_context():
     migrate_analysis_stages(db())
     migrate_five_stages(db())
     migrate_four_stages(db())
+    initialize_roles(db())
     if not db().execute("SELECT 1 FROM schema_migrations WHERE name='one-minute-autosave'").fetchone():
         db().execute('UPDATE users SET autosave_minutes=1 WHERE autosave_minutes=5')
         db().execute("INSERT INTO schema_migrations VALUES('one-minute-autosave')");db().commit()
@@ -230,16 +233,33 @@ def completion_items(cid):
 def review_issues(cid): return [item['message'] for item in completion_items(cid)]
 
 def audit(action): run('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'] if g.user else 'system',action,now()))
+API_HITS={}
 @app.before_request
 def protect():
     if request.method=='POST' and os.name=='posix':
         import fcntl
         fd=os.open(ROOT/'.backup.lock',os.O_CREAT|os.O_RDWR,0o600)
-        try:fcntl.flock(fd,fcntl.LOCK_EX if request.endpoint=='database_backup' else fcntl.LOCK_SH)
+        try:fcntl.flock(fd,fcntl.LOCK_EX if request.endpoint in ('database_backup','api.api_database_backup') else fcntl.LOCK_SH)
         except Exception:os.close(fd);raise
         g.backup_lock_fd=fd
-    if request.endpoint=='backup_import':request.max_content_length=1024*1024*1024
+    if request.endpoint in ('backup_import','api.api_import_backup'):request.max_content_length=1024*1024*1024
     g.user=None
+    if request.path.startswith('/api/v1/'):
+        authorization=request.headers.get('Authorization','')
+        scheme,separator,token=authorization.partition(' ')
+        if not separator or scheme.lower()!='bearer' or not token:return {'error':'A bearer token is required.'},401,{'WWW-Authenticate':'Bearer'}
+        token_hash=hashlib.sha256(token.encode()).hexdigest()
+        user=db().execute('SELECT api_tokens.id AS api_token_id,users.* FROM api_tokens JOIN users ON users.id=api_tokens.user_id WHERE api_tokens.token_hash=? AND api_tokens.revoked IS NULL AND (api_tokens.expires IS NULL OR api_tokens.expires>?)',(token_hash,now())).fetchone()
+        if not user or not user['active']:return {'error':'Invalid, expired, or revoked bearer token.'},401,{'WWW-Authenticate':'Bearer'}
+        if user['forced']:return {'error':'Change the temporary password in the web account before using the API.'},403
+        g.user=user;g.api_token_id=user['api_token_id']
+        import time
+        limit=int(os.environ.get('MARE_API_RATE_LIMIT','600'));minute=int(time.time()//60)
+        window,count=API_HITS.get(g.api_token_id,(minute,0));count=count+1 if window==minute else 1
+        API_HITS[g.api_token_id]=(minute,count)
+        if limit>0 and count>limit:return {'error':'Rate limit exceeded.'},429,{'Retry-After':'60'}
+        run('UPDATE api_tokens SET last_used=? WHERE id=?',(now(),g.api_token_id))
+        return
     if session.get('uid'):
         u=db().execute('SELECT * FROM users WHERE id=?',(session['uid'],)).fetchone()
         if u and u['active'] and u['version']==session.get('version'): g.user=u
@@ -251,6 +271,7 @@ def protect():
         if g.user['forced'] and request.endpoint not in ('account','logout'): return redirect('/account')
 @app.before_request
 def enforce_case_stage():
+    if request.path.startswith('/api/v1/'):return
     cid=(request.view_args or {}).get('cid')
     if cid is None or request.method!='POST' or not g.user: return
     c=case(cid)
@@ -334,6 +355,14 @@ def save_autosave_settings():
     run('UPDATE users SET autosave_minutes=? WHERE id=?',(minutes,g.user['id']))
     flash('Autosave interval saved. It applies when case pages are opened or refreshed.')
     return redirect('/account')
+@app.post('/account/board-view')
+def save_board_view():
+    view=request.form.get('board_view')
+    if view not in ('cards','table'):
+        flash('Choose a valid board view.');return redirect('/account')
+    run('UPDATE users SET board_view=? WHERE id=?',(view,g.user['id']))
+    flash('Default board view saved.')
+    return redirect('/account')
 @app.post('/account/sample-password')
 @admin
 def save_sample_archive_password():
@@ -348,9 +377,10 @@ def save_sample_archive_password():
 def dashboard():
     cases=[dict(c) for c in db().execute(CASE_QUERY+' ORDER BY c.id DESC')]
     for c in cases: c['readiness']=readiness(c['id'])
-    return render_template('dashboard.html',cases=cases)
-@app.get('/metrics')
-def metrics():
+    view=request.args.get('view')
+    if view not in ('cards','table'): view=g.user['board_view']
+    return render_template('dashboard.html',cases=cases,view=view)
+def metrics_data():
     users=db().execute('''SELECT u.id,u.username,u.active,
       (SELECT count(*) FROM cases WHERE creator=u.id) AS created_count,
       (SELECT count(*) FROM cases WHERE owner=u.id) AS assigned_count,
@@ -362,6 +392,10 @@ def metrics():
         'completed':[{'label':user['username'],'value':user['completed_count']} for user in users if user['completed_count']],
         'stages':[{'label':label,'value':sum(stage_counts.get(stage,0) for stage in stage_values)} for label,stage_values in [('Not started',(0,)),('In progress',(1,2)),('Completed',(3,))]],
     }
+    return users,chart_data
+@app.get('/metrics')
+def metrics():
+    users,chart_data=metrics_data()
     return render_template('metrics.html',metrics_users=users,chart_data=chart_data)
 
 def external_reference(form):
@@ -751,11 +785,14 @@ register_indicators(app,ROOT,db,case,package,ensure_package,mark_pending,audit)
 from references import register_references
 register_references(app,db,case,ensure_package,mark_pending,audit)
 from report_assets import register_assets
-register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,audit)
+asset_helpers=register_assets(app,db,case,package,ensure_package,safe_path,mark_pending,audit)
 from report_routes import register_reporting
 report_helpers=register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,audit,now)
 
 from backups import register_backups
 backup_helpers=register_backups(app,ROOT,db,case,package,ensure_package,build_archive,allocate_case_number,audit,now)
+
+from api import register_api
+register_api(app,db,run,case,package,ensure_package,now,audit,allocate_case_number,external_reference,sample_archive_password,mark_pending,readiness,review_issues,STAGES,safe_path,build_archive,report_helpers,asset_helpers,backup_helpers,metrics_data)
 
 if __name__=='__main__': app.run(host='127.0.0.1',port=8000)

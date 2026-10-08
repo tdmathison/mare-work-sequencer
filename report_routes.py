@@ -75,7 +75,8 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     def report_data(cid):
         c=case(cid);root=package(cid);path=current_report(c,root)
         return {'sections':manual(cid),'sources':[],'skipped':[],'job':job_data(cid),'report_exists':(root/path).exists(),'report_path':path,'report_files':report_outputs(cid),'pdf_converter_available':bool(shutil.which('libreoffice') or shutil.which('soffice')),'mitre_mappings':mitre_mappings(cid)}
-    def persist_sections(cid,form):
+    def persist_sections(cid,form=None):
+        form=form or request.form
         root=ensure_package(cid)/'reports/sections';root.mkdir(exist_ok=True)
         for key in TOKENS:
             if key not in SECTIONS:continue
@@ -161,12 +162,15 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
     def generate_report(cid):
         import hashlib
         c=case(cid);uid=g.user['id'];s=settings(uid)
-        generation_mode=request.form.get('generation_mode','manual')
+        data=request.get_json(silent=True) if request.is_json else request.form
+        if not hasattr(data,'get'):return {'error':'Request body must be an object.'},400
+        if isinstance(data,dict) and isinstance(data.get('sections'),dict):data={**data,**data['sections']}
+        generation_mode=data.get('generation_mode','manual')
         if generation_mode!='manual':return {'error':'Only local Word report generation is supported.'},400
         if not s['template_id']:return {'error':'Select a Word template in Settings first.'},400
         template_row=db().execute('SELECT * FROM word_templates WHERE id=? AND user_id=?',(s['template_id'],uid)).fetchone()
         if not template_row:return {'error':'Select an available template in Settings.'},400
-        root=ensure_package(cid);previous_path=current_report(c,root);output_path='reports/'+report_filename(c);target=root/previous_path;mode=request.form.get('previous','');generate_pdf=request.form.get('generate_pdf','1')!='0'
+        root=ensure_package(cid);previous_path=current_report(c,root);output_path='reports/'+report_filename(c);target=root/previous_path;mode=data.get('previous','');generate_pdf=data.get('generate_pdf','1') not in ('0',False)
         if output_path!=previous_path and (root/output_path).exists():return {'error':'The new report filename already exists. Rename that asset before generating.'},409
         if target.exists() and mode not in ('backup','overwrite'):return {'error':'Choose whether to back up the existing report before replacement.','needs_choice':True},409
         expired()
@@ -178,7 +182,7 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         except Exception:connection.rollback();raise
         snapshot=ROOT/'report-jobs'/jid;snapshot.mkdir(parents=True,exist_ok=True)
         try:
-            sections=persist_sections(cid,request.form)
+            sections=persist_sections(cid,data)
             if not any(v.strip() for v in sections.values()):raise ValueError('Enter manual report content before generating a report.')
             template=snapshot/'template.docx';shutil.copy2(ROOT/'users'/str(uid)/'templates'/(s['template_id']+'.docx'),template)
             expected=hashlib.sha256(target.read_bytes()).hexdigest() if target.exists() else ''
@@ -217,4 +221,4 @@ def register_reporting(app,ROOT,db,run,case,package,ensure_package,mark_pending,
         finally:
             if db().in_transaction:db().rollback()
             temp.unlink(missing_ok=True);pdf_temp.unlink(missing_ok=True)
-    return {'manual':manual,'settings':settings}
+    return {'manual':manual,'settings':settings,'generate':generate_report,'final':upload_final_report,'outputs':report_outputs,'upload_template':upload_template,'download_template':download_template,'delete_template':delete_template}

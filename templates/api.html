@@ -1,0 +1,92 @@
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<h1>API</h1><br/>
+<section class="panel" id="api-tokens">
+<h2>API bearer tokens</h2>
+<p class="muted">Tokens grant API access using your current role permissions. The secret is shown once; store it securely.</p>
+{% if new_api_token %}<p class="dangerous-sample-export"><strong>Copy this token now:</strong> <code>{{new_api_token}}</code></p>{% endif %}
+<form method="post" action="/account/api-tokens">{{token(csrf)}}<label>Token name<input name="name" maxlength="80" required></label><label>Expires after (days, optional)<input name="expires_in_days" type="number" min="1" max="3650" step="1"></label><button>Create bearer token</button></form>
+{% if api_tokens %}<div class="table-scroll"><table><thead><tr><th>Name</th><th>Token prefix</th><th>Created</th><th>Last used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>{% for item in api_tokens %}<tr><td>{{item.name}}</td><td><code>{{item.token_prefix}}…</code></td><td>{{item.created}}</td><td>{{item.last_used or 'Never'}}</td><td>{{item.expires or 'Never'}}</td><td>{{'Revoked' if item.revoked else 'Expired' if item.expires and item.expires < now_utc else 'Active'}}</td><td>{% if not item.revoked %}<form method="post" action="/account/api-tokens/{{item.id}}/revoke">{{token(csrf)}}<button>Revoke</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+</section>
+
+<section class="panel">
+<h2>Available endpoints</h2>
+<p class="muted">All paths are relative to <code>/api/v1</code>. The permission column is the role permission required for that method.</p>
+{% for group,items in endpoint_groups.items() %}<h3>{{group}}</h3><div class="table-scroll"><table><thead><tr><th>Method</th><th>Path</th><th>Permission</th></tr></thead><tbody>{% for item in items %}<tr><td><code>{{item.method}}</code></td><td><code>{{item.path}}</code></td><td>{{item.permission}}</td></tr>{% endfor %}</tbody></table></div>{% endfor %}
+</section>
+
+<section class="panel">
+<h2>Using the API from Python 3</h2>
+<p class="muted">Base URL: <code>{{request.host_url}}api/v1</code>. Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. Responses are JSON and errors look like <code>{"error": "..."}</code>. List endpoints accept <code>limit</code> (max 500) and <code>offset</code>. Install the client library with <code>python3 -m pip install requests</code>.</p>
+<pre><code>import os
+import requests
+
+BASE = "{{request.host_url}}api/v1"
+session = requests.Session()
+session.headers["Authorization"] = "Bearer " + os.environ["MARE_TOKEN"]
+# session.verify = "/path/to/ca.pem"   # for an internal certificate authority
+
+def check(response):
+    if not response.ok:
+        raise RuntimeError(f"{response.status_code}: {response.text}")
+    return response
+
+# Who am I, and what may I do?
+print(check(session.get(f"{BASE}/me")).json())
+
+# Create a case and read it back
+case = check(session.post(f"{BASE}/cases", json={"name": "20260101: Example sample"})).json()["case"]
+case_id = case["id"]
+
+# Assign an owner and start analysis (required before editing content)
+me = session.get(f"{BASE}/me").json()["user"]
+check(session.patch(f"{BASE}/cases/{case_id}", json={"owner_id": me["id"]}))
+check(session.post(f"{BASE}/cases/{case_id}/stage", json={"expected": 0}))
+
+# Add a task and a note
+check(session.post(f"{BASE}/cases/{case_id}/tasks", json={"title": "Unpack the sample"}))
+check(session.post(f"{BASE}/cases/{case_id}/notes", json={"title": "Triage", "body": "Packed with UPX."}))
+
+# Upload a file (multipart) into a package category such as scripts or signatures
+with open("decode.py", "rb") as handle:
+    check(session.post(f"{BASE}/cases/{case_id}/assets",
+                       data={"category": "scripts", "description": "Config decoder"},
+                       files={"file": handle}))
+
+# Upload a pasted screenshot for a report section
+with open("screenshot.png", "rb") as handle:
+    image = check(session.post(f"{BASE}/cases/{case_id}/report/images",
+                               data={"section": "key_findings"},
+                               files={"image": handle})).json()
+print("Use in Markdown: ![caption](" + image["markdown_url"] + ")")
+
+# Upload and select your Word template once (needs a heading or placeholder per report section)
+with open("template.docx", "rb") as handle:
+    check(session.post(f"{BASE}/templates", files={"template": handle}))
+
+# Save report sections, then generate the Word report and wait for the job
+check(session.put(f"{BASE}/cases/{case_id}/report", json={"sections": {"executive_summary": "Summary text"}}))
+check(session.post(f"{BASE}/cases/{case_id}/report/generate", json={"previous": "overwrite"}))
+import time
+while True:
+    job = session.get(f"{BASE}/cases/{case_id}/report/job").json()["job"]
+    if job and job["status"] != "running" and job["status"] != "queued":
+        break
+    time.sleep(2)
+
+# Download the generated report, then upload an edited copy
+with open("report.docx", "wb") as out:
+    out.write(check(session.get(f"{BASE}/cases/{case_id}/report/download")).content)
+with open("report-edited.docx", "rb") as handle:
+    check(session.post(f"{BASE}/cases/{case_id}/report/final", files={"report": handle}))
+
+# Export the MIP archive (Packaging &amp; Delivery or Completed stage)
+archive = check(session.post(f"{BASE}/cases/{case_id}/archive", json={"archive_type": "standard"}))
+with open("mip.zip", "wb") as out:
+    out.write(archive.content)
+
+# Back up every case
+with open("all-cases.zip", "wb") as out:
+    out.write(check(session.post(f"{BASE}/backups/export")).content)</code></pre>
+<p class="muted">Case-changing calls follow the same rules as the web interface: an active owner is required, and content cannot be edited while a case is Not started or Completed. Status codes: 400 invalid input, 401 missing or invalid token, 403 missing permission, 404 not found, 409 conflict with the case state, 429 rate limit exceeded (600 requests per minute per token).</p>
+</section>
+
+{% endblock %}

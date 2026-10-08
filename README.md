@@ -238,3 +238,32 @@ Generated Markdown, indicator, and reference tables match the provided Word exam
 ### Moving an existing installation
 
 Stop the service before renaming or moving the installation. Keep the complete existing data directory (database, session key, cases, templates, and backups) together and place it in `mare-work-sequencer/data/`. If both old and new data directories exist, keep a backup of both and choose the directory containing your existing accounts and cases; do not merge SQLite databases. Update the installed service WorkingDirectory, ExecStart, and ReadWritePaths to the new location. Remove stale MARE_DATA_DIR overrides from the service or shell if the default data location is desired. Adjust User/Group to your existing service account, reload systemd with `sudo systemctl daemon-reload`, and restart the service. Existing virtual environments may contain absolute paths; recreate `.venv` at the new location and install requirements if it was moved.
+
+## REST API
+
+Create a bearer token in Settings (or `POST /api/v1/tokens`) and send `Authorization: Bearer <token>`. Tokens act as their owner, are shown once, can be revoked, and may expire (`expires_in_days`, 1-3650). Each token is limited to 600 requests per minute per process (override with `MARE_API_RATE_LIMIT`; `0` disables). Accounts with a forced password change cannot use the API. Errors are JSON: `{"error": "..."}`. List endpoints accept `limit` (max 500) and `offset` and return `total`.
+
+Each endpoint requires a role permission (see `GET /api/v1/permissions`). New permissions: `metrics:read` and `templates:manage` (both granted to the User role), plus the existing `backups:manage` and `audit:read`.
+
+| Area | Endpoints |
+| --- | --- |
+| Identity | `GET /me`, `GET/POST /tokens`, `DELETE /tokens/<id>`, `GET /permissions` |
+| Admin | `/roles`, `/roles/<name>`, `/users`, `/users/<id>`, `/settings` |
+| Cases | `GET/POST /cases`, `GET/PATCH/DELETE /cases/<id>`, `POST /cases/<id>/stage`, `POST /cases/<id>/reopen`, `GET/PUT /cases/<id>/readiness` |
+| Case content | `/cases/<id>/tasks`, `/notes`, `/draft`, `/assets` (multipart upload with `category` and `file`), `/indicators`, `/references` |
+| Report | `GET/PUT /cases/<id>/report`, `/report/mappings`, `POST /report/generate`, `GET /report/job`, `POST /report/final` (multipart `report`, optional `backup=1`, `generate_pdf=0`), `GET /report/download?format=docx|pdf` |
+| Report images | `GET/POST /cases/<id>/report/images` (multipart `section` and `image`), `GET/DELETE /cases/<id>/report/images/<name>` |
+| Word templates | `GET/POST /templates` (multipart `template`), `PUT /templates/selected` (`{"template_id": "..."}`), `GET/DELETE /templates/<id>` |
+| Export and archive | `POST /cases/<id>/archive`, `POST /cases/<id>/backup` |
+| Backups | `POST /backups/export` (all cases), `POST /backups/import` (multipart `backup`), `POST /backups/import-raw` (single RAW MIP), `POST /backups/database` (Administrator) |
+| Metrics | `GET /metrics` |
+
+Example:
+
+```
+curl -H "Authorization: Bearer $TOKEN" https://host/api/v1/cases
+curl -H "Authorization: Bearer $TOKEN" -F report=@edited.docx https://host/api/v1/cases/1/report/final
+curl -H "Authorization: Bearer $TOKEN" -X POST -o backup.zip https://host/api/v1/backups/export
+```
+
+Case-modifying endpoints follow the same stage rules as the web interface (owner required, and no edits in Not started or Completed). Upload limits match the web interface. Add the `/api/v1/` block from `deploy/nginx.conf` when using nginx so large imports are accepted.
