@@ -40,7 +40,8 @@ def report_filename(c,date=None):
         match=re.fullmatch(r'MARE-\d{4}-(\d+)',number)
         if match:number=match.group(1)
     title=re.sub(r'^\d{8}:\s*','',c['name'].strip())
-    stamp=date or datetime.now(timezone.utc).strftime('%Y%m%d')
+    from mip import title_date
+    stamp=date or title_date(c['name'])
     return stamp+'-MARE_'+(component(number,64) or 'case')+'_RE_Report_'+(component(title,144) or 'case')+'.docx'
 
 def valid_report_path(value):

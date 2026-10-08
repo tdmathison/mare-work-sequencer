@@ -6,7 +6,7 @@ from flask import Flask, request, session, redirect, render_template, abort, fla
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
-from mip import dated_title, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
+from mip import dated_title, title_date, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
 from authorization import has_permission, initialize_roles
 
 STAGES=['Not started','Malware Analysis','Packaging & Delivery','Completed']
@@ -665,7 +665,7 @@ def archive(cid):
 def build_archive(cid,archive_type,include_samples=False):
     c=case(cid);root=ensure_package(cid);issues=review_issues(cid)
     title=re.sub(r'^\d{8}:\s*','',c['name'])
-    name=datetime.now(timezone.utc).strftime('%Y%m%d')+'-MIP-'+slugify(title)+('-RAW' if archive_type=='raw' else '')+('-MAL' if include_samples else '')
+    name=title_date(c['name'])+'-MIP-'+slugify(title)+('-RAW' if archive_type=='raw' else '')+('-MAL' if include_samples else '')
     statuses=readiness(cid); metadata=[{k:a[k] for k in a.keys() if k!='usage'} for a in db().execute('SELECT * FROM artifacts WHERE case_id=?',(cid,))]
     manifest={'archive_type':archive_type,'include_samples':include_samples,'schema':'mare-mip/2.0','package_id':name,'title':c['name'],'case_number':c['number'],'external_reference':{'system':c['external_system'],'number':c['external_number']},'description':c['description'],'created_at':c['created'],'packaged_at':now(),'readiness':statuses,'acknowledged_issues':issues,'artifacts':metadata,'files':[]}
     contents={}

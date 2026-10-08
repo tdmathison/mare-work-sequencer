@@ -1,10 +1,17 @@
 from pathlib import Path
 import re
-from datetime import datetime
+from datetime import datetime,timezone
 
 def dated_title(title):
     title=title.strip()
     return title if re.match(r'\d{8}: ',title) else datetime.now().strftime('%Y%m%d')+': '+title
+def title_date(title):
+    match=re.match(r'(\d{8}):',title.strip())
+    if match:
+        try:datetime.strptime(match.group(1),'%Y%m%d');return match.group(1)
+        except ValueError:pass
+    return datetime.now(timezone.utc).strftime('%Y%m%d')
+
 CATEGORIES={'reports':'Reports','iocs':'IOCs','signatures':'Signatures','scripts':'Scripts','mappings':'MITRE tables','supporting':'Supporting evidence','samples':'Samples'}
 REPORT_TEMPLATE='''# Malware Analysis Report
 

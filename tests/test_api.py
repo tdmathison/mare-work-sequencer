@@ -186,3 +186,15 @@ def test_case_name_gets_date_prefix(admin):
     plain = client.post('/api/v1/cases', json={'name': 'Plain'}, headers=admin[1]).json['case']['name']
     dated = client.post('/api/v1/cases', json={'name': '20200102: Old'}, headers=admin[1]).json['case']['name']
     assert plain == today + ': Plain' and dated == '20200102: Old'
+
+
+def test_title_date_drives_report_and_package_names():
+    from datetime import datetime, timezone
+    from mip import title_date
+    from reporting import report_filename
+    today = datetime.now(timezone.utc).strftime('%Y%m%d')
+    assert title_date('20200102: Old') == '20200102'
+    assert title_date('No date') == today and title_date('20201345: Bad') == today
+    case_row = {'name': '20200102: Old', 'number': 'MARE-2026-000007', 'external_number': ''}
+    assert report_filename(case_row).startswith('20200102-MARE_000007_RE_Report_Old')
+    assert report_filename({**case_row, 'name': 'Plain'}).startswith(today + '-')
