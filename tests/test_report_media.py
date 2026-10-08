@@ -78,7 +78,7 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     assert client.get(base+'/assets?category=scripts').json['files']==[]
     assert post('/assets/delete',path='../../session.key').status_code==400
     page=client.get(base).data
-    assert b'line-numbers' in page and b'data-md="table"' in page and b'Asset manager' in page
+    assert b'line-numbers' in page and b'data-md="table"' in page and b'data-md="html-table"' in page and b'Asset manager' in page
 
 def test_mitre_mapping_editors_save_canonical_report_sources():
     with app.app_context():

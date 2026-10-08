@@ -516,6 +516,7 @@
     const raw = section.querySelector(".editor-raw-tab"),
       preview = section.querySelector(".editor-preview-tab"),
       pane = section.querySelector(".markdown-preview"),
+      area = section.querySelector(".markdown-input"),
       editor = section.querySelector(".markdown-editor");
     raw.addEventListener("click", () => {
       ++previewSequence;
@@ -525,7 +526,7 @@
       const sequence = ++previewSequence,
         data = new FormData();
       data.set("csrf", form.elements.csrf.value);
-      data.set("text", section.querySelector("textarea").value);
+      data.set("text", area.value);
       editor.hidden = true;
       pane.hidden = false;
       raw.setAttribute("aria-selected", "false");
@@ -596,7 +597,7 @@
       button.textContent = "Collapse editor";
       button.setAttribute("aria-expanded", "true");
       document.body.classList.add("report-editor-open");
-      section.querySelector("textarea").focus();
+      section.querySelector(".markdown-input").focus();
     }),
   );
   document.addEventListener("keydown", (event) => {

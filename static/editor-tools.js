@@ -23,6 +23,68 @@
     area.focus();
     area.dispatchEvent(new Event("input"));
   }
+  function escapeTableCell(value) {
+    return value
+      .replace(/\u00a0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\\/g, "\\\\")
+      .replace(/\|/g, "\\|");
+  }
+  function valuesToMarkdown(values) {
+    const columnCount = Math.max(0, ...values.map((row) => row.length));
+    if (!columnCount) return "";
+    values = values.map((row) => [
+      ...row,
+      ...Array(columnCount - row.length).fill(""),
+    ]);
+    const separator = Array(columnCount).fill("---");
+    return [values[0], separator, ...values.slice(1)]
+      .map((row) => "| " + row.join(" | ") + " |")
+      .join("\n");
+  }
+  function htmlTablesToMarkdown(input) {
+    const parsed = new DOMParser().parseFromString(input, "text/html"),
+      tables = [...parsed.querySelectorAll("table")].filter(
+        (table) => !table.parentElement.closest("table"),
+      );
+    if (!tables.length) {
+      const lines = input.replace(/\r\n?/g, "\n").split("\n");
+      while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+      if (!input.includes("\t") || !lines.length) return "";
+      return valuesToMarkdown(
+        lines.map((line) => line.split("\t").map(escapeTableCell)),
+      );
+    }
+    return tables
+      .map((table) => {
+        const rows = [...table.rows].filter(
+          (row) => row.closest("table") === table,
+        );
+        const values = rows.map((row) =>
+          [...row.cells].flatMap((cell) => {
+            const content = cell.cloneNode(true);
+            content.querySelectorAll("script,style").forEach((node) =>
+              node.remove(),
+            );
+            content.querySelectorAll("br").forEach((node) =>
+              node.replaceWith(document.createTextNode(" ")),
+            );
+            content.querySelectorAll("p,div,li").forEach((node) => {
+              node.before(" ");
+              node.after(" ");
+            });
+            return [
+              escapeTableCell(content.textContent || ""),
+              ...Array(Math.max(1, cell.colSpan) - 1).fill(""),
+            ];
+          }),
+        );
+        return valuesToMarkdown(values);
+      })
+      .filter(Boolean)
+      .join("\n\n");
+  }
   async function images() {
     const result = await request("/cases/" + cid + "/report-images");
     for (const section of document.querySelectorAll(".manual-section")) {
@@ -293,6 +355,28 @@
             picker.value = "";
             picker.click();
             break;
+          case "html-table": {
+            const dialog = section.querySelector(".markdown-table-dialog"),
+              input = dialog.querySelector(".markdown-table-input"),
+              start = area.selectionStart,
+              end = area.selectionEnd;
+            dialog.querySelector("[data-html-table-close]").onclick = () =>
+              dialog.close();
+            dialog.querySelector("[data-html-table-convert]").onclick = () => {
+              const markdown = htmlTablesToMarkdown(input.value);
+              if (!markdown) {
+                status.textContent =
+                  "Paste an HTML table or tab-delimited table text to convert.";
+                return;
+              }
+              area.setSelectionRange(start, end);
+              insert(area, "\n" + markdown + "\n\n");
+              input.value = "";
+              dialog.close();
+            };
+            dialog.showModal();
+            break;
+          }
         }
       });
   }
