@@ -1,5 +1,101 @@
-(()=>{const form=document.querySelector('.asset-form');if(!form)return;const cid=form.dataset.caseId,category=form.elements.category,status=document.getElementById('asset-status'),list=document.getElementById('asset-files'),locked=!!form.querySelector('fieldset:disabled'),key='mare-asset-category-'+cid;let busy=false;
-try{const saved=sessionStorage.getItem(key);if([...category.options].some(option=>option.value===saved))category.value=saved;}catch(_){}
-async function request(url,data){const response=await fetch(url,data?{method:'POST',body:data}:{});const result=await response.json();if(!response.ok)throw Error(result.error||'Asset request failed.');return result;}
-async function load(){const selected=category.value;try{const result=await request('/cases/'+cid+'/assets?category='+encodeURIComponent(selected));if(category.value!==selected)return;list.replaceChildren();for(const file of result.files){const row=document.createElement('div'),link=document.createElement('a'),remove=document.createElement('button');link.href='/cases/'+cid+'/file?download=1&path='+encodeURIComponent(file.path);link.textContent=file.path;remove.type='button';remove.textContent='Delete';remove.disabled=locked;remove.addEventListener('click',async()=>{if(busy||!confirm('Delete '+file.path+' from the MIP?'))return;const data=new FormData();data.set('csrf',form.elements.csrf.value);data.set('path',file.path);try{await request('/cases/'+cid+'/assets/delete',data);status.textContent='Asset deleted. Readiness needs review.';await load();}catch(e){status.textContent=e.message;}});row.append(link,remove);list.append(row);}if(!result.files.length)list.textContent='Directory is empty.';window.dispatchEvent(new CustomEvent('mare:assets-changed',{detail:{category:selected}}));}catch(e){status.textContent=e.message;}}
-category.addEventListener('change',()=>{try{sessionStorage.setItem(key,category.value);}catch(_){}load();});form.addEventListener('submit',async event=>{event.preventDefault();if(busy||locked)return;busy=true;const data=new FormData(form);form.querySelector('fieldset').disabled=true;data.set('ajax','1');try{await request(form.action,data);form.elements.file.value='';form.elements.description.value='';status.textContent='Uploaded into '+data.get('category')+'/. Readiness needs review.';await load();}catch(e){status.textContent=e.message;}finally{busy=false;form.querySelector('fieldset').disabled=locked;}});load();})();
+(() => {
+  const form = document.querySelector(".asset-form");
+  if (!form) return;
+  const cid = form.dataset.caseId,
+    category = form.elements.category,
+    status = document.getElementById("asset-status"),
+    list = document.getElementById("asset-files"),
+    locked = !!form.querySelector("fieldset:disabled"),
+    key = "mare-asset-category-" + cid;
+  let busy = false;
+  try {
+    const saved = sessionStorage.getItem(key);
+    if ([...category.options].some((option) => option.value === saved))
+      category.value = saved;
+  } catch (_) {}
+  async function request(url, data) {
+    const response = await fetch(
+      url,
+      data ? { method: "POST", body: data } : {},
+    );
+    const result = await response.json();
+    if (!response.ok) throw Error(result.error || "Asset request failed.");
+    return result;
+  }
+  async function load() {
+    const selected = category.value;
+    try {
+      const result = await request(
+        "/cases/" + cid + "/assets?category=" + encodeURIComponent(selected),
+      );
+      if (category.value !== selected) return;
+      list.replaceChildren();
+      for (const file of result.files) {
+        const row = document.createElement("div"),
+          link = document.createElement("a"),
+          remove = document.createElement("button");
+        link.href =
+          "/cases/" +
+          cid +
+          "/file?download=1&path=" +
+          encodeURIComponent(file.path);
+        link.textContent = file.path;
+        remove.type = "button";
+        remove.textContent = "Delete";
+        remove.disabled = locked;
+        remove.addEventListener("click", async () => {
+          if (busy || !confirm("Delete " + file.path + " from the MIP?"))
+            return;
+          const data = new FormData();
+          data.set("csrf", form.elements.csrf.value);
+          data.set("path", file.path);
+          try {
+            await request("/cases/" + cid + "/assets/delete", data);
+            status.textContent = "Asset deleted. Readiness needs review.";
+            await load();
+          } catch (e) {
+            status.textContent = e.message;
+          }
+        });
+        row.append(link, remove);
+        list.append(row);
+      }
+      if (!result.files.length) list.textContent = "Directory is empty.";
+      window.dispatchEvent(
+        new CustomEvent("mare:assets-changed", {
+          detail: { category: selected },
+        }),
+      );
+    } catch (e) {
+      status.textContent = e.message;
+    }
+  }
+  category.addEventListener("change", () => {
+    try {
+      sessionStorage.setItem(key, category.value);
+    } catch (_) {}
+    load();
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (busy || locked) return;
+    busy = true;
+    const data = new FormData(form);
+    form.querySelector("fieldset").disabled = true;
+    data.set("ajax", "1");
+    try {
+      await request(form.action, data);
+      form.elements.file.value = "";
+      form.elements.description.value = "";
+      status.textContent =
+        "Uploaded into " + data.get("category") + "/. Readiness needs review.";
+      await load();
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      busy = false;
+      form.querySelector("fieldset").disabled = locked;
+    }
+  });
+  load();
+})();

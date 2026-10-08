@@ -1,32 +1,474 @@
-(()=>{
-function replaceLastPlainDot(hostname){let position=hostname.lastIndexOf('.');while(position>=0&&hostname.slice(position-1,position+2)==='[.]')position=hostname.lastIndexOf('.',position-1);return position<0?hostname:hostname.slice(0,position)+'[.]'+hostname.slice(position+1);}
-function defangIndicator(value){let result=value.replace(/https:\/\//gi,'hxxps://').replace(/http:\/\//gi,'hxxp://');const url=result.match(/^(.*?hxxps?:\/\/)([^/?#]+)(.*)$/i);if(url){const authority=url[2],separator=authority.lastIndexOf('@'),userInfo=separator>=0?authority.slice(0,separator+1):'',hostPort=separator>=0?authority.slice(separator+1):authority;if(hostPort.startsWith('['))return result;const port=hostPort.match(/:\d+$/),hostname=port?hostPort.slice(0,-port[0].length):hostPort;return url[1]+userInfo+replaceLastPlainDot(hostname)+(port?port[0]:'')+url[3];}const trimmed=value.trim(),candidate=trimmed.replace(/\[\.\]/g,'.'),domain=/^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z0-9-]{2,63}\.?$/,ipv4=/^(?:\d{1,3}\.){3}\d{1,3}$/;if(!domain.test(candidate)&&!ipv4.test(candidate))return result;const start=value.indexOf(trimmed);return value.slice(0,start)+replaceLastPlainDot(trimmed)+value.slice(start+trimmed.length);}
-function refangIndicator(value){return value.replace(/\[\.\]/g,'.').replace(/hxxps:\/\//gi,'https://').replace(/hxxp:\/\//gi,'http://');}
-window.MareIndicatorValues={defang:defangIndicator,refang:refangIndicator};
-const root=document.getElementById('indicator-workspace');if(!root)return;
-const cid=root.dataset.caseId,locked=root.dataset.locked==='true',status=document.getElementById('indicator-status'),container=document.getElementById('indicator-sections');let state,dirty=false,busy=false,importTarget=null,editTarget=null;
-function changed(){dirty=true;status.textContent='Unsaved changes';}
-function editable(){root.querySelector('fieldset').disabled=locked||busy;container.querySelectorAll('td[data-column]').forEach(cell=>cell.contentEditable=locked||busy?'false':'plaintext-only');}
-function focusCell(section,row,column){container.querySelector('[data-section="'+section.id+'"] tbody')?.rows[row]?.querySelector('td[data-column="'+column+'"]')?.focus();}
-function button(text,action){const node=document.createElement('button');node.type='button';node.textContent=text;node.addEventListener('click',action);return node;}
-function transformValues(section,transform){let changedValues=false;for(const row of section.rows){const value=transform(row[1]);if(value!==row[1]){row[1]=value;changedValues=true;}}if(changedValues){changed();render();}else status.textContent='No indicator values needed this change.';}
-function render(){container.replaceChildren();for(const section of state.sections){const article=document.createElement('article');article.className='indicator-section';article.dataset.section=section.id;const heading=document.createElement('h3');heading.textContent=section.title;const description=document.createElement('p');description.className='indicator-section-description';description.textContent=section.description;const actions=document.createElement('div');actions.className='report-actions';const add=button('Add row',()=>{if(locked||busy)return;section.rows.push(['','','']);changed();render();focusCell(section,section.rows.length-1,0);});actions.append(add,button('Import CSV',run(async()=>{if(dirty)await save();importTarget=section.id;document.getElementById('indicator-import-target').textContent='Section: '+section.title;document.getElementById('indicator-csv-file').value='';document.getElementById('indicator-csv-text').value='';document.getElementById('indicator-import-status').textContent='';document.getElementById('indicator-import-dialog').showModal();})));
-actions.append(button('Defang',run(()=>transformValues(section,defangIndicator))),button('Refang',run(()=>transformValues(section,refangIndicator))));
-actions.append(button('Edit section',()=>{if(locked||busy)return;editTarget=section.id;const form=document.getElementById('indicator-section-form');form.elements.title.value=section.title;form.elements.description.value=section.description;document.getElementById('indicator-section-title').textContent='Edit section';form.querySelector('[type="submit"]').textContent='Apply changes';document.getElementById('indicator-section-dialog').showModal();}));
-if(section.id!=='default')actions.append(button('Delete section',()=>{if(locked||busy)return;if(!confirm('Delete section "'+section.title+'" and all '+section.rows.length+' indicator rows in it? Save table to apply this deletion.'))return;state.sections=state.sections.filter(item=>item.id!==section.id);changed();render();}));
-const wrap=document.createElement('div');wrap.className='indicator-table-wrap';const table=document.createElement('table');table.className='indicator-table';const head=table.createTHead().insertRow();for(const name of ['type','value','description','']){const cell=document.createElement('th');cell.textContent=name;cell.scope='col';head.append(cell);}const body=table.createTBody();
-section.rows.forEach((row,index)=>{const tr=body.insertRow();row.forEach((value,column)=>{const cell=tr.insertCell();cell.dataset.column=column;cell.textContent=value;cell.tabIndex=locked?-1:0;cell.setAttribute('aria-label',section.title+', row '+(index+1)+', '+state.columns[column]);cell.setAttribute('role','textbox');cell.setAttribute('aria-multiline','true');cell.addEventListener('input',()=>{section.rows[index][column]=cell.innerText.replace(/\r/g,'');changed();});cell.addEventListener('keydown',event=>{if(locked||busy)return;if(event.key==='Tab'){event.preventDefault();let next=index*3+column+(event.shiftKey?-1:1);if(next<0){add.focus();return;}if(next>=section.rows.length*3){section.rows.push(['','','']);changed();render();}focusCell(section,Math.floor(next/3),next%3);}else if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();if(index===section.rows.length-1){section.rows.push(['','','']);changed();render();}focusCell(section,index+1,column);}});cell.addEventListener('paste',event=>{event.preventDefault();if(locked||busy)return;const selection=window.getSelection();if(!selection.rangeCount)return;const range=selection.getRangeAt(0);if(!cell.contains(range.commonAncestorContainer))return;range.deleteContents();const node=document.createTextNode(event.clipboardData.getData('text/plain'));range.insertNode(node);range.setStartAfter(node);range.collapse(true);selection.removeAllRanges();selection.addRange(range);section.rows[index][column]=cell.innerText.replace(/\r/g,'');changed();});});const action=tr.insertCell(),remove=button('Delete',()=>{if(locked||busy)return;section.rows.splice(index,1);changed();render();});remove.className='indicator-delete';remove.setAttribute('aria-label','Delete '+section.title+' row '+(index+1));action.append(remove);});wrap.append(table);article.append(heading,description,actions,wrap);container.append(article);}editable();}
-async function request(path,data){const response=await fetch('/cases/'+cid+'/indicators'+path,data?{method:'POST',body:data}:{});const result=await response.json();if(!response.ok)throw Error(result.error||'Request failed');return result;}
-async function refreshPackage(){await window.MarePackage?.refresh(cid);}
-function data(){const form=new FormData();form.set('csrf',root.dataset.csrf);form.set('revision',state.revision);return form;}
-async function save(){const form=data();form.set('sections',JSON.stringify(state.sections));state=await request('',form);dirty=false;autosaveTimer.reset();status.textContent='All sections saved to iocs/indicators.csv';render();await refreshPackage();}
-function run(fn){return async()=>{if(busy||locked||!state)return;busy=true;editable();try{await fn();}catch(e){status.textContent=e.message;}finally{busy=false;editable();}};}
-document.getElementById('save-indicators').addEventListener('click',run(async()=>{autosaveTimer.reset();await save();}));
-document.getElementById('add-indicator-section').addEventListener('click',()=>{if(locked||busy||!state)return;editTarget=null;const form=document.getElementById('indicator-section-form');form.reset();document.getElementById('indicator-section-title').textContent='Add new section';form.querySelector('[type="submit"]').textContent='Add section';document.getElementById('indicator-section-dialog').showModal();});
-document.getElementById('indicator-section-form').addEventListener('submit',event=>{event.preventDefault();if(locked||busy||!state)return;const form=event.target,title=form.elements.title.value.trim();if(!title){form.elements.title.focus();return;}if(editTarget){const section=state.sections.find(item=>item.id===editTarget);if(!section)return;section.title=title;section.description=form.elements.description.value;}else state.sections.push({id:'section-'+Array.from(crypto.getRandomValues(new Uint8Array(16)),value=>value.toString(16).padStart(2,'0')).join(''),title:title,description:form.elements.description.value,rows:[]});changed();render();document.getElementById('indicator-section-dialog').close();const target=editTarget?container.querySelector('[data-section="'+editTarget+'"]'):container.lastElementChild;target?.scrollIntoView({block:'nearest'});editTarget=null;});
-document.querySelectorAll('[data-close-indicator-dialog]').forEach(node=>node.addEventListener('click',()=>{if(!busy)node.closest('dialog').close();}));
-document.getElementById('confirm-indicator-import').addEventListener('click',run(async()=>{const dialog=document.getElementById('indicator-import-dialog'),message=document.getElementById('indicator-import-status'),form=data(),file=document.getElementById('indicator-csv-file').files[0],text=document.getElementById('indicator-csv-text').value;if(file&&text.trim())throw Error('Choose a CSV file or pasted CSV, not both.');form.set('section_id',importTarget);if(file)form.set('csv',file);else form.set('csv',text);message.textContent='Importing…';try{const result=await request('/import',form);state=result;dirty=false;autosaveTimer.reset();render();status.textContent='Added '+result.added+' indicators to the selected section and saved all sections to iocs/indicators.csv.';dialog.close();message.textContent='';await refreshPackage();}catch(e){message.textContent=e.message;throw e;}}));
-request('').then(result=>{state=result;render();status.textContent=locked?'Read-only. Reopen the case to edit indicators.':'Ready. Click a cell to edit; Tab moves between cells, Enter moves down, and Shift+Enter adds a line break.';}).catch(e=>status.textContent=e.message);
-const autosaveTimer=window.MareAutosave.register({onCountdown:(seconds,running,paused)=>{const label=document.getElementById('save-indicators-countdown');if(label)label.textContent=running?'Autosaving…':paused?'Autosave paused':'Autosave in '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');},canSave:()=>state&&!busy&&!locked,save:async()=>{busy=true;const snapshot=JSON.stringify(state.sections),form=data();form.set('sections',snapshot);form.set('automatic','1');try{const result=await request('',form);state.revision=result.revision;dirty=JSON.stringify(state.sections)!==snapshot;status.textContent='Autosaved to iocs/indicators.csv at '+new Date().toLocaleTimeString()+(dirty?' — newer changes pending':'');await refreshPackage();}finally{busy=false;}},onError:error=>{status.textContent='Autosave failed: '+error.message;}});
-window.addEventListener('beforeunload',event=>{if(dirty||busy){event.preventDefault();event.returnValue='';}});
+(() => {
+  function replaceLastPlainDot(hostname) {
+    let position = hostname.lastIndexOf(".");
+    while (
+      position >= 0 &&
+      hostname.slice(position - 1, position + 2) === "[.]"
+    )
+      position = hostname.lastIndexOf(".", position - 1);
+    return position < 0
+      ? hostname
+      : hostname.slice(0, position) + "[.]" + hostname.slice(position + 1);
+  }
+  function defangIndicator(value) {
+    let result = value
+      .replace(/https:\/\//gi, "hxxps://")
+      .replace(/http:\/\//gi, "hxxp://");
+    const url = result.match(/^(.*?hxxps?:\/\/)([^/?#]+)(.*)$/i);
+    if (url) {
+      const authority = url[2],
+        separator = authority.lastIndexOf("@"),
+        userInfo = separator >= 0 ? authority.slice(0, separator + 1) : "",
+        hostPort = separator >= 0 ? authority.slice(separator + 1) : authority;
+      if (hostPort.startsWith("[")) return result;
+      const port = hostPort.match(/:\d+$/),
+        hostname = port ? hostPort.slice(0, -port[0].length) : hostPort;
+      return (
+        url[1] +
+        userInfo +
+        replaceLastPlainDot(hostname) +
+        (port ? port[0] : "") +
+        url[3]
+      );
+    }
+    const trimmed = value.trim(),
+      candidate = trimmed.replace(/\[\.\]/g, "."),
+      domain =
+        /^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z0-9-]{2,63}\.?$/,
+      ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+    if (!domain.test(candidate) && !ipv4.test(candidate)) return result;
+    const start = value.indexOf(trimmed);
+    return (
+      value.slice(0, start) +
+      replaceLastPlainDot(trimmed) +
+      value.slice(start + trimmed.length)
+    );
+  }
+  function refangIndicator(value) {
+    return value
+      .replace(/\[\.\]/g, ".")
+      .replace(/hxxps:\/\//gi, "https://")
+      .replace(/hxxp:\/\//gi, "http://");
+  }
+  window.MareIndicatorValues = {
+    defang: defangIndicator,
+    refang: refangIndicator,
+  };
+  const root = document.getElementById("indicator-workspace");
+  if (!root) return;
+  const cid = root.dataset.caseId,
+    locked = root.dataset.locked === "true",
+    status = document.getElementById("indicator-status"),
+    container = document.getElementById("indicator-sections");
+  let state,
+    dirty = false,
+    busy = false,
+    importTarget = null,
+    editTarget = null;
+  function changed() {
+    dirty = true;
+    status.textContent = "Unsaved changes";
+  }
+  function editable() {
+    root.querySelector("fieldset").disabled = locked || busy;
+    container
+      .querySelectorAll("td[data-column]")
+      .forEach(
+        (cell) =>
+          (cell.contentEditable = locked || busy ? "false" : "plaintext-only"),
+      );
+  }
+  function focusCell(section, row, column) {
+    container
+      .querySelector('[data-section="' + section.id + '"] tbody')
+      ?.rows[row]?.querySelector('td[data-column="' + column + '"]')
+      ?.focus();
+  }
+  function button(text, action) {
+    const node = document.createElement("button");
+    node.type = "button";
+    node.textContent = text;
+    node.addEventListener("click", action);
+    return node;
+  }
+  function transformValues(section, transform) {
+    let changedValues = false;
+    for (const row of section.rows) {
+      const value = transform(row[1]);
+      if (value !== row[1]) {
+        row[1] = value;
+        changedValues = true;
+      }
+    }
+    if (changedValues) {
+      changed();
+      render();
+    } else status.textContent = "No indicator values needed this change.";
+  }
+  function render() {
+    container.replaceChildren();
+    for (const section of state.sections) {
+      const article = document.createElement("article");
+      article.className = "indicator-section";
+      article.dataset.section = section.id;
+      const heading = document.createElement("h3");
+      heading.textContent = section.title;
+      const description = document.createElement("p");
+      description.className = "indicator-section-description";
+      description.textContent = section.description;
+      const actions = document.createElement("div");
+      actions.className = "report-actions";
+      const add = button("Add row", () => {
+        if (locked || busy) return;
+        section.rows.push(["", "", ""]);
+        changed();
+        render();
+        focusCell(section, section.rows.length - 1, 0);
+      });
+      actions.append(
+        add,
+        button(
+          "Import CSV",
+          run(async () => {
+            if (dirty) await save();
+            importTarget = section.id;
+            document.getElementById("indicator-import-target").textContent =
+              "Section: " + section.title;
+            document.getElementById("indicator-csv-file").value = "";
+            document.getElementById("indicator-csv-text").value = "";
+            document.getElementById("indicator-import-status").textContent = "";
+            document.getElementById("indicator-import-dialog").showModal();
+          }),
+        ),
+      );
+      actions.append(
+        button(
+          "Defang",
+          run(() => transformValues(section, defangIndicator)),
+        ),
+        button(
+          "Refang",
+          run(() => transformValues(section, refangIndicator)),
+        ),
+      );
+      actions.append(
+        button("Edit section", () => {
+          if (locked || busy) return;
+          editTarget = section.id;
+          const form = document.getElementById("indicator-section-form");
+          form.elements.title.value = section.title;
+          form.elements.description.value = section.description;
+          document.getElementById("indicator-section-title").textContent =
+            "Edit section";
+          form.querySelector('[type="submit"]').textContent = "Apply changes";
+          document.getElementById("indicator-section-dialog").showModal();
+        }),
+      );
+      if (section.id !== "default")
+        actions.append(
+          button("Delete section", () => {
+            if (locked || busy) return;
+            if (
+              !confirm(
+                'Delete section "' +
+                  section.title +
+                  '" and all ' +
+                  section.rows.length +
+                  " indicator rows in it? Save table to apply this deletion.",
+              )
+            )
+              return;
+            state.sections = state.sections.filter(
+              (item) => item.id !== section.id,
+            );
+            changed();
+            render();
+          }),
+        );
+      const wrap = document.createElement("div");
+      wrap.className = "indicator-table-wrap";
+      const table = document.createElement("table");
+      table.className = "indicator-table";
+      const head = table.createTHead().insertRow();
+      for (const name of ["type", "value", "description", ""]) {
+        const cell = document.createElement("th");
+        cell.textContent = name;
+        cell.scope = "col";
+        head.append(cell);
+      }
+      const body = table.createTBody();
+      section.rows.forEach((row, index) => {
+        const tr = body.insertRow();
+        row.forEach((value, column) => {
+          const cell = tr.insertCell();
+          cell.dataset.column = column;
+          cell.textContent = value;
+          cell.tabIndex = locked ? -1 : 0;
+          cell.setAttribute(
+            "aria-label",
+            section.title +
+              ", row " +
+              (index + 1) +
+              ", " +
+              state.columns[column],
+          );
+          cell.setAttribute("role", "textbox");
+          cell.setAttribute("aria-multiline", "true");
+          cell.addEventListener("input", () => {
+            section.rows[index][column] = cell.innerText.replace(/\r/g, "");
+            changed();
+          });
+          cell.addEventListener("keydown", (event) => {
+            if (locked || busy) return;
+            if (event.key === "Tab") {
+              event.preventDefault();
+              let next = index * 3 + column + (event.shiftKey ? -1 : 1);
+              if (next < 0) {
+                add.focus();
+                return;
+              }
+              if (next >= section.rows.length * 3) {
+                section.rows.push(["", "", ""]);
+                changed();
+                render();
+              }
+              focusCell(section, Math.floor(next / 3), next % 3);
+            } else if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              if (index === section.rows.length - 1) {
+                section.rows.push(["", "", ""]);
+                changed();
+                render();
+              }
+              focusCell(section, index + 1, column);
+            }
+          });
+          cell.addEventListener("paste", (event) => {
+            event.preventDefault();
+            if (locked || busy) return;
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            if (!cell.contains(range.commonAncestorContainer)) return;
+            range.deleteContents();
+            const node = document.createTextNode(
+              event.clipboardData.getData("text/plain"),
+            );
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            section.rows[index][column] = cell.innerText.replace(/\r/g, "");
+            changed();
+          });
+        });
+        const action = tr.insertCell(),
+          remove = button("Delete", () => {
+            if (locked || busy) return;
+            section.rows.splice(index, 1);
+            changed();
+            render();
+          });
+        remove.className = "indicator-delete";
+        remove.setAttribute(
+          "aria-label",
+          "Delete " + section.title + " row " + (index + 1),
+        );
+        action.append(remove);
+      });
+      wrap.append(table);
+      article.append(heading, description, actions, wrap);
+      container.append(article);
+    }
+    editable();
+  }
+  async function request(path, data) {
+    const response = await fetch(
+      "/cases/" + cid + "/indicators" + path,
+      data ? { method: "POST", body: data } : {},
+    );
+    const result = await response.json();
+    if (!response.ok) throw Error(result.error || "Request failed");
+    return result;
+  }
+  async function refreshPackage() {
+    await window.MarePackage?.refresh(cid);
+  }
+  function data() {
+    const form = new FormData();
+    form.set("csrf", root.dataset.csrf);
+    form.set("revision", state.revision);
+    return form;
+  }
+  async function save() {
+    const form = data();
+    form.set("sections", JSON.stringify(state.sections));
+    state = await request("", form);
+    dirty = false;
+    autosaveTimer.reset();
+    status.textContent = "All sections saved to iocs/indicators.csv";
+    render();
+    await refreshPackage();
+  }
+  function run(fn) {
+    return async () => {
+      if (busy || locked || !state) return;
+      busy = true;
+      editable();
+      try {
+        await fn();
+      } catch (e) {
+        status.textContent = e.message;
+      } finally {
+        busy = false;
+        editable();
+      }
+    };
+  }
+  document.getElementById("save-indicators").addEventListener(
+    "click",
+    run(async () => {
+      autosaveTimer.reset();
+      await save();
+    }),
+  );
+  document
+    .getElementById("add-indicator-section")
+    .addEventListener("click", () => {
+      if (locked || busy || !state) return;
+      editTarget = null;
+      const form = document.getElementById("indicator-section-form");
+      form.reset();
+      document.getElementById("indicator-section-title").textContent =
+        "Add new section";
+      form.querySelector('[type="submit"]').textContent = "Add section";
+      document.getElementById("indicator-section-dialog").showModal();
+    });
+  document
+    .getElementById("indicator-section-form")
+    .addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (locked || busy || !state) return;
+      const form = event.target,
+        title = form.elements.title.value.trim();
+      if (!title) {
+        form.elements.title.focus();
+        return;
+      }
+      if (editTarget) {
+        const section = state.sections.find((item) => item.id === editTarget);
+        if (!section) return;
+        section.title = title;
+        section.description = form.elements.description.value;
+      } else
+        state.sections.push({
+          id:
+            "section-" +
+            Array.from(crypto.getRandomValues(new Uint8Array(16)), (value) =>
+              value.toString(16).padStart(2, "0"),
+            ).join(""),
+          title: title,
+          description: form.elements.description.value,
+          rows: [],
+        });
+      changed();
+      render();
+      document.getElementById("indicator-section-dialog").close();
+      const target = editTarget
+        ? container.querySelector('[data-section="' + editTarget + '"]')
+        : container.lastElementChild;
+      target?.scrollIntoView({ block: "nearest" });
+      editTarget = null;
+    });
+  document.querySelectorAll("[data-close-indicator-dialog]").forEach((node) =>
+    node.addEventListener("click", () => {
+      if (!busy) node.closest("dialog").close();
+    }),
+  );
+  document.getElementById("confirm-indicator-import").addEventListener(
+    "click",
+    run(async () => {
+      const dialog = document.getElementById("indicator-import-dialog"),
+        message = document.getElementById("indicator-import-status"),
+        form = data(),
+        file = document.getElementById("indicator-csv-file").files[0],
+        text = document.getElementById("indicator-csv-text").value;
+      if (file && text.trim())
+        throw Error("Choose a CSV file or pasted CSV, not both.");
+      form.set("section_id", importTarget);
+      if (file) form.set("csv", file);
+      else form.set("csv", text);
+      message.textContent = "Importing…";
+      try {
+        const result = await request("/import", form);
+        state = result;
+        dirty = false;
+        autosaveTimer.reset();
+        render();
+        status.textContent =
+          "Added " +
+          result.added +
+          " indicators to the selected section and saved all sections to iocs/indicators.csv.";
+        dialog.close();
+        message.textContent = "";
+        await refreshPackage();
+      } catch (e) {
+        message.textContent = e.message;
+        throw e;
+      }
+    }),
+  );
+  request("")
+    .then((result) => {
+      state = result;
+      render();
+      status.textContent = locked
+        ? "Read-only. Reopen the case to edit indicators."
+        : "Ready. Click a cell to edit; Tab moves between cells, Enter moves down, and Shift+Enter adds a line break.";
+    })
+    .catch((e) => (status.textContent = e.message));
+  const autosaveTimer = window.MareAutosave.register({
+    onCountdown: (seconds, running, paused) => {
+      const label = document.getElementById("save-indicators-countdown");
+      if (label)
+        label.textContent = running
+          ? "Autosaving…"
+          : paused
+            ? "Autosave paused"
+            : "Autosave in " +
+              Math.floor(seconds / 60) +
+              ":" +
+              String(seconds % 60).padStart(2, "0");
+    },
+    canSave: () => state && !busy && !locked,
+    save: async () => {
+      busy = true;
+      const snapshot = JSON.stringify(state.sections),
+        form = data();
+      form.set("sections", snapshot);
+      form.set("automatic", "1");
+      try {
+        const result = await request("", form);
+        state.revision = result.revision;
+        dirty = JSON.stringify(state.sections) !== snapshot;
+        status.textContent =
+          "Autosaved to iocs/indicators.csv at " +
+          new Date().toLocaleTimeString() +
+          (dirty ? " — newer changes pending" : "");
+        await refreshPackage();
+      } finally {
+        busy = false;
+      }
+    },
+    onError: (error) => {
+      status.textContent = "Autosave failed: " + error.message;
+    },
+  });
+  window.addEventListener("beforeunload", (event) => {
+    if (dirty || busy) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+  });
 })();
