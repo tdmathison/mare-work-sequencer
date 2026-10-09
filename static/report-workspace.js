@@ -26,27 +26,11 @@
     generatePdf,
     mitreMappingsDirty = false,
     mitreMappingsSaving = false;
-  const escape = (text) =>
-    text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  function highlight(area) {
-    const pre = area.previousElementSibling;
-    area.parentElement.classList.add("enhanced");
-    pre.innerHTML = window.MareMarkdownSyntax.renderMarkdown(area.value);
-    pre.scrollTop = area.scrollTop;
-    pre.scrollLeft = area.scrollLeft;
-  }
-  form.querySelectorAll(".markdown-input").forEach((area) => {
+  form.querySelectorAll(".markdown-source").forEach((area) => {
     area.addEventListener("input", () => {
-      highlight(area);
       dirty = true;
       saveStatus.textContent = "Unsaved report changes";
     });
-    area.addEventListener("scroll", () => highlight(area));
-    highlight(area);
   });
 
   async function jsonRequest(url, options) {
@@ -144,13 +128,12 @@
       for (const [key, value] of Object.entries(state.sections)) {
         const area = form.elements[key];
         if (area) {
-          area.value = value;
-          highlight(area);
+          window.MareEditors.setValue(area, value);
         }
       }
     if (!mitreMappingsDirty) {
-      mitreAttack.value = state.mitre_mappings?.attack || "";
-      mitreMbc.value = state.mitre_mappings?.mbc || "";
+      window.MareEditors.setValue(mitreAttack, state.mitre_mappings?.attack || "");
+      window.MareEditors.setValue(mitreMbc, state.mitre_mappings?.mbc || "");
     }
     reportLink(state);
     open.hidden = !state.report_exists;
@@ -178,9 +161,9 @@
   }
   function reportValues() {
     return JSON.stringify(
-      [...form.querySelectorAll(".markdown-input")].map((area) => [
+      [...form.querySelectorAll(".markdown-source")].map((area) => [
         area.name,
-        area.value,
+        window.MareEditors.getValue(area),
       ]),
     );
   }
@@ -257,6 +240,9 @@
     textarea.rows = 14;
     textarea.maxLength = 100000;
     textarea.spellcheck = false;
+    textarea.dataset.markdownEditor = "";
+    textarea.setAttribute("aria-label", labelText);
+    textarea.disabled = form.querySelector("fieldset").disabled;
     textarea.placeholder = placeholder;
     label.append(textarea);
     mappingEditors.append(label);
@@ -290,6 +276,7 @@
   mappingActions.append(saveMappings, mappingCountdown, mappingStatus);
   promptPanel.insertBefore(mappingEditors, promptOutput.nextSibling);
   promptPanel.insertBefore(mappingActions, mappingEditors.nextSibling);
+  window.MareEditors.init(mappingEditors);
   for (const textarea of [mitreAttack, mitreMbc])
     textarea.addEventListener("input", () => {
       mitreMappingsDirty = true;
@@ -305,7 +292,7 @@
       return;
     mitreMappingsSaving = true;
     saveMappings.disabled = true;
-    const snapshot = [mitreAttack.value, mitreMbc.value],
+    const snapshot = [window.MareEditors.getValue(mitreAttack), window.MareEditors.getValue(mitreMbc)],
       data = new FormData();
     data.set("csrf", form.elements.csrf.value);
     data.set("mitre_attack_markdown", snapshot[0]);
@@ -319,11 +306,8 @@
         body: data,
       });
       mitreMappingsDirty =
-        mitreAttack.value !== snapshot[0] || mitreMbc.value !== snapshot[1];
-      if (!mitreMappingsDirty) {
-        mitreAttack.value = result.mappings.attack;
-        mitreMbc.value = result.mappings.mbc;
-      }
+        window.MareEditors.getValue(mitreAttack) !== snapshot[0] || window.MareEditors.getValue(mitreMbc) !== snapshot[1];
+      // Saving never replaces the editor document, cursor, history, or scroll.
       mappingStatus.textContent =
         (automatic
           ? "MITRE mappings autosaved at " + new Date().toLocaleTimeString()
@@ -377,7 +361,7 @@
       "\n\nBEGIN ANALYST SOURCE DATA\n" +
       Object.entries(labels)
         .map(
-          ([key, label]) => "## " + label + "\n\n" + form.elements[key].value,
+          ([key, label]) => "## " + label + "\n\n" + window.MareEditors.getValue(form.elements[key]),
         )
         .join("\n\n") +
       "\nEND ANALYST SOURCE DATA";
@@ -469,10 +453,16 @@
     }
   });
   let expanded = null,
-    previousFocus = null,
-    previewSequence = 0;
+    previousFocus = null;
+  const previewSequences = new WeakMap();
+  function invalidatePreview(section) {
+    const sequence = (previewSequences.get(section) || 0) + 1;
+    previewSequences.set(section, sequence);
+    return sequence;
+  }
   function rawView(section) {
     section.querySelector(".markdown-editor").hidden = false;
+    window.MareEditors.get(section.querySelector(".markdown-source")).measure();
     section.querySelector(".markdown-preview").hidden = true;
     section
       .querySelector(".editor-raw-tab")
@@ -485,17 +475,19 @@
     const raw = section.querySelector(".editor-raw-tab"),
       preview = section.querySelector(".editor-preview-tab"),
       pane = section.querySelector(".markdown-preview"),
-      area = section.querySelector(".markdown-input"),
+      area = section.querySelector(".markdown-source"),
       editor = section.querySelector(".markdown-editor");
     raw.addEventListener("click", () => {
-      ++previewSequence;
+      invalidatePreview(section);
       rawView(section);
+      window.MareEditors.get(area).restoreLayout();
     });
     preview.addEventListener("click", async () => {
-      const sequence = ++previewSequence,
+      const sequence = invalidatePreview(section),
         data = new FormData();
       data.set("csrf", form.elements.csrf.value);
-      data.set("text", area.value);
+      data.set("text", window.MareEditors.getValue(area));
+      window.MareEditors.get(area).preserveLayout();
       editor.hidden = true;
       pane.hidden = false;
       raw.setAttribute("aria-selected", "false");
@@ -506,10 +498,10 @@
           method: "POST",
           body: data,
         });
-        if (sequence === previewSequence && expanded === section)
+        if (sequence === previewSequences.get(section) && !pane.hidden)
           pane.innerHTML = result.html;
       } catch (e) {
-        if (sequence === previewSequence) pane.textContent = e.message;
+        if (sequence === previewSequences.get(section)) pane.textContent = e.message;
       }
     });
     for (const tab of [raw, preview])
@@ -533,9 +525,12 @@
   function collapse() {
     if (!expanded) return;
     const section = expanded;
-    ++previewSequence;
+    const markdown = window.MareEditors.get(section.querySelector(".markdown-source"));
+    if (!section.querySelector(".markdown-editor").hidden) markdown.preserveLayout();
+    invalidatePreview(section);
     rawView(section);
     section.classList.remove("editor-expanded");
+    window.MareEditors.get(section.querySelector(".markdown-source")).restoreLayout();
     section.removeAttribute("role");
     section.removeAttribute("aria-modal");
     const button = section.querySelector(".expand-editor");
@@ -555,6 +550,7 @@
       collapse();
       previousFocus = button;
       expanded = section;
+      window.MareEditors.get(section.querySelector(".markdown-source")).preserveLayout();
       rawView(section);
       section.classList.add("editor-expanded");
       section.setAttribute("role", "dialog");
@@ -566,17 +562,19 @@
       button.textContent = "Collapse editor";
       button.setAttribute("aria-expanded", "true");
       document.body.classList.add("report-editor-open");
-      section.querySelector(".markdown-input").focus();
+      const markdown = window.MareEditors.get(section.querySelector(".markdown-source"));
+      markdown.restoreLayout();
+      markdown.focus();
     }),
   );
   document.addEventListener("keydown", (event) => {
-    if (!expanded) return;
+    if (!expanded || event.defaultPrevented || event.target.closest("dialog[open]")) return;
     if (event.key === "Escape") {
       event.preventDefault();
       collapse();
     } else if (event.key === "Tab") {
       const nodes = [
-        ...expanded.querySelectorAll("button:not(:disabled),textarea,a[href]"),
+        ...expanded.querySelectorAll("summary,button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not([hidden]),.cm-content,a[href]"),
       ].filter(
         (node) => !node.closest("[hidden]") && node.offsetParent !== null,
       );

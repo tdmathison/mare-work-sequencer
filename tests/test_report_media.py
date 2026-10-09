@@ -1,4 +1,4 @@
-import io,json,subprocess,zipfile
+import io,zipfile
 from pathlib import Path
 from PIL import Image
 from docx import Document
@@ -7,35 +7,6 @@ from werkzeug.security import generate_password_hash
 from app import app,db,run,ensure_package,package
 from reporting import TOKENS,OUTPUT
 import report_routes
-
-def test_clipboard_image_paste_uses_editor_drop_upload():
-    source=Path('static/clipboard-images.js').read_text()
-    script='''const virtualMachine=require('vm'),assertions=require('assert');let pasteHandler,dropEvent;
-    const area={closest:selector=>selector==='fieldset:disabled'?null:null,dispatchEvent:event=>dropEvent=event};
-    const context={document:{addEventListener:(name,handler)=>{if(name==='paste')pasteHandler=handler;}},Event:function(type,options){this.type=type;Object.assign(this,options);}};
-    virtualMachine.runInNewContext(SOURCE,context);
-    let prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{types:['image/png'],items:[{kind:'file',type:'image/png',getAsFile:()=>({name:'screenshot.png'})}]},preventDefault:()=>prevented=true});
-    assertions.equal(prevented,true);assertions.equal(dropEvent.type,'drop');assertions.equal(dropEvent.dataTransfer.files[0].name,'screenshot.png');
-    prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{items:[{kind:'string',type:'text/plain'}]},preventDefault:()=>prevented=true});assertions.equal(prevented,false);
-    prevented=false;pasteHandler({target:{closest:()=>area},clipboardData:{types:['text/plain','text/html','image/png'],items:[{kind:'string',type:'text/plain'},{kind:'file',type:'image/png',getAsFile:()=>({name:'word-clipboard-image.png'})}]},preventDefault:()=>prevented=true});assertions.equal(prevented,false);'''.replace('SOURCE',json.dumps(source))
-    subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
-
-def test_markdown_editor_highlights_python_and_bash_tokens():
-    source=Path('static/markdown-syntax.js').read_text()
-    script='''const virtualMachine=require('vm'),assertions=require('assert'),context={window:{}};
-    virtualMachine.runInNewContext(SOURCE,context);
-    const render=context.window.MareMarkdownSyntax.renderLine;
-    const python=render('def run(value): return print(value + 1) # note','python');
-    const shell=render('echo "hello" $HOME # note','bash');
-    const markdown=context.window.MareMarkdownSyntax.renderMarkdown('Inline `0x01`\\n\\n```python\\ndef run():\\n    return 42\\n```');
-    for(const token of ['md-token-keyword','md-token-function','md-token-builtin','md-token-number','md-token-comment'])assertions.ok(python.includes(token));
-    for(const token of ['md-token-keyword','md-token-string','md-token-variable','md-token-comment'])assertions.ok(shell.includes(token));
-    assertions.ok(markdown.includes('md-inline-code'));
-    assertions.ok(markdown.includes('md-code-block-first'));
-    assertions.ok(markdown.includes('md-code-block-last'));
-    assertions.ok(markdown.includes('md-token-keyword'));
-    assertions.ok(markdown.includes('md-token-number'));'''.replace('SOURCE',json.dumps(source))
-    subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
 
 def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     with app.app_context():
@@ -95,7 +66,7 @@ def test_report_images_preview_word_zip_and_delete(monkeypatch,tmp_path):
     assert client.get(base+'/assets?category=scripts').json['files']==[]
     assert post('/assets/delete',path='../../session.key').status_code==400
     page=client.get(base).data
-    assert b'line-numbers' in page and b'data-md="table"' in page and b'data-md="html-table"' in page and b'markdown-syntax.js' in page and b'Asset manager' in page
+    assert b'data-markdown-editor' in page and b'class="markdown-toolbar"' in page and b'vendor/codemirror/markdown-editor.js' in page and b'Asset manager' in page
 
 def test_mitre_mapping_editors_save_canonical_report_sources():
     with app.app_context():

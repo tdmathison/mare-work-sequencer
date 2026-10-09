@@ -227,7 +227,7 @@ Save buttons for report sections, Indicators, and References now show the remain
 
 ## Task Markdown workspaces
 
-Add Task and Edit task use full-workspace dialogs rather than expandable card forms. Descriptions have the report editor’s line numbers, syntax highlighting, Raw/Preview tabs, paragraph styles, default-on Word wrap, tables, alignment controls, and image insertion/drop/deletion. Formatting and Insert dropdown menus group common commands in every markdown editor. Cancel or Escape closes the task dialog without submitting description edits. Image uploads are saved immediately to the case; remove an unused image with its X button. Task images are stored with report-editor assets and preserved in RAW case backups, with task associations rebuilt during import.
+Add Task and Edit task use full-workspace dialogs rather than expandable card forms. Descriptions have the report editor’s line numbers, syntax highlighting, preview, heading styles, default-on Word wrap, tables, alignment controls, and image insertion/drop/deletion. Shared Format, Insert, and View dropdown menus group commands in every Markdown editor. Cancel or Escape closes the task dialog without submitting description edits. Image uploads are saved immediately to the case; remove an unused image with its X button. Task images are stored with report-editor assets and preserved in RAW case backups, with task associations rebuilt during import.
 
 ### MITRE mapping workflow and report table formatting
 
@@ -457,3 +457,275 @@ Manual browser release checklist (repeat through the production HTTPS proxy):
 - Confirm external HTTP/DNS operations are blocked by policy, while local
   decoding, file downloads, and recipes work. Validate HTTPS Nginx/Gunicorn asset
   MIME types and worker requests; do not enable public vendor caching/aliases.
+
+## Markdown Editors (CodeMirror 6)
+
+MARE uses the official CodeMirror 6 packages for Markdown source editing. The
+editor owns text rendering, the caret, selections, wrapping, and its built-in line
+number gutter in one scroll container. There is no textarea highlighting overlay,
+custom gutter measurement, or independent scroll synchronization. The migration
+leaves Markdown storage, report section identifiers, API payloads, authentication,
+MIP packaging and backup/import/export formats unchanged. Word prose defaults to Aptos when the template has no explicit Normal font; explicit template fonts and code styles are preserved.
+
+### Migration inventory and capabilities
+
+- **Report sections:** the four existing source fields, shared Format/Insert/View menus,
+  headings, quotes, code fences, bold/italic, bullets, links, generated tables,
+  HTML/tab-delimited table conversion, alignment containers, figure captions,
+  image picker/drop/paste, manual saves, configurable autosave, Raw/Preview, and
+  Expand/Restore remain supported. Numbered lists are also available in Format.
+- **Tasks:** the same shared component and toolbar run inside existing Add/Edit
+  workspace dialogs, with existing image section/storage IDs and preview endpoints.
+- **MITRE ATT&CK/MBC:** dynamically created Markdown editors use CodeMirror, retain
+  their identifiers, and save through the existing manual/autosave mapping routes.
+- **Markdown files:** `.md` and `.markdown` files opened through the existing file
+  editor use CodeMirror and submit the original `content` field. Other file types
+  retain their ordinary text editor.
+- Notes/drafts, CSV imports, case metadata, HTML-table input, and the generated
+  copyable MITRE prompt are plain-text/form controls and retain their existing
+  behavior. They were not the custom Markdown editors.
+
+Word wrap and line numbers default to enabled; View preferences reconfigure CodeMirror
+without changing text or selection. Markdown and fenced-language highlighting,
+line numbers, local search/replace (Ctrl/Cmd-F), undo/redo, and selection management
+come from official packages. Tab indents inside the editor; Ctrl-M (Shift-Alt-M on macOS) toggles Tab
+back to focus navigation using CodeMirror's keyboard accessibility behavior.
+Escape retains the existing dialog Cancel / report Collapse behavior. Expanded
+report focus handling respects keys already handled by CodeMirror, so search-panel
+Escape does not also collapse the workspace. Existing Markdown previews still use
+the server renderer and its sanitization, without changing the source document.
+
+Autosave reads the CodeMirror document and compares the submitted snapshot with
+current text. A response never recreates an editor or replaces new typing, cursor,
+history, or scroll state. Expand/Collapse retains the same EditorView and uses
+CodeMirror layout measurements and a logical scroll snapshot. Task dialog Cancel
+still resets its form content intentionally. Stored content remains plain Markdown;
+CodeMirror does not render untrusted Markdown as live HTML in the source editor.
+
+Existing maximum lengths remain enforced (100,000 for report/mapping sources and
+20,000 for tasks). An edit that would increase a document beyond its limit is
+rejected as a transaction rather than partially truncating a paste. Existing stored
+content is loaded intact. Original syntax colors are replaced with the shared MARE
+palette; code-source boxes no longer add borders/padding that can change wrapping.
+
+### Format, Insert, and View
+
+Every source editor has three compact menus. **Format** provides Heading 1–6,
+Normal text, Bold, Italic, Strikethrough, Inline code, Fenced code block, Bulleted
+list, Numbered list, Blockquote, Horizontal rule, Indent/Outdent, and the existing
+MARE Left/Center/Right alignment containers. **Insert** provides Link, Image,
+Table, Paste Table, Fenced code block, and Horizontal rule. **View** provides Word
+Wrap, Line Numbers, Active Line Highlight, Code Folding, preview where supported,
+and Expanded/Restore Editor. Task dialogs already use an expanded workspace, so
+the additional expansion command is disabled there. Mapping/file editors can
+expand without changing their document or editor instance. Escape restores them.
+
+Heading commands change the current logical line, replacing an existing ATX
+heading prefix. Block commands affect all intersecting selected logical lines;
+a selection ending exactly at the beginning of a line excludes that last line.
+Duplicate/overlapping line selections are processed once. Prefix edits map all
+selection ranges through the transaction. Inline commands wrap selected text,
+remove matching surrounding markers when repeated, or insert paired markers with
+the caret between them for an empty selection. Each custom transaction is undoable.
+Official indent commands handle selected lines; the Markdown language supplies
+Enter/Backspace list continuation behavior. Find/Replace remains Ctrl/Cmd-F.
+
+Multiple selections support Ctrl-click (Cmd-click on macOS) and Alt-drag rectangular
+selection. Official heading/fence folding uses gutter controls and Ctrl-Shift-[ / ]
+(Cmd-Alt-[ / ] on macOS); Ctrl-Alt-[ / ] folds/unfolds all. Active-line, matching
+selection, and bracket highlights use the subdued MARE palette. View preferences
+use compartments, retaining content, selections, history, and a logical scroll
+anchor; they are local to each mounted editor and reset to defaults on reload.
+No preferences database or external completion/AI service is introduced. Existing
+Markdown HTML-tag completion sources remain available; no aggressive completion
+popup extension is added for prose.
+
+**Images:** Insert → Image, image-file drop, or image-only clipboard paste uses the
+existing authenticated `/cases/<id>/report-images` endpoint and normalized PNG files
+under `reports/sections/assets/` in the MIP. Rich clipboard data containing text
+continues to paste text normally. The existing per-case monotonic figure sequence
+allocates numbers and survives deletion/backup/import; existing captions are never
+renumbered. Inserted `::: figure` containers center both the image and italic
+`*Figure X:*` caption in preview and Word. Type the description after the caption.
+Asset listing/deletion and Standard/RAW packaging conventions remain unchanged.
+Manually edited caption numbers do not change the stored allocation sequence.
+
+**Table:** Insert → Table opens a MARE dialog for 1–20 columns and 1–100 **body rows,
+excluding the header**. It creates a header, separator, and the requested empty
+body rows, adds blank-line boundaries even inside existing prose, and places the
+caret at the first header cell. Invalid dimensions leave the dialog open. Undo
+removes the entire insertion in one step.
+
+**Paste Table:** Open Insert → Paste Table and paste spreadsheet TSV or clipboard
+HTML, or enter HTML table markup. Valid clipboard HTML takes precedence; otherwise
+TSV is used. The first row becomes the header. CRLF/LF, empty cells/rows, uneven
+widths, and literal pipes are normalized without dropping extra columns. Cells use
+text extraction from an inert parsed document, never injected clipboard HTML.
+Merged-cell text appears once at the top-left; covered rowspan/colspan slots remain
+empty and missing cells are padded. Nested tables are flattened into their parent
+cell's text; CSS layout, formulas, and advanced table formatting are not retained.
+Very large/malformed spans are bounded to 1,000 columns and existing row count.
+Editing the paste input clears captured clipboard HTML so the edited text wins.
+
+Preview prose uses locally available Aptos, Segoe UI, or Arial. Source and preview
+code use JetBrains Mono, Cascadia Code, Consolas, Menlo, then system monospace.
+No font files are bundled. Word accepts a single family rather than a CSS font
+stack: generated prose supplies Aptos only when Normal has no explicit font;
+explicit template fonts/headings remain intact and code retains Consolas.
+
+Add commands in `frontend/markdown-commands.js` and the menu metadata in
+`frontend/markdown-toolbar.js`. Use the existing EditorView/EditorState transactions,
+respect read-only state, isolate custom undo steps, and emit changes through the
+shared component so autosave continues to work. Use official CodeMirror commands
+where suitable. The installed Markdown package provides parsing, folding and
+list continuation; it does not supply heading/inline toolbar commands. Rebuild
+the local bundle after edits. Never create a second source layer or gutter.
+
+### Frontend dependencies and build
+
+JavaScript dependencies are pinned to exact versions in `package.json`, with
+transitive versions and integrity hashes in `package-lock.json`. Source is in
+`frontend/markdown-editor.js`, `frontend/markdown-commands.js`,
+`frontend/markdown-toolbar.js`, and `frontend/markdown-editor.css`; esbuild is the
+single frontend bundler. This repository previously had no npm build system.
+Use Node.js 20+ and npm on a build/development machine:
+
+```sh
+npm ci
+npm run build:editors
+```
+
+The build produces local files in `static/vendor/codemirror/`: `markdown-editor.js`,
+`markdown-editor.css`, and `THIRD_PARTY_LICENSES.txt`. Keep these generated production
+assets with the source and lockfile when publishing a release. The full fenced-
+language bundle is approximately 1.6 MB before HTTP compression. License texts for
+production dependencies are bundled alongside it. No runtime CDN, dynamic external
+module service, or Node process is required to run Flask/Gunicorn. No frontend build
+or dependency download happens at application startup. `node_modules/`, browser
+reports, and test output are ignored by Git.
+
+### Shared API, theming, and adding an editor
+
+Add a named textarea with `data-markdown-editor`; its initial text and existing
+field name are preserved:
+
+```html
+<label>Markdown source
+  <textarea name="content" data-markdown-editor aria-label="Markdown source"
+            maxlength="100000">Initial Markdown</textarea>
+</label>
+```
+
+The local bundle in `base.html` initializes marked textareas before page scripts.
+It hides each source field and mounts CodeMirror; the textarea is only a synchronized
+HTML form submission/validation target. New dynamically inserted fields need
+`window.MareEditors.init(container)` or `window.MareEditors.create(textarea)`.
+Do not manipulate the hidden textarea's value or selection to edit a mounted
+instance. Use the component API:
+
+```javascript
+const editor = window.MareEditors.get(textarea);
+editor.getValue();
+editor.setValue(markdown);                  // Silent load; same-value updates are no-ops.
+editor.setValue(markdown, {notify: true});   // Deliberate programmatic change notification.
+editor.selection();                        // {anchor, head, from, to}
+editor.setSelection(anchor, head);
+editor.insert(markdown);                   // Undoable transaction replacing selection.
+editor.setWordWrap(true);
+editor.setPreference('numbers', false);     // wrap / numbers / active / folding
+editor.command('h2');                      // Shared undoable formatting commands.
+editor.insertBlock(markdown);              // Blank-line boundaries around a block.
+editor.setReadOnly(true);
+editor.focus();
+editor.measure();                          // After showing/resizing a panel.
+const unsubscribe = editor.onChange((text, update) => { /* mark unsaved */ });
+unsubscribe();
+editor.destroy();                          // Cleanup; restore the plain source field.
+```
+
+`setValue` maps selections through a minimal change and defaults to excluding loads
+from undo history. `insert` creates a distinct undo step. Normal document changes
+synchronize the submission field and dispatch its bubbling `input` event, preserving
+existing dirty-state listeners. `formdata` events read current CodeMirror content;
+form resets synchronize the editor. Disabled fieldsets and readonly fields use
+CodeMirror read-only/editable facets, and the server's original workflow/CSRF checks
+remain authoritative. All marked editors receive the shared menus. Report/task
+sections retain their existing image picker; image uploads are disabled for mapping
+and standalone file editors without an associated MARE upload workflow.
+Image events in report/task sections go through the existing upload routes and
+insert the existing `::: figure`, asset URL, and caption syntax as transactions.
+
+The CodeMirror theme and HighlightStyle in `frontend/markdown-editor.js` use
+`static/mare.css` variables (`--bg`, `--panel`, `--panel-2`, `--text`, `--muted`,
+`--accent`, `--accent-dim`, `--line`, `--ok`). The companion CSS scopes scrollbar and
+search-panel rules to `.mare-editor-host`. Rebuild after changing frontend sources.
+Keep decoration styling inside CodeMirror; never reintroduce a separate text layer
+or apply legacy global textarea styles to `.cm-content`.
+
+If an editor does not load, inspect the console and Network tab for missing local
+JS/CSS, stale cached assets, or a CSP blocking CodeMirror's generated scoped styles.
+Confirm both bundle files were deployed together and rebuild with `npm ci` followed
+by `npm run build:editors`. A visible unenhanced textarea means the frontend failed
+to initialize; fix asset loading before relying on previews/toolbar/autosave.
+Production security headers must permit the editor's dynamically generated styles;
+this migration does not weaken existing application headers.
+
+### Editor regression verification
+
+Enhancement checks: change all six headings and Normal, repeat inline toggles,
+format multiline/multiple selections, fold headings/fences, toggle each View
+preference while scrolled, and verify undo/redo. Insert tables in the middle of
+prose; test invalid sizes, body-row counts, empty/uneven TSV, literal pipes,
+clipboard HTML precedence, and merged cells. Verify images/captions in both
+preview and Word, retained asset deletion, and template font preservation.
+
+
+Server compatibility tests are in `tests/test_markdown_editors.py`; real browser
+interaction/geometry tests are in `tests/browser/markdown-editor.cjs`. The browser
+suite starts a temporary Flask instance with its own database, accounts, case,
+images, and Word template; it never uses the live `data/` directory. Install a
+Playwright browser once on a development machine, then run:
+
+```sh
+npx playwright install chromium
+npm run test:editors
+.venv/bin/python -m pytest -q
+```
+
+Alternatively, reuse an installed Chrome browser:
+
+```sh
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npm run test:editors
+```
+
+`PYTHON_BIN` selects another Python environment with the project requirements;
+`MARE_EDITOR_TEST_PORT` changes the default localhost test port (8779). The suite
+checks existing saved Markdown, a 700-line document, beginning/middle/end typing,
+gutter/line-block and caret coordinate agreement, wrapping, scrolling, desktop/laptop
+resizes, retained expansion state, toolbar transactions, history, search, images,
+previews, concurrent manual/automatic saves, reloads, Word generation, tasks,
+MITRE editors, and Markdown-file submission. The old implementation had confirmed
+wrap mismatches because syntax spans added inline padding/borders; both gutter
+scripts also rebuilt every line on scroll. These components have been removed.
+
+Manual release checklist:
+
+- Open saved reports/tasks/mappings and verify source text is unchanged; also edit
+  a `.md` file and save/reload it through the existing file route.
+- Type continuously in long documents at the top, middle, and bottom. Mix inline
+  code, fenced Python/shell/JavaScript, long URLs, tabs, Unicode, and blank lines.
+- Scroll using wheel/trackpad, scrollbar, arrows, and Page Up/Down. Verify the
+  built-in gutter follows the visible logical lines and typing follows the caret.
+- Toggle wrapping around long paragraphs and resize to 1366×768 and 1920×1080;
+  repeat at 125%/150% zoom and with OS scrollbars always visible.
+- Apply bold/italic/headings/bullets/links/tables/alignment to selections. Undo and
+  redo. Exercise search and replace and keyboard focus exit from the editor.
+- Upload/drop/paste images and check figures/captions, image deletion, and ordinary
+  rich-text clipboard pastes containing both text and images.
+- Expand/collapse and toggle Raw/Preview without losing document, selection,
+  history, or scroll; confirm malicious preview markup remains sanitized.
+- Keep typing during autosave and manual save responses. Save, reload, generate a
+  Word report, and check content and figures. Confirm completed/not-started cases
+  remain read-only and existing CSRF/workflow rules still reject unauthorized edits.
+- Repeat critical editing flows in supported Chromium, Firefox, and Safari browsers
+  through production HTTPS/Nginx/Gunicorn; check for console errors and asset failures.

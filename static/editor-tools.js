@@ -19,76 +19,12 @@
     return result;
   }
   function insert(area, text) {
-    area.setRangeText(text, area.selectionStart, area.selectionEnd, "end");
-    area.focus();
-    area.dispatchEvent(new Event("input"));
-  }
-  function escapeTableCell(value) {
-    return value
-      .replace(/\u00a0/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/\\/g, "\\\\")
-      .replace(/\|/g, "\\|");
-  }
-  function valuesToMarkdown(values) {
-    const columnCount = Math.max(0, ...values.map((row) => row.length));
-    if (!columnCount) return "";
-    values = values.map((row) => [
-      ...row,
-      ...Array(columnCount - row.length).fill(""),
-    ]);
-    const separator = Array(columnCount).fill("---");
-    return [values[0], separator, ...values.slice(1)]
-      .map((row) => "| " + row.join(" | ") + " |")
-      .join("\n");
-  }
-  function htmlTablesToMarkdown(input) {
-    const parsed = new DOMParser().parseFromString(input, "text/html"),
-      tables = [...parsed.querySelectorAll("table")].filter(
-        (table) => !table.parentElement.closest("table"),
-      );
-    if (!tables.length) {
-      const lines = input.replace(/\r\n?/g, "\n").split("\n");
-      while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
-      if (!input.includes("\t") || !lines.length) return "";
-      return valuesToMarkdown(
-        lines.map((line) => line.split("\t").map(escapeTableCell)),
-      );
-    }
-    return tables
-      .map((table) => {
-        const rows = [...table.rows].filter(
-          (row) => row.closest("table") === table,
-        );
-        const values = rows.map((row) =>
-          [...row.cells].flatMap((cell) => {
-            const content = cell.cloneNode(true);
-            content.querySelectorAll("script,style").forEach((node) =>
-              node.remove(),
-            );
-            content.querySelectorAll("br").forEach((node) =>
-              node.replaceWith(document.createTextNode(" ")),
-            );
-            content.querySelectorAll("p,div,li").forEach((node) => {
-              node.before(" ");
-              node.after(" ");
-            });
-            return [
-              escapeTableCell(content.textContent || ""),
-              ...Array(Math.max(1, cell.colSpan) - 1).fill(""),
-            ];
-          }),
-        );
-        return valuesToMarkdown(values);
-      })
-      .filter(Boolean)
-      .join("\n\n");
+    window.MareEditors.get(area).insert(text);
   }
   async function images() {
     const result = await request("/cases/" + cid + "/report-images");
     for (const section of document.querySelectorAll(".manual-section")) {
-      const area = section.querySelector(".markdown-input"),
+      const area = section.querySelector(".markdown-source"),
         list = section.querySelector(".report-image-list");
       list.replaceChildren();
       for (const image of result.images.filter(
@@ -118,17 +54,15 @@
               "/cases/" + cid + "/report-images/" + image.name + "/delete",
               data,
             );
-            for (const editor of document.querySelectorAll(".markdown-input")) {
-              editor.value = editor.value.replace(
+            for (const editor of document.querySelectorAll(".markdown-source")) {
+              window.MareEditors.get(editor).replaceMatches(
                 new RegExp(
                   "!\\[[^\\]]*\\]\\(assets/" +
-                    image.name.replace(".", "\\.") +
+                    image.name.replace(/\./g, "\\.") +
                     "\\)",
                   "g",
                 ),
-                "",
               );
-              editor.dispatchEvent(new Event("input"));
             }
             await images();
           } catch (e) {
@@ -141,7 +75,7 @@
     }
   }
   async function upload(section, files) {
-    const area = section.querySelector(".markdown-input");
+    const area = section.querySelector(".markdown-source");
     for (const file of files) {
       const data = new FormData();
       data.set("csrf", form.elements.csrf.value);
@@ -163,249 +97,16 @@
       "Image saved. Save report sections to retain its Markdown reference.";
   }
   for (const section of document.querySelectorAll(".manual-section")) {
-    const area = section.querySelector(".markdown-input"),
-      gutter = section.querySelector(".line-numbers pre"),
+    const area = section.querySelector(".markdown-source"),
       picker = section.querySelector(".markdown-image-input");
-    function lines() {
-      const editor = area.parentElement,
-        wrap = section.querySelector(".word-wrap").checked;
-      editor.classList.toggle("wrap-on", wrap);
-      area.wrap = wrap ? "soft" : "off";
-      const style = getComputedStyle(area),
-        height = parseFloat(style.lineHeight),
-        width =
-          area.clientWidth -
-          parseFloat(style.paddingLeft) -
-          parseFloat(style.paddingRight);
-      gutter.replaceChildren();
-      if (width <= 0) return;
-      const mirror = document.createElement("div");
-      Object.assign(mirror.style, {
-        position: "fixed",
-        left: "-100000px",
-        top: "0",
-        width: width + "px",
-        font: style.font,
-        lineHeight: style.lineHeight,
-        whiteSpace: wrap ? "pre-wrap" : "pre",
-        overflowWrap: "break-word",
-        tabSize: "4",
-        visibility: "hidden",
-      });
-      const values = area.value.split("\n");
-      for (const value of values) {
-        const row = document.createElement("div");
-        row.textContent = value || "\u200b";
-        mirror.append(row);
-      }
-      document.body.append(mirror);
-      [...mirror.children].forEach((row, index) => {
-        const number = document.createElement("div");
-        number.textContent = index + 1;
-        number.style.height =
-          Math.max(height, row.getBoundingClientRect().height) + "px";
-        gutter.append(number);
-      });
-      mirror.remove();
-      gutter.style.transform = "translateY(" + -area.scrollTop + "px)";
-    }
-    section.querySelector(".word-wrap").addEventListener("change", () => {
-      lines();
-      area.dispatchEvent(new Event("scroll"));
-    });
-    new ResizeObserver(lines).observe(area);
-    area.addEventListener("input", lines);
-    area.addEventListener("scroll", lines);
-    new MutationObserver(lines).observe(area.previousElementSibling, {
-      childList: true,
-      subtree: true,
-    });
-    lines();
+    area.addEventListener("markdown-images", (event) =>
+      upload(section, event.detail.files).catch((error) => (status.textContent = error.message)),
+    );
     picker.addEventListener("change", () =>
       upload(section, picker.files).catch(
         (e) => (status.textContent = e.message),
       ),
     );
-    area.addEventListener("dragover", (event) => {
-      if (!area.closest("fieldset:disabled")) event.preventDefault();
-    });
-    area.addEventListener("drop", (event) => {
-      if (area.closest("fieldset:disabled")) return;
-      event.preventDefault();
-      upload(section, event.dataTransfer.files).catch(
-        (e) => (status.textContent = e.message),
-      );
-    });
-    section
-      .querySelector(".markdown-block-style")
-      .addEventListener("change", (event) => {
-        const kind = event.target.value,
-          start = area.value.lastIndexOf("\n", area.selectionStart - 1) + 1;
-        let end = area.value.indexOf("\n", area.selectionEnd);
-        if (end < 0) end = area.value.length;
-        let text = area.value
-          .slice(start, end)
-          .split("\n")
-          .map((line) => line.replace(/^(?:#{1,6} | > |> )/, ""));
-        if (kind.startsWith("h"))
-          text = text.map(
-            (line) => "#".repeat(Number(kind.slice(1))) + " " + line,
-          );
-        else if (kind === "quote") text = text.map((line) => "> " + line);
-        area.setSelectionRange(start, end);
-        insert(
-          area,
-          kind === "code"
-            ? "\n" +
-                String.fromCharCode(96).repeat(3) +
-                "\n" +
-                text.join("\n") +
-                "\n" +
-                String.fromCharCode(96).repeat(3) +
-                "\n"
-            : text.join("\n"),
-        );
-      });
-    for (const button of section.querySelectorAll("[data-md]"))
-      button.addEventListener("click", () => {
-        button.closest(".markdown-menu")?.removeAttribute("open");
-        const selected = area.value.slice(
-          area.selectionStart,
-          area.selectionEnd,
-        );
-        switch (button.dataset.md) {
-          case "italic":
-            insert(area, "*" + (selected || "italic text") + "*");
-            break;
-          case "bold":
-            insert(area, "**" + (selected || "bold text") + "**");
-            break;
-          case "url":
-            insert(
-              area,
-              "[" + (selected || "link text") + "](https://example.com)",
-            );
-            break;
-          case "bullet":
-            insert(
-              area,
-              "\n" +
-                (selected || "List item")
-                  .split("\n")
-                  .map((line) => "- " + line)
-                  .join("\n") +
-                "\n",
-            );
-            break;
-          case "table":
-            {
-              const start = area.selectionStart,
-                end = area.selectionEnd,
-                columnInput = prompt("Number of columns (1-10)", "2");
-              if (columnInput === null) break;
-              const columns = Number(columnInput);
-              if (!Number.isInteger(columns) || columns < 1 || columns > 10) {
-                status.textContent = "Choose between 1 and 10 columns.";
-                break;
-              }
-              const rowInput = prompt("Number of rows (1-10)", "2");
-              if (rowInput === null) break;
-              const rows = Number(rowInput);
-              if (!Number.isInteger(rows) || rows < 1 || rows > 10) {
-                status.textContent = "Choose between 1 and 10 rows.";
-                break;
-              }
-              const header = Array.from(
-                  { length: columns },
-                  (_, index) => "Column" + (index + 1),
-                ),
-                separator = Array(columns).fill("---"),
-                values = Array(columns).fill("Value"),
-                markdown =
-                  "\n| " +
-                  header.join(" | ") +
-                  " |\n| " +
-                  separator.join(" | ") +
-                  " |" +
-                  Array.from(
-                    { length: rows - 1 },
-                    () => "\n| " + values.join(" | ") + " |",
-                  ).join("") +
-                  "\n\n";
-              area.setSelectionRange(start, end);
-              insert(area, markdown);
-            }
-            break;
-          case "align-left":
-          case "align-center":
-          case "align-right": {
-            const start =
-              area.value.lastIndexOf("\n", area.selectionStart - 1) + 1;
-            let end = area.value.indexOf("\n", area.selectionEnd);
-            if (end < 0) end = area.value.length;
-            const content = area.value.slice(start, end);
-            area.setSelectionRange(start, end);
-            insert(
-              area,
-              "\n::: " + button.dataset.md + "\n" + content + "\n:::\n",
-            );
-            break;
-          }
-          case "image":
-            picker.value = "";
-            picker.click();
-            break;
-          case "html-table": {
-            const dialog = section.querySelector(".markdown-table-dialog"),
-              input = dialog.querySelector(".markdown-table-input"),
-              start = area.selectionStart,
-              end = area.selectionEnd;
-            dialog.querySelector("[data-html-table-close]").onclick = () =>
-              dialog.close();
-            dialog.querySelector("[data-html-table-convert]").onclick = () => {
-              const markdown = htmlTablesToMarkdown(input.value);
-              if (!markdown) {
-                status.textContent =
-                  "Paste an HTML table or tab-delimited table text to convert.";
-                return;
-              }
-              area.setSelectionRange(start, end);
-              insert(area, "\n" + markdown + "\n\n");
-              input.value = "";
-              dialog.close();
-            };
-            dialog.showModal();
-            break;
-          }
-        }
-      });
   }
-  document.querySelectorAll(".markdown-menu").forEach((menu) =>
-    menu.addEventListener("toggle", () => {
-      if (menu.open)
-        menu
-          .closest(".manual-section")
-          .querySelectorAll(".markdown-menu")
-          .forEach((other) => {
-            if (other !== menu) other.open = false;
-          });
-    }),
-  );
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".markdown-menu"))
-      document
-        .querySelectorAll(".markdown-menu[open]")
-        .forEach((menu) => (menu.open = false));
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      const menus = [...document.querySelectorAll(".markdown-menu[open]")];
-      if (menus.length) {
-        event.preventDefault();
-        event.stopPropagation();
-        menus.forEach((menu) => (menu.open = false));
-      }
-    }
-  });
   images().catch((e) => (status.textContent = e.message));
 })();

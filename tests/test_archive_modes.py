@@ -35,7 +35,7 @@ def test_archive_modes_previews_and_alignment(tmp_path):
     standard=page.split('data-archive-pane="standard"')[1].split('data-archive-pane="raw"')[0]
     assert 'reports/malware-analysis-report.md' not in standard and 'reports/sections/assets' not in standard
     assert 'Download Standard MIP Archive' in page and 'Download RAW MIP Archive' in page
-    assert 'class="word-wrap" checked' in page and 'markdown-block-style' in page and 'data-md="align-center"' in page
+    assert 'class="markdown-toolbar"' in page and 'vendor/codemirror/markdown-editor.js' in page
     package_view=page.split('id="panel-package"')[1].split('id="panel-indicators"')[0]
     assert 'reports/malware-analysis-report.md' not in package_view
     markdown='::: align-center\nCentered paragraph\n:::'

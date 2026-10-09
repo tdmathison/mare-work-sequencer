@@ -13,7 +13,7 @@
       %}
     >
       {{token(csrf)}}<input type="hidden" name="path" value="{{path}}" /><label
-        >File content<textarea class="editor" name="content" rows="25">
+        >File content<textarea class="editor" {% if path.lower().endswith(('.md','.markdown')) %}data-markdown-editor aria-label="File content Markdown"{% endif %} name="content" rows="25">
 {{content}}</textarea
         ></label
       ><button>Save file</button>

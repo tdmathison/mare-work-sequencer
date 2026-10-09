@@ -22,13 +22,10 @@
                     <button type="button" data-task-raw role="tab" aria-selected="true">Raw</button>
                     <button type="button" data-task-preview role="tab" aria-selected="false">Preview</button>
                 </div>
-                <div class="markdown-preview" hidden role="tabpanel"></div>{% include 'markdown_toolbar.html' %}
-                <div class="markdown-editor wrap-on">
-                    <div class="line-numbers" aria-hidden="true">
-                        <pre></pre>
-                    </div>
-                    <pre class="markdown-highlight" aria-hidden="true"></pre>
-                    <textarea class="markdown-input" name="description" data-image-section="{{'task-' ~ tid if task else 'task-draft'}}" maxlength="20000" aria-label="Task description Markdown" spellcheck="false" wrap="soft">{{task.body if task else ''}}</textarea>
+                {% include 'markdown_toolbar.html' %}
+                <div class="markdown-preview" hidden role="tabpanel"></div>
+                <div class="markdown-editor">
+                    <textarea class="markdown-source" data-markdown-editor name="description" data-image-section="{{'task-' ~ tid if task else 'task-draft'}}" maxlength="20000" aria-label="Task description Markdown" spellcheck="false" wrap="soft">{{task.body if task else ''}}</textarea>
                 </div>
                 <div class="report-image-list" aria-label="Task images"></div>
                 <p data-editor-status role="status"></p>
