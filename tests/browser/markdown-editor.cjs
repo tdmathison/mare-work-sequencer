@@ -150,11 +150,16 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await section.locator('[data-editor-expand]').click();await delay(100);
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);window.originalEditor=e.view;e.view.scrollDOM.scrollTop=2500;});
  await delay(100);const beforeExpand=await state();
+ const beforeAnchor=await page.locator(source).evaluate(area=>{const v=window.MareEditors.get(area).view,p=v.scrollSnapshot().value.range.head;return {p,top:v.coordsAtPos(p)?.top-v.scrollDOM.getBoundingClientRect().top};});
  await section.locator('[data-editor-expand]').click();await delay(100);
  await section.locator('[data-editor-expand]').click();await delay(100);
  assert.equal(await page.locator(source).evaluate(area=>window.MareEditors.get(area).view===window.originalEditor),true);
  assert.equal((await state()).doc,beforeExpand.doc);assert.deepEqual((await state()).selection,beforeExpand.selection);
- assert.ok(Math.abs((await state()).scroll-beforeExpand.scroll)<3,`scroll changed: ${beforeExpand.scroll} -> ${(await state()).scroll}`);
+ const afterAnchor=await page.locator(source).evaluate((area,anchor)=>{const v=window.MareEditors.get(area).view;return {top:v.coordsAtPos(anchor.p)?.top-v.scrollDOM.getBoundingClientRect().top,p:v.scrollSnapshot().value.range.head};},beforeAnchor);
+ // Virtualized off-screen heights may change scrollTop after width changes;
+ // the visible document position and its screen offset must remain stable.
+ assert.equal(afterAnchor.p,beforeAnchor.p,'expansion changed the visible document anchor');
+ assert.ok(Math.abs(afterAnchor.top-beforeAnchor.top)<3,JSON.stringify({beforeAnchor,afterAnchor}));
  await section.locator('[data-editor-expand]').click();
 
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.view.scrollDOM.scrollTop=6000;});
