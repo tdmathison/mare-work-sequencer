@@ -1,5 +1,8 @@
 # Latest update
 
+- Added the authenticated, case-independent Analyst Tools workspace between Metrics and Users, with a lightweight permission-aware registry, retained lazy tool panels, keyboard tabs, and Expand/Restore controls.
+- Integrated locally installed official CyberChef v11.5.0 with authenticated vendor assets, a checksum-pinned offline-capable installer, isolated MARE theme overrides, a local-only connection policy, setup messages, tests, and deployment/update documentation. No case storage or database migrations were added.
+
 - Completed the REST API (`/api/v1`): final report upload, report downloads, report images, Word template management, case and full backups, RAW imports, database backup, metrics, pagination, richer case detail, token expiry, per-token rate limiting, JSON errors, tests, and documentation. See the REST API section of the README.
 - Renamed the application folder and deployment examples to mare-work-sequencer; default and relative data locations follow app.py instead of the launch working directory.
 
