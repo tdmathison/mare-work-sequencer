@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static', filename='tools.css')}}">
+<script defer src="{{url_for('static', filename='tools.js')}}"></script>
+<section id="tools-workspace" aria-label="Analyst tools">
+  <div class="heading"><div><h1>Analyst Tools</h1><p class="eyebrow">Local utilities · independent of cases · no automatic case storage</p></div><button id="tools-expand" type="button" aria-pressed="false">Expand</button></div>
+  <div class="tool-tabs" role="tablist" aria-label="Analyst utilities">
+  {% for tool in tools %}<button id="tool-tab-{{tool.identifier}}" role="tab" aria-controls="tool-panel-{{tool.identifier}}" aria-selected="{{'true' if tool == selected else 'false'}}" tabindex="{{0 if tool == selected else -1}}" data-tool="{{tool.identifier}}">{{tool.icon}} {{tool.name}}</button>{% endfor %}
+  </div>
+  <div class="tool-panels">
+  {% for tool in tools %}<section id="tool-panel-{{tool.identifier}}" role="tabpanel" aria-labelledby="tool-tab-{{tool.identifier}}" {% if tool != selected %}hidden{% endif %}>
+    <iframe title="{{tool.name}} — {{tool.description}}" data-src="{{url_for(tool.endpoint)}}" sandbox="allow-scripts allow-same-origin allow-downloads" referrerpolicy="no-referrer"></iframe>
+  </section>{% else %}<p>No analyst tools are enabled for your account.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

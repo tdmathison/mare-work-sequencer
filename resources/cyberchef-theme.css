@@ -1,0 +1,85 @@
+/* Loaded only inside CyberChef. MARE palette comes from its canonical stylesheet. */
+@import url("mare-palette.css");
+html:root {
+  --arg-background: var(--bg) !important;
+  --arg-border-colour: var(--line) !important;
+  --arg-disabled-background: var(--bg) !important;
+  --arg-font-colour: var(--text) !important;
+  --arg-label-colour: var(--muted) !important;
+  --banner-bg-colour: var(--panel-2) !important;
+  --banner-font-colour: var(--text) !important;
+  --banner-url-colour: var(--accent) !important;
+  --breakpoint-bg-colour: var(--bg) !important;
+  --breakpoint-border-colour: var(--line) !important;
+  --breakpoint-font-colour: var(--text) !important;
+  --breakpoint-icon-colour: var(--text) !important;
+  --breakpoint-icon-selected-colour: var(--text) !important;
+  --btn-default-bg-colour: var(--bg) !important;
+  --btn-default-border-colour: var(--line) !important;
+  --btn-default-font-colour: var(--text) !important;
+  --btn-default-hover-bg-colour: var(--bg) !important;
+  --btn-default-hover-border-colour: var(--line) !important;
+  --btn-default-hover-font-colour: var(--text) !important;
+  --btn-success-bg-colour: var(--accent) !important;
+  --btn-success-border-colour: var(--line) !important;
+  --btn-success-font-colour: var(--bg) !important;
+  --btn-success-hover-bg-colour: var(--accent) !important;
+  --btn-success-hover-border-colour: var(--line) !important;
+  --btn-success-hover-font-colour: var(--bg) !important;
+  --category-list-font-colour: var(--accent) !important;
+  --code-background: var(--bg) !important;
+  --code-font-colour: var(--text) !important;
+  --disable-icon-colour: var(--text) !important;
+  --disable-icon-selected-colour: var(--text) !important;
+  --disabled-bg-colour: var(--bg) !important;
+  --disabled-border-colour: var(--line) !important;
+  --disabled-font-colour: var(--muted) !important;
+  --drop-file-border-colour: var(--line) !important;
+  --fc-breakpoint-operation-bg-colour: var(--panel-2) !important;
+  --fc-breakpoint-operation-border-colour: var(--line) !important;
+  --fc-breakpoint-operation-font-colour: var(--text) !important;
+  --fc-operation-bg-colour: var(--panel-2) !important;
+  --fc-operation-border-colour: var(--line) !important;
+  --fc-operation-font-colour: var(--text) !important;
+  --fixed-width-font-colour: var(--text) !important;
+  --fixed-width-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  --input-border-colour: var(--line) !important;
+  --input-highlight-colour: var(--accent) !important;
+  --loader-background-colour: var(--bg) !important;
+  --loader-inner-colour: var(--accent) !important;
+  --loader-middle-colour: var(--accent) !important;
+  --loader-outer-colour: var(--accent) !important;
+  --op-list-operation-bg-colour: var(--panel-2) !important;
+  --op-list-operation-border-colour: var(--line) !important;
+  --op-list-operation-font-colour: var(--text) !important;
+  --popover-background: var(--bg) !important;
+  --popover-border-colour: var(--line) !important;
+  --primary-background-colour: var(--bg) !important;
+  --primary-border-colour: var(--line) !important;
+  --primary-font-colour: var(--text) !important;
+  --primary-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  --rec-list-operation-bg-colour: var(--panel-2) !important;
+  --rec-list-operation-border-colour: var(--line) !important;
+  --rec-list-operation-font-colour: var(--text) !important;
+  --scrollbar-hover: var(--accent-dim) !important;
+  --scrollbar-thumb: var(--line) !important;
+  --scrollbar-track: var(--bg) !important;
+  --secondary-background-colour: var(--panel-2) !important;
+  --secondary-border-colour: var(--line) !important;
+  --selected-operation-bg-colour: var(--panel-2) !important;
+  --selected-operation-border-colour: var(--line) !important;
+  --selected-operation-font-color: var(--accent) !important;
+  --subtext-font-colour: var(--muted) !important;
+  --table-border-colour: var(--line) !important;
+  --title-background-colour: var(--panel-2) !important;
+  --title-colour: var(--accent) !important;
+}
+/* Overrides for Bootstrap controls not covered by upstream theme variables. */
+body {background:var(--bg);color:var(--text);font-family:var(--primary-font-family)}
+.form-control,textarea,#input-text,#output-text,.modal-content,.dropdown-menu,.popover,.card {background-color:var(--panel)!important;color:var(--text)!important;border-color:var(--line)!important}
+.title,#banner,.modal-header,.modal-footer {background:var(--panel-2)!important;color:var(--accent)!important;border-color:var(--line)!important}
+.btn-primary,.btn-secondary,.btn-default {background:var(--panel-2)!important;color:var(--accent)!important;border-color:var(--line)!important}
+.dropdown-item {color:var(--text)!important}.dropdown-item:hover,.dropdown-item:focus,.nav-link.active {background:var(--panel-2)!important;color:var(--accent)!important}
+a {color:var(--accent)} .table {color:var(--text)}
+*:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+* {scrollbar-color:var(--line) var(--bg)}

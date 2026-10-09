@@ -35,7 +35,7 @@
     </header>
     {% if user %}
     <nav class="admin-nav">
-      <a href="/">MIP BOARD</a><a href="/metrics">METRICS</a>{% if
+      <a href="/">MIP BOARD</a><a href="/metrics">METRICS</a><a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
       user.role=='Administrator' %}<a href="/users">USERS</a
       ><a href="/audit">AUDIT</a>{% endif %}<a href="/account">SETTINGS</a
       ><a href="/api">API</a><a href="/import-export">IMPORT &amp; EXPORT</a>

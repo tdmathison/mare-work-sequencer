@@ -267,3 +267,193 @@ curl -H "Authorization: Bearer $TOKEN" -X POST -o backup.zip https://host/api/v1
 ```
 
 Case-modifying endpoints follow the same stage rules as the web interface (owner required, and no edits in Not started or Completed). Upload limits match the web interface. Add the `/api/v1/` block from `deploy/nginx.conf` when using nginx so large imports are accepted.
+
+## Analyst Tools Workspace
+
+The authenticated **Tools** tab sits between Metrics and Users and opens a full-width,
+case-independent workspace. CyberChef is the first utility. It retains its operation
+search, draggable recipes, input/output tabs, settings, files, and recipe import/export.
+Tools are lazy-loaded into retained panels: switching secondary tabs or using
+**Expand / Restore** does not recreate the iframe. Arrow keys, Home, and End select
+tools; Escape restores the expanded workspace when focus is in the parent page.
+Reloading or leaving the Tools page ends that retained in-memory session. CyberChef
+may retain its own settings and explicitly saved recipes in browser local storage.
+No Tools database tables, migrations, case transfers, or automatic saves are added.
+
+### Install and deploy CyberChef locally
+
+The integration pins the official [CyberChef v11.5.0 release](https://github.com/gchq/CyberChef/releases/tag/v11.5.0),
+commit `8cd426dd4f40f1423912d5fad91b578a86a65112`, under Apache-2.0 (Crown Copyright).
+The official compiled ZIP has SHA-256
+`f6478925d3eaa16ec08626a85f5b85eed10d531a5e18700615fed7ecb024cccf`.
+Dependency notices remain in the bundle; the upstream license is also included at
+`vendor/cyberchef/LICENSE`. No upstream development repository is committed.
+
+From the application directory, before starting Gunicorn:
+
+```sh
+python3 scripts/install_cyberchef.py
+```
+
+The Python 3.10+ installer downloads that exact official production release,
+validates its checksum and archive paths, and installs all assets in
+`vendor/cyberchef/dist/`. It renames the versioned HTML entry to `index.html`.
+The original ZIP is retained for CyberChef’s local Download CyberChef control.
+The official bundle is already built; Node.js is unnecessary for installation or
+Flask production runtime. Flask startup never downloads or builds anything.
+Generated assets are ignored by Git: include this installation step in release
+packaging and provision them on every application instance. Install with a deployment
+account that can write the application folder, before starting the hardened systemd
+service (which grants runtime write access only to `data/`). The service account needs
+read access to the resulting files. Restart is not necessary after installation;
+reload the workspace to use new assets. Avoid replacing assets during active recipes.
+
+For an offline deployment, transfer the official ZIP via your approved process:
+
+```sh
+python3 scripts/install_cyberchef.py --archive /path/to/CyberChef_8cd426dd4f40f1423912d5fad91b578a86a65112.zip
+```
+
+An optional `--destination /path/to/dist` installs elsewhere. Set Flask's
+`app.config['CYBERCHEF_DIR']` to the matching absolute path when customizing deployment.
+Do not put these assets in Flask's public `static/` directory or expose them with
+an unauthenticated Nginx alias. The existing `deploy/nginx.conf` forwards `/tools/`
+to Gunicorn and requires no additional location block. All vendor requests use the
+same existing session authentication, including active-account, password-change,
+and session-version checks. No second backend or authentication mechanism exists.
+
+To update, review upstream changes/security advisories, choose a release, and change
+`VERSION`, `COMMIT`, `SHA256` in `scripts/install_cyberchef.py` using the official release
+metadata. Update `vendor/cyberchef/README.md`, its license if needed, and this section;
+run the installer and the verification checklist below. The installer validates the
+expected entry and `assets/main.js` layout before replacing the installed directory.
+For a source build instead, check out that commit in a separate build directory and
+follow its upstream Node/npm/Grunt production build instructions; the installer
+intentionally accepts only the checksum-pinned official ZIP.
+
+### Routes, registry, and the next tool
+
+- `/tools`: selects the first enabled, permitted registry entry.
+- `/tools/<tool_id>`: selects a registered tool; unknown/disabled IDs return 404,
+  permission failures return 403.
+- `/tools/cyberchef/app/`: authenticated HTML entry, with an injected MARE stylesheet.
+- `/tools/cyberchef/app/<path:filename>`: authenticated vendor assets, workers, and
+  the virtual `mare-theme.css` / `mare-palette.css` files.
+
+`analyst_tools.py` stores immutable `AnalystTool` metadata in
+`app.extensions['analyst_tools']`. Entries include identifier, name, description,
+icon, Flask endpoint, type (`embedded` or `native`), enabled flag, and optional
+existing permission name. Navigation is generated from those entries. No plugin
+loader or database is needed. CyberChef is registered first.
+
+To add a native Flask tool, define its routes in a normal `register_*` module,
+then register it after `register_tools(app, db)` in `app.py`:
+
+```python
+from analyst_tools import AnalystTool, register_tool, require_tool
+
+@app.get('/tools/example/app/')
+def tools_example():
+    require_tool(app, db, 'example')
+    return render_template('example_tool.html')
+
+register_tool(app, AnalystTool(
+    identifier='example', name='Example', description='A native analyst utility',
+    endpoint='tools_example', tool_type='native', permission=None,
+))
+```
+
+Use a standalone tool template inside the retained iframe and the existing MARE
+stylesheet/components. Tool CSS/JavaScript can be referenced by that template.
+Every backend route must call `require_tool`, including download and data routes,
+to enforce enabled state and any existing role permission. Normal Flask session and
+CSRF rules still apply; POST forms must include the existing session `csrf` token.
+No new case endpoint or permission is required by default. Only register trusted
+application code, with unique lowercase identifiers. `register_tool` rejects
+invalid/duplicate metadata. Enabled/permitted tools appear automatically without
+editing main navigation or workspace JavaScript.
+
+For another embedded JavaScript application, register its authenticated HTML
+endpoint in the same way. Keep compiled assets outside `static/`, protect every
+asset route, retain relative asset paths, and provide its own isolated theme and
+reviewed CSP. The workspace handles lazy initialization and retained iframe state
+for either type. Review download, worker, and sandbox requirements per application.
+
+### Theme and security
+
+`resources/cyberchef-theme.css` loads **inside** CyberChef and overrides upstream
+CSS variables and Bootstrap controls. Its authenticated `mare-palette.css` import
+extracts the canonical `:root` block from `static/mare.css`, so dark backgrounds,
+borders, gold accents, and status colors track MARE. Typography follows MARE's
+system-font stack while editors retain monospace fonts. No vendor JavaScript is
+modified. On updates, verify upstream theme variable names, panel selectors,
+editor colors, dialogs, dropdowns, hover states, and worker paths; keep overrides
+isolated to this iframe.
+
+Processing happens in the browser. Input/output/recipes are not automatically
+submitted to Flask or saved to cases. This integration does not exchange messages
+or inject vendor output into the parent DOM. CyberChef's built-in share links may
+include recipes/input in a **URL fragment** (not a server query parameter); treat
+shared URLs and explicitly saved recipes as sensitive. Imported recipes and output
+are untrusted analysis material.
+
+The iframe permits scripts, same-origin access (needed for local workers/storage),
+and downloads; it disallows popups, forms, and top navigation. Scripts plus
+same-origin access do **not** isolate a compromised trusted vendor application
+from MARE's origin. This is a compatibility choice for the official frontend,
+not a security boundary. Deploy only reviewed, checksum-verified assets. Stronger
+origin isolation would require a separately authenticated origin and is out of scope.
+
+Vendor responses disable caching, set same-origin framing, prevent MIME sniffing,
+and apply a CSP that permits local/blob workers, fonts, images, inline vendor
+scripts/styles and dynamic evaluation needed by upstream. It denies external
+connections, nested frames, objects, and form submission. Existing MARE CSRF/session
+protections remain unchanged. `connect-src 'self' blob: data:` supports local assets
+and file/blob processing, but prohibits outside API requests. CyberChef operations
+such as **HTTP request** and **DNS over HTTPS**, remote URL inputs, and any other
+operation fetching third-party resources will fail under this policy. Local OCR
+assets are included; inspect the browser Network panel for any future operation's
+external requirements. Documentation links can open only when browser/sandbox
+restrictions permit; popup links are restricted. Do not silently relax the CSP to
+make network operations work. Offline analysis works after the local workspace and
+its required assets have loaded, although access to the MARE host/session is still
+required for newly requested assets. No service worker/offline cache is introduced.
+
+### Troubleshooting and manual verification
+
+Missing `dist/index.html` produces a setup message (HTTP 503), with the installation
+command shown to administrators and a contact-administrator message for other users.
+A blank/loading iframe: inspect its HTML and asset responses for 302 login/account
+redirects, 404 files, CSP violations, or expired sessions. Confirm the complete
+bundle was installed and that Nginx proxies every `/tools/` path through Flask;
+do not rewrite the app entry to `/static/`. Check permissions and the pinned checksum.
+
+Automated coverage is in `tests/test_tools.py`. Run:
+
+```sh
+.venv/bin/python -m pytest -q
+node --check static/tools.js
+```
+
+Manual browser release checklist (repeat through the production HTTPS proxy):
+
+- Sign out: Tools is absent; vendor entry, JS, CSS, and workers require login.
+- Sign in without opening a case: Tools opens CyberChef; all scripts, fonts,
+  images, dynamically loaded modules, and workers return 200 with local URLs.
+- Search **From Base64**, drag it into the recipe, input `SGVsbG8=`, and verify
+  output `Hello`. Run manual and automatic bake; add/reorder/remove operations.
+- Open a local file, switch input/output tabs, export output, and import/export
+  a recipe. Verify standard settings and search controls.
+- Exercise a worker-backed operation and local OCR if used; check Network and
+  console for asset errors or unintended outbound requests.
+- Inspect operation sidebar, recipe, input/output, toolbar, dialogs, menus,
+  scrollbars, hover/selection, and typography against the MARE dark/gold palette.
+- Temporarily register a second local test utility; navigate with mouse and
+  keyboard, then return to CyberChef and confirm recipe/input/output survive.
+- Expand, resize, and Restore at 1366×768 and 1920×1080; confirm state survives
+  and the application panels fit without clipped controls or nested page scrolling.
+- Verify session expiry/forced-password redirects, disabled/permission-gated tools,
+  and the missing-assets message; inspect browser console for unexpected errors.
+- Confirm external HTTP/DNS operations are blocked by policy, while local
+  decoding, file downloads, and recipes work. Validate HTTPS Nginx/Gunicorn asset
+  MIME types and worker requests; do not enable public vendor caching/aliases.

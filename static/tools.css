@@ -1,0 +1,9 @@
+#tools-workspace{height:var(--workspace-height,75vh);display:flex;flex-direction:column;min-height:420px}
+#tools-workspace h1{margin:0}#tools-workspace .heading{flex-shrink:0;margin-bottom:12px}
+.tool-tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px;overflow-x:auto;flex-shrink:0}
+.tool-tabs button{background:var(--panel-2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.tool-tabs [aria-selected=true]{color:var(--accent);border-color:var(--accent)}
+.tool-panels{flex:1;min-height:0;margin-top:12px}.tool-panels section{height:100%}.tool-panels [hidden]{display:none}
+.tool-panels iframe{width:100%;height:100%;display:block;border:1px solid var(--line);background:var(--bg)}
+#tools-workspace.expanded{position:fixed;inset:0;z-index:1000;height:100dvh;padding:12px;background:var(--bg);min-height:0}
+.tools-expanded{overflow:hidden}
