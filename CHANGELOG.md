@@ -1,5 +1,12 @@
 # Latest update
 
+- Kept Markdown toolbars above source and preview in expanded workspaces; menus now fit the viewport, open upward when needed, and scroll without clipping. Added normal/expanded, laptop, task-dialog, and standalone layout regressions while retaining the same CodeMirror instance and state.
+
+- Enhanced the existing CodeMirror editors with shared Format/Insert/View menus, six heading levels, reversible inline formatting, lists, folding, multiple selections, and compartment-based View preferences. Preserved MARE image/caption workflows and alignment controls; added validated body-row table dialogs and HTML/TSV merged-cell conversion. Preview prose uses local Aptos fallbacks; Word defaults to Aptos only without an explicit template Normal font. Added browser and Word typography regressions.
+
+- Replaced report, task, MITRE mapping, and Markdown-file source editors with locally bundled CodeMirror 6, using official Markdown/fenced-language highlighting, line numbers, wrapping, search/replace, history, and a MARE theme. Removed custom overlays and both gutter synchronization implementations that could disagree at wrap boundaries.
+- Preserved Markdown toolbars, images/captions, previews, form/API payloads, configurable autosave, and expanded editing; saves retain current typing/selection/scroll, with server and browser regression coverage and reproducible frontend build documentation. No database, authentication, report, or archive-format changes.
+
 - Added the authenticated, case-independent Analyst Tools workspace between Metrics and Users, with a lightweight permission-aware registry, retained lazy tool panels, keyboard tabs, and Expand/Restore controls.
 - Integrated locally installed official CyberChef v11.5.0 with authenticated vendor assets, a checksum-pinned offline-capable installer, isolated MARE theme overrides, a local-only connection policy, setup messages, tests, and deployment/update documentation. No case storage or database migrations were added.
 

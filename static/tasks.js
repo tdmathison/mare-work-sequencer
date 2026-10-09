@@ -1,23 +1,10 @@
 (() => {
   const cid = document.querySelector(".case-tabs")?.dataset.caseId;
   if (!cid) return;
-  const escape = (text) =>
-    text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  function highlight(area) {
-    const pre = area.previousElementSibling;
-    area.parentElement.classList.add("enhanced");
-    pre.innerHTML = window.MareMarkdownSyntax.renderMarkdown(area.value);
-    pre.scrollTop = area.scrollTop;
-    pre.scrollLeft = area.scrollLeft;
-  }
   for (const dialog of document.querySelectorAll(".task-workspace-dialog")) {
     const form = dialog.querySelector("form"),
       section = dialog.querySelector(".manual-section"),
-      area = section.querySelector(".markdown-input"),
+      area = section.querySelector(".markdown-source"),
       raw = section.querySelector("[data-task-raw]"),
       preview = section.querySelector("[data-task-preview]"),
       pane = section.querySelector(".markdown-preview"),
@@ -27,23 +14,23 @@
       sequence++;
       pane.hidden = true;
       editor.hidden = false;
+      markdown.restoreLayout();
       raw.setAttribute("aria-selected", "true");
       preview.setAttribute("aria-selected", "false");
     }
     raw.addEventListener("click", rawView);
-    area.addEventListener("input", () => highlight(area));
-    area.addEventListener("scroll", () => highlight(area));
-    highlight(area);
+    const markdown = window.MareEditors.get(area);
     preview.addEventListener("click", async () => {
       const current = ++sequence;
       raw.setAttribute("aria-selected", "false");
       preview.setAttribute("aria-selected", "true");
+      markdown.preserveLayout();
       pane.hidden = false;
       editor.hidden = true;
       pane.textContent = "Rendering preview…";
       const data = new FormData();
       data.set("csrf", form.elements.csrf.value);
-      data.set("text", area.value);
+      data.set("text", markdown.getValue());
       try {
         const response = await fetch("/cases/" + cid + "/markdown-preview", {
           method: "POST",
@@ -77,7 +64,7 @@
       .addEventListener("click", () => dialog.close());
     dialog.addEventListener("close", () => {
       form.reset();
-      area.dispatchEvent(new Event("input"));
+      markdown.measure();
       rawView();
       document.body.classList.remove("task-dialog-open");
     });
@@ -90,7 +77,7 @@
       const dialog = document.getElementById(button.dataset.openTask);
       dialog.showModal();
       document.body.classList.add("task-dialog-open");
-      dialog.querySelector(".markdown-input").dispatchEvent(new Event("input"));
+      window.MareEditors.get(dialog.querySelector(".markdown-source")).measure();
       dialog.querySelector('[name="name"]').focus();
     });
 })();

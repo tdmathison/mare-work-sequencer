@@ -64,9 +64,9 @@ def test_task_markdown_images_full_dialogs_and_backup_restore():
     page=client.get(base).data.decode()
     assert f'id="edit-task-dialog-{tid}"' in page and '<summary>Edit task</summary>' not in page
     assert 'data-task-preview' in page and 'data-image-section="task-draft"' in page
-    assert '<summary>Formatting</summary>' in page and '<summary>Insert</summary>' in page
-    assert '<textarea class="markdown-input" name="description"' in page
-    assert 'class="word-wrap" checked' in page
+    assert 'class="markdown-toolbar"' in page and 'vendor/codemirror/markdown-editor.js' in page
+    assert '<textarea class="markdown-source" data-markdown-editor name="description"' in page
+    assert 'class="markdown-toolbar"' in page
     preview=post('/markdown-preview',text=body).json['html']
     assert '<h2>Decoder task</h2>' in preview and '<strong>Investigate</strong>' in preview and name in preview
     backup=post('/backup');assert backup.status_code==200

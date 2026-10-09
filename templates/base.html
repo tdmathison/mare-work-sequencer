@@ -5,11 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MARE // Work Sequencer</title>
     <link rel="stylesheet" href="{{url_for('static',filename='mare.css')}}" />
+    <link rel="stylesheet" href="{{url_for('static',filename='vendor/codemirror/markdown-editor.css')}}" />
+    <script defer src="{{url_for('static',filename='vendor/codemirror/markdown-editor.js')}}"></script>
     <script defer src="{{url_for('static',filename='autosave.js')}}"></script>
-    <script
-      defer
-      src="{{url_for('static',filename='markdown-syntax.js')}}"
-    ></script>
   </head>
   <body data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
     <header class="topbar">

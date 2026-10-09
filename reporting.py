@@ -426,6 +426,11 @@ def add_markdown(doc, text, assets_root=None):
 
 def fill_template(template, destination, sections, case_number, case_name, indicators=None, references=None, assets_root=None, external_system='', external_number=''):
     doc = Document(template)
+    # Supply the prose default only when the template has no explicit Normal font.
+    # Heading styles, direct formatting, and explicitly configured fonts survive.
+    normal = doc.styles['Normal']
+    if normal.element.find('./'+qn('w:rPr')+'/'+qn('w:rFonts')) is None:
+        normal.font.name = 'Aptos'
     anchors = {}
     for p in list(paragraphs(doc)):
         for key, label in TOKENS.items():

@@ -62,13 +62,11 @@
               Preview
             </button>
           </div>
-          <div class="markdown-preview" hidden role="tabpanel"></div>
           {% include 'markdown_toolbar.html' %}
-          <div class="markdown-editor wrap-on">
-            <div class="line-numbers" aria-hidden="true"><pre></pre></div>
-            <pre aria-hidden="true" class="markdown-highlight"></pre>
+          <div class="markdown-preview" hidden role="tabpanel"></div>
+          <div class="markdown-editor">
             <textarea
-              class="markdown-input"
+              class="markdown-source" data-markdown-editor
               name="{{key}}"
               rows="12"
               maxlength="100000"
