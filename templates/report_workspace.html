@@ -1,2 +1,240 @@
-<section class="panel"><div class="heading"><div><h2>Report workspace</h2><p class="muted">Write Markdown and populate your Word template. Finish the document in Word and upload the edited copy for delivery.</p></div><a href="/account">Word template settings</a></div><form id="report-form" data-case-id="{{c.id}}" method="post" action="/cases/{{c.id}}/report-sections"><fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}<p class="muted">Manage IOCs in Indicators and links in References. The report generator uses the saved tables and narrative sections.</p><div class="manual-report-grid">{% for key,label in report_sections.items() if key in ['executive_summary','key_findings','detection_opportunities','reverse_engineering_findings'] %}<section class="manual-section" id="editor-section-{{key}}"><div class="heading"><h3>{{loop.index}}. {{label}}</h3><button type="button" class="expand-editor" aria-expanded="false" aria-controls="editor-section-{{key}}">Expand editor</button></div><div class="editor-view-tabs" role="tablist" aria-label="Editor view"><button type="button" class="editor-raw-tab" role="tab" aria-selected="true">Raw</button><button type="button" class="editor-preview-tab" role="tab" aria-selected="false">Preview</button></div><div class="markdown-preview" hidden role="tabpanel"></div>{% include 'markdown_toolbar.html' %}<div class="markdown-editor wrap-on"><div class="line-numbers" aria-hidden="true"><pre></pre></div><pre aria-hidden="true" class="markdown-highlight"></pre><textarea class="markdown-input" name="{{key}}" rows="12" maxlength="100000" aria-label="{{label}} Markdown" spellcheck="false" wrap="soft" placeholder="Write Markdown here…">{{manual_sections.get(key,'')}}</textarea></div><div class="report-image-list" aria-label="Section images"></div></section>{% endfor %}</div><section class="mitre-prompt-panel"><h3>MITRE mapping prompt</h3><p class="muted">Create a prompt from the current four report sections, including unsaved edits. Copy it into ChatGPT or a similar assistant, review the returned mappings, then upload mitre-attack.md and mitre-mbc.md to mappings/ using the asset manager. Those files will populate the Word report’s MITRE sections.</p><button type="button" id="build-mitre-prompt">Generate MITRE prompt</button><div id="mitre-prompt-output" hidden><label>Prompt<textarea id="mitre-prompt-text" rows="10" readonly></textarea></label><button type="button" id="copy-mitre-prompt">Copy prompt</button><span id="mitre-prompt-status" role="status" class="muted"></span></div></section><div class="report-actions"><button type="submit" id="save-sections">Save report sections</button><span class="autosave-countdown" id="save-sections-countdown" aria-live="off"></span><span id="report-save-status" class="muted" role="status"></span></div><section class="report-generation"><h3>Generate Word report</h3><p class="muted">Save Indicators and References before generation. A Word template must be selected in Settings.</p><button id="generate-manual-report" type="button" {% if not report_config.template_id %}disabled{% endif %}>Generate Word Report</button><a class="board-create" id="open-word-report" href="{{url_for('file',cid=c.id,path=word_report_path,download=1)}}" {% if not word_report_exists %}hidden{% endif %}>Open latest Word report</a><p class="muted">Generation runs locally using the saved tables and Markdown. Open the Word document to finish editing, then upload the final copy below.</p></section></fieldset>{% if c.workspace_locked %}<p class="muted">Start analysis or reopen the case to edit content.</p>{% endif %}</form></section><section class="panel"><h2>Continue editing & save the final report</h2><p class="muted">Generate the starting document, edit it in your preferred Word editor, then upload the updated DOCX here. It replaces the same report used by the MIP export.</p><form id="final-report-form" method="post" enctype="multipart/form-data" action="/cases/{{c.id}}/final-report"><fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}<label>Edited Word document<input type="file" name="report" accept=".docx" required></label><label class="check-label"><input type="checkbox" name="backup" value="1" checked>Back up the current report before replacing it</label><button>Save edited Word report</button><span id="final-report-status" class="muted" role="status"></span></fieldset>{% if c.workspace_locked %}<p class="muted">Start analysis or reopen the case to edit content.</p>{% endif %}</form></section><section class="panel report-progress-panel"><div class="heading"><h2>Report generation progress</h2><span id="report-job-status" class="badge">Ready</span></div><progress id="report-progress" hidden aria-label="Report generation progress"></progress><div id="report-messages" role="log" aria-live="polite"><p class="muted">No generation request yet.</p></div></section><dialog id="report-replace-dialog"><form method="dialog"><fieldset class="workflow-controls" {% if c.stage==3 %}disabled{% endif %}><h2>Replace existing report?</h2><p>You can back up the current report before generating its replacement. Backups stay outside the MIP delivery and preview.</p><div class="dialog-actions"><button value="backup">Back up & replace</button><button value="overwrite">Replace without backup</button><button value="cancel">Cancel</button></div></fieldset>{% if c.stage==3 %}<p class="muted">Reopen the case to edit its details.</p>{% endif %}</form></dialog><script defer src="{{url_for('static',filename='report-workspace.js')}}"></script>
+<section class="panel">
+  <div class="heading">
+    <div>
+      <h2>Report workspace</h2>
+      <p class="muted">
+        Write Markdown and populate your Word template. Finish the document in
+        Word and upload the edited copy for delivery.
+      </p>
+    </div>
+    <a href="/account">Word template settings</a>
+  </div>
+  <form
+    id="report-form"
+    data-case-id="{{c.id}}"
+    method="post"
+    action="/cases/{{c.id}}/report-sections"
+  >
+    <fieldset
+      class="workflow-controls"
+      {%
+      if
+      c.workspace_locked
+      %}disabled{%
+      endif
+      %}
+    >
+      {{token(csrf)}}
+      <p class="muted">
+        Manage IOCs in Indicators and links in References. The report generator
+        uses the saved tables and narrative sections.
+      </p>
+      <div class="manual-report-grid">
+        {% for key,label in report_sections.items() if key in
+        ['executive_summary','key_findings','detection_opportunities','reverse_engineering_findings']
+        %}
+        <section class="manual-section" id="editor-section-{{key}}">
+          <div class="heading">
+            <h3>{{loop.index}}. {{label}}</h3>
+            <button
+              type="button"
+              class="expand-editor"
+              aria-expanded="false"
+              aria-controls="editor-section-{{key}}"
+            >
+              Expand editor
+            </button>
+          </div>
+          <div class="editor-view-tabs" role="tablist" aria-label="Editor view">
+            <button
+              type="button"
+              class="editor-raw-tab"
+              role="tab"
+              aria-selected="true"
+            >
+              Raw</button
+            ><button
+              type="button"
+              class="editor-preview-tab"
+              role="tab"
+              aria-selected="false"
+            >
+              Preview
+            </button>
+          </div>
+          <div class="markdown-preview" hidden role="tabpanel"></div>
+          {% include 'markdown_toolbar.html' %}
+          <div class="markdown-editor wrap-on">
+            <div class="line-numbers" aria-hidden="true"><pre></pre></div>
+            <pre aria-hidden="true" class="markdown-highlight"></pre>
+            <textarea
+              class="markdown-input"
+              name="{{key}}"
+              rows="12"
+              maxlength="100000"
+              aria-label="{{label}} Markdown"
+              spellcheck="false"
+              wrap="soft"
+              placeholder="Write Markdown here…"
+            >
+{{manual_sections.get(key,'')}}</textarea
+            >
+          </div>
+          <div class="report-image-list" aria-label="Section images"></div>
+        </section>
+        {% endfor %}
+      </div>
+      <section class="mitre-prompt-panel">
+        <h3>MITRE mapping prompt</h3>
+        <p class="muted">
+          Create a prompt from the current four report sections, including
+          unsaved edits. Copy it into ChatGPT or a similar assistant, review the
+          returned mappings, then upload mitre-attack.md and mitre-mbc.md to
+          mappings/ using the asset manager. Those files will populate the Word
+          report’s MITRE sections.
+        </p>
+        <button type="button" id="build-mitre-prompt">
+          Generate MITRE prompt
+        </button>
+        <div id="mitre-prompt-output" hidden>
+          <label
+            >Prompt<textarea
+              id="mitre-prompt-text"
+              rows="10"
+              readonly
+            ></textarea></label
+          ><button type="button" id="copy-mitre-prompt">Copy prompt</button
+          ><span id="mitre-prompt-status" role="status" class="muted"></span>
+        </div>
+      </section>
+      <div class="report-actions">
+        <button type="submit" id="save-sections">Save report sections</button
+        ><span
+          class="autosave-countdown"
+          id="save-sections-countdown"
+          aria-live="off"
+        ></span
+        ><span id="report-save-status" class="muted" role="status"></span>
+      </div>
+      <section class="report-generation">
+        <h3>Generate Word report</h3>
+        <p class="muted">
+          Save Indicators and References before generation. A Word template must
+          be selected in Settings.
+        </p>
+        <button
+          id="generate-manual-report"
+          type="button"
+          {%
+          if
+          not
+          report_config.template_id
+          %}disabled{%
+          endif
+          %}
+        >
+          Generate Word Report</button
+        ><a
+          class="board-create"
+          id="open-word-report"
+          href="{{url_for('file',cid=c.id,path=word_report_path,download=1)}}"
+          {%
+          if
+          not
+          word_report_exists
+          %}hidden{%
+          endif
+          %}
+          >Open latest Word report</a
+        >
+        <p class="muted">
+          Generation runs locally using the saved tables and Markdown. Open the
+          Word document to finish editing, then upload the final copy below.
+        </p>
+      </section>
+    </fieldset>
+    {% if c.workspace_locked %}
+    <p class="muted">Start analysis or reopen the case to edit content.</p>
+    {% endif %}
+  </form>
+</section>
+<section class="panel">
+  <h2>Continue editing & save the final report</h2>
+  <p class="muted">
+    Generate the starting document, edit it in your preferred Word editor, then
+    upload the updated DOCX here. It replaces the same report used by the MIP
+    export.
+  </p>
+  <form
+    id="final-report-form"
+    method="post"
+    enctype="multipart/form-data"
+    action="/cases/{{c.id}}/final-report"
+  >
+    <fieldset
+      class="workflow-controls"
+      {%
+      if
+      c.workspace_locked
+      %}disabled{%
+      endif
+      %}
+    >
+      {{token(csrf)}}<label
+        >Edited Word document<input
+          type="file"
+          name="report"
+          accept=".docx"
+          required /></label
+      ><label class="check-label"
+        ><input type="checkbox" name="backup" value="1" checked />Back up the
+        current report before replacing it</label
+      ><button>Save edited Word report</button
+      ><span id="final-report-status" class="muted" role="status"></span>
+    </fieldset>
+    {% if c.workspace_locked %}
+    <p class="muted">Start analysis or reopen the case to edit content.</p>
+    {% endif %}
+  </form>
+</section>
+<section class="panel report-progress-panel">
+  <div class="heading">
+    <h2>Report generation progress</h2>
+    <span id="report-job-status" class="badge">Ready</span>
+  </div>
+  <progress
+    id="report-progress"
+    hidden
+    aria-label="Report generation progress"
+  ></progress>
+  <div id="report-messages" role="log" aria-live="polite">
+    <p class="muted">No generation request yet.</p>
+  </div>
+</section>
+<dialog id="report-replace-dialog">
+  <form method="dialog">
+    <fieldset
+      class="workflow-controls"
+      {% if c.stage == 3 %}disabled{% endif %}
+    >
+      <h2>Replace existing report?</h2>
+      <p>
+        You can back up the current report before generating its replacement.
+        Backups stay outside the MIP delivery and preview.
+      </p>
+      <div class="dialog-actions">
+        <button value="backup">Back up & replace</button
+        ><button value="overwrite">Replace without backup</button
+        ><button value="cancel">Cancel</button>
+      </div>
+    </fieldset>
+    {% if c.stage==3 %}
+    <p class="muted">Reopen the case to edit its details.</p>
+    {% endif %}
+  </form>
+</dialog>
+<script
+  defer
+  src="{{url_for('static',filename='report-workspace.js')}}"
+></script>
 <script defer src="{{url_for('static',filename='editor-tools.js')}}"></script>

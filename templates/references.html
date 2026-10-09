@@ -1,1 +1,42 @@
-<section class="panel" id="reference-workspace" data-case-id="{{c.id}}" data-locked="{{'true' if c.workspace_locked else 'false'}}" data-csrf="{{csrf}}"><h2>References</h2><p class="muted">Enter links and descriptions directly in the table. Save before generating the Word report; saved rows appear under Appendices → Links.</p><fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}><div class="report-actions"><button type="button" id="add-reference">Add row</button><button type="button" id="save-references">Save table</button><span class="autosave-countdown" id="save-references-countdown" aria-live="off"></span></div><div class="indicator-table-wrap"><table id="reference-table"><thead></thead><tbody></tbody></table></div></fieldset><p id="reference-status" role="status" aria-live="polite">Loading references…</p></section><script defer src="{{url_for('static',filename='references.js')}}"></script>
+<section
+  class="panel"
+  id="reference-workspace"
+  data-case-id="{{c.id}}"
+  data-locked="{{'true' if c.workspace_locked else 'false'}}"
+  data-csrf="{{csrf}}"
+>
+  <h2>References</h2>
+  <p class="muted">
+    Enter links and descriptions directly in the table. Save before generating
+    the Word report; saved rows appear under Appendices → Links.
+  </p>
+  <fieldset
+    class="workflow-controls"
+    {%
+    if
+    c.workspace_locked
+    %}disabled{%
+    endif
+    %}
+  >
+    <div class="report-actions">
+      <button type="button" id="add-reference">Add row</button
+      ><button type="button" id="save-references">Save table</button
+      ><span
+        class="autosave-countdown"
+        id="save-references-countdown"
+        aria-live="off"
+      ></span>
+    </div>
+    <div class="indicator-table-wrap">
+      <table id="reference-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </fieldset>
+  <p id="reference-status" role="status" aria-live="polite">
+    Loading references…
+  </p>
+</section>
+<script defer src="{{url_for('static',filename='references.js')}}"></script>

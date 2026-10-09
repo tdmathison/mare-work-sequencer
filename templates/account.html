@@ -1,1 +1,84 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<h1>Settings</h1><br/><div class="columns"><section class="panel"><h2>Password</h2>{% if user.forced %}<p>Set a new password before continuing.</p>{% endif %}<form method="post">{{token(csrf)}}<label>Current password<input type="password" name="current" autocomplete="current-password" required></label><label>New password<input type="password" name="password" minlength="12" autocomplete="new-password" required></label><label>Confirm new password<input type="password" name="confirm" minlength="12" autocomplete="new-password" required></label><button>Change password</button></form></section></div>{% if user.role=='Administrator' %}<section class="panel"><h2>Database & installation backup</h2><p class="muted">Download the SQLite database, accounts, settings, templates, and all MIP content. To restore, stop the service and extract the archive into the application source directory (data/), then restore service-account ownership and start the service. For a custom MARE_DATA_DIR, move the restored data/ contents there.</p><form method="post" action="/account/database-backup">{{token(csrf)}}<button>Back up database & all MIP content</button></form></section>{% endif %}<section class="panel"><h2>Autosave</h2><p class="muted">Automatically save changed report sections, indicators, and references while a case page is open. Manual save remains available.</p><form method="post" action="/account/autosave">{{token(csrf)}}<label>Autosave interval (minutes)<input type="number" name="autosave_minutes" min="1" step="1" required value="{{user.autosave_minutes}}"></label><button>Save autosave settings</button></form></section><section class="panel"><h2>MIP board view</h2><p class="muted">Choose the default layout for the MIP board.</p><form method="post" action="/account/board-view">{{token(csrf)}}<label>Default view<select name="board_view"><option value="cards" {{'selected' if user.board_view!='table'}}>Cards</option><option value="table" {{'selected' if user.board_view=='table'}}>Table</option></select></label><button>Save board view</button></form></section><section class="panel"><h2>Word templates</h2><div class="columns"><div><form method="post" enctype="multipart/form-data" action="/account/templates">{{token(csrf)}}<label>Upload your report template (.docx)<input name="template" type="file" accept=".docx" required></label><button>Upload & select template</button></form><p class="muted">Templates are private to your account. Uploading a new template selects it for future report generation. Headers, footers, styles, and branding are retained.</p>{% for t in word_templates %}<div class="template-row"><a href="/account/templates/{{t.id}}">{{t.name}}</a><form method="post" action="/account/templates/{{t.id}}/delete">{{token(csrf)}}<button onclick="return confirm('Remove this template? Existing reports will remain.')">Remove</button></form></div>{% endfor %}</div><div><h3>Template section locations</h3><p>Use a matching section heading, or put each placeholder on its own paragraph where the content should appear. Placeholder paragraphs are replaced with formatted content.</p><ul>{% for key,label in template_sections.items() %}<li>{{label}}: <code>{{ '{{ ' ~ key ~ ' }}' }}</code></li>{% endfor %}</ul><p class="muted">Optional metadata placeholders: <code>{% raw %}{{ case_number }}{% endraw %}</code> and <code>{% raw %}{{ case_name }}{% endraw %}</code>. Body paragraphs and table cells are supported. Put section placeholders in the body rather than text boxes or headers. MBC is the Malware Behavior Catalog.</p></div></div></section>{% endblock %}
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<h1>Settings</h1><br/>
+<div class="columns">
+    <section class="panel"><h2>Password</h2>
+        {% if user.forced %}
+            <p>Set a new password before continuing.</p>
+        {% endif %}
+        <form method="post">{{token(csrf)}}
+            <label>Current password<input type="password" name="current" autocomplete="current-password" required></label>
+            <label>New password<input type="password" name="password" minlength="12" autocomplete="new-password" required></label>
+            <label>Confirm new password<input type="password" name="confirm" minlength="12" autocomplete="new-password" required></label>
+            <button>Change password</button>
+        </form>
+    </section>
+</div>
+
+{% if user.role=='Administrator' %}
+    <section class="panel"><h2>Database & installation backup</h2>
+        <p class="muted">Download the SQLite database, accounts, settings, templates, and all MIP content. To restore, stop the service and extract the archive into the application source directory (data/), then restore service-account ownership and start the service. For a custom MARE_DATA_DIR, move the restored data/ contents there.</p>
+        <form method="post" action="/account/database-backup">{{token(csrf)}}
+            <button>Back up database & all MIP content</button>
+        </form>
+    </section>
+{% endif %}
+
+<section class="panel">
+    <h2>Autosave</h2>
+    <p class="muted">Automatically save changed report sections, indicators, and references while a case page is open. Manual save remains available.</p>
+    <form method="post" action="/account/autosave">{{token(csrf)}}
+        <label>Autosave interval (minutes)
+            <input type="number" name="autosave_minutes" min="1" step="1" required value="{{user.autosave_minutes}}">
+        </label>
+        <button>Save autosave settings</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>MIP board view</h2>
+    <p class="muted">Choose the default layout for the MIP board.</p>
+    <form method="post" action="/account/board-view">{{token(csrf)}}
+        <label>Default view
+            <select name="board_view">
+                <option value="cards" {{'selected' if user.board_view!='table'}}>Cards</option>
+                <option value="table" {{'selected' if user.board_view=='table'}}>Table</option>
+            </select>
+        </label>
+        <button>Save board view</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Word templates</h2>
+    <div class="columns">
+        <div>
+            <form method="post" enctype="multipart/form-data" action="/account/templates">{{token(csrf)}}
+                <label>Upload your report template (.docx)<input name="template" type="file" accept=".docx" required></label>
+                <button>Upload & select template</button>
+            </form>
+            <p class="muted">Templates are private to your account. Uploading a new template selects it for future report generation. Headers, footers, styles, and branding are retained.</p>
+            
+            {% for t in word_templates %}
+                <div class="template-row"><a href="/account/templates/{{t.id}}">{{t.name}}</a>
+                <form method="post" action="/account/templates/{{t.id}}/delete">{{token(csrf)}}
+                    <button onclick="return confirm('Remove this template? Existing reports will remain.')">Remove</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        <div>
+            <h3>Template section locations</h3>
+            <p>Use a matching section heading, or put each placeholder on its own paragraph where the content should appear. Placeholder paragraphs are replaced with formatted content.</p>
+            <ul>
+                {% for key,label in template_sections.items() %}
+                    <li>{{label}}: <code>{{ '{{ ' ~ key ~ ' }}' }}</code></li>
+                {% endfor %}
+            </ul>
+            <p class="muted">Optional metadata placeholders: 
+                <code>{% raw %}{{ case_number }}{% endraw %}</code> and 
+                <code>{% raw %}{{ case_name }}{% endraw %}</code>. Body paragraphs and table cells are supported. Put section placeholders in the body rather than text boxes or headers. MBC is the Malware Behavior Catalog.
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}

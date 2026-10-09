@@ -1,1 +1,68 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<h1>Account management</h1><section class="panel"><div class="table-scroll"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Last login</th><th>Actions</th></tr></thead><tbody>{% for u in users %}<tr><td>{{u.username}}</td><td>{{u.role}}</td><td>{{'Enabled' if u.active else 'Disabled'}}{{' · Password change required' if u.forced else ''}}</td><td>{{u.last_login or 'Never'}}</td><td>{% if u.id!=user.id %}{% for action,label in [('toggle','Disable' if u.active else 'Enable'),('reset','Reset password'),('delete','Delete')] %}<form class="inline-form" method="post" action="/users/{{u.id}}/{{action}}">{{token(csrf)}}<button {% if action=='delete' %}onclick="return confirm('Delete this account?')"{% endif %}>{{label}}</button></form>{% endfor %}{% endif %}</td></tr>{% endfor %}</tbody></table></div></section><section class="panel"><h2>Create account</h2><form method="post">{{token(csrf)}}<label>Username<input name="username" pattern="[A-Za-z0-9_.-]{3,64}" required></label><label>Role<select name="role"><option>User</option><option>Administrator</option></select></label><button>Create account</button></form><p>A random 12-character temporary password is shown once. The user must change it at first login.</p></section>{% endblock %}
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<h1>Account management</h1><br/>
+<section class="panel">
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Last login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>{{u.username}}</td>
+          <td>{{u.role}}</td>
+          <td>
+            {{'Enabled' if u.active else 'Disabled'}}{{' · Password change
+            required' if u.forced else ''}}
+          </td>
+          <td>{{u.last_login or 'Never'}}</td>
+          <td>
+            {% if u.id!=user.id %}{% for action,label in [('toggle','Disable' if
+            u.active else 'Enable'),('reset','Reset
+            password'),('delete','Delete')] %}
+            <form
+              class="inline-form"
+              method="post"
+              action="/users/{{u.id}}/{{action}}"
+            >
+              {{token(csrf)}}<button
+                {% if action == 'delete' %}onclick="return confirm('Delete this account?')"{% endif %}
+              >
+                {{label}}
+              </button>
+            </form>
+            {% endfor %}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <h2>Create account</h2>
+  <form method="post">
+    {{token(csrf)}}<label
+      >Username<input
+        name="username"
+        pattern="[A-Za-z0-9_.-]{3,64}"
+        required /></label
+    ><label
+      >Role<select name="role">
+        <option>User</option>
+        <option>Administrator</option>
+      </select></label
+    ><button>Create account</button>
+  </form>
+  <p>
+    A random 12-character temporary password is shown once. The user must change
+    it at first login.
+  </p>
+</section>
+{% endblock %}

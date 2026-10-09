@@ -1,1 +1,137 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<div class="heading dashboard-heading"><div><span class="eyebrow">DELIVERABLE WORKSPACE</span><h1>MIP Dashbaord</h1></div><div><a class="board-create" href="/?view={{'cards' if view=='table' else 'table'}}">{{'Card view' if view=='table' else 'Table view'}}</a> <a class="board-create" href="/cases/new">Create case</a></div></div><div class="metrics">{% for title in ['All MIPs','Not started','In progress','Completed'] %}<div class="panel"><span>{{title}}</span><strong>{% if loop.index==1 %}{{cases|length}}{% elif loop.index==2 %}{{cases|selectattr('stage','equalto',0)|list|length}}{% elif loop.index==4 %}{{cases|selectattr('stage','equalto',stages|length-1)|list|length}}{% else %}{{cases|rejectattr('stage','equalto',0)|rejectattr('stage','equalto',stages|length-1)|list|length}}{% endif %}</strong></div>{% endfor %}</div>{% if view=='table' %}<div class="panel"><table class="mip-table"><thead><tr><th>Case</th><th>Name</th><th>Status</th><th>Stage</th><th>Creator</th><th>Owner</th><th>Reviewed</th><th></th></tr></thead><tbody>{% for c in cases %}<tr><td>{{c.number}}</td><td><a href="/cases/{{c.id}}">{{c.name}}</a></td><td>{{'Completed' if c.stage==stages|length-1 else 'In progress' if c.stage else 'New'}}</td><td>{{stages[c.stage]}}</td><td>{{c.creator_name}}</td><td>{{c.owner_name or 'Unassigned'}}{% if c.owner_name and not c.owner_active %} (disabled){% endif %}</td><td>{{c.readiness|rejectattr('status','equalto','Pending')|list|length}} / {{c.readiness|length}}</td><td><form method="post" action="/cases/{{c.id}}/backup">{{token(csrf)}}<button class="case-backup-button">Backup</button></form></td></tr>{% else %}<tr><td colspan="8">Your first MIP starts here. Create a case to begin.</td></tr>{% endfor %}</tbody></table></div>{% else %}<div class="case-grid mip-board">{% for c in cases %}<article class="panel case-card mip-card"><a class="case-card-link" href="/cases/{{c.id}}"><div class="heading"><span class="eyebrow">{{c.number}}</span><span class="state {{'state-populated' if c.stage==stages|length-1 else 'state-pending'}}">{{'Completed' if c.stage==stages|length-1 else 'In progress' if c.stage else 'New'}}</span></div><h2>{{c.name}}</h2><p class="card-description">{{(c.description or '')|truncate(110)}}</p><p class="case-assignment">Creator: <strong>{{c.creator_name}}</strong><br>Assigned owner: <strong>{{c.owner_name or 'Unassigned'}}</strong>{% if c.owner_name and not c.owner_active %} (disabled){% endif %}</p><div class="lifecycle-bar" aria-label="{{stages[c.stage]}}">{% for stage in stages %}<span class="{{'completed' if loop.last and c.stage==stages|length-1 else 'active' if loop.index0==c.stage else 'passed' if loop.index0<c.stage else ''}}" title="{{stage}}"></span>{% endfor %}</div><p class="current-stage">{{stages[c.stage]}}</p><div class="card-ready">{% for r in c.readiness %}<div title="{{r.status}}"><span class="readiness-icon {{r.status|replace(' ','-')|lower}}">{{'✓' if r.status=='Populated' else '—' if r.status=='Not applicable' else '○'}}</span><span>{{r.label}}</span></div>{% endfor %}</div><div class="card-footer">{{c.readiness|rejectattr('status','equalto','Pending')|list|length}} / {{c.readiness|length}} categories reviewed <span>Open workbench</span></div></a><form method="post" action="/cases/{{c.id}}/backup">{{token(csrf)}}<button class="case-backup-button">Backup</button></form></article>{% else %}<section class="panel"><h2>Your first MIP starts here</h2><p>Create a case. Its package folders and report templates will be ready immediately.</p></section>{% endfor %}</div>{% endif %}{% endblock %}
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<div class="heading dashboard-heading">
+  <div>
+    <span class="eyebrow">DELIVERABLE WORKSPACE</span>
+    <h1>MIP Dashbaord</h1>
+  </div>
+  <div>
+    <a
+      class="board-create"
+      href="/?view={{'cards' if view=='table' else 'table'}}"
+      >{{'Card view' if view=='table' else 'Table view'}}</a
+    >
+    <a class="board-create" href="/cases/new">Create case</a>
+  </div>
+</div>
+<div class="metrics">
+  {% for title in ['All MIPs','Not started','In progress','Completed'] %}
+  <div class="panel">
+    <span>{{title}}</span
+    ><strong
+      >{% if loop.index==1 %}{{cases|length}}{% elif loop.index==2
+      %}{{cases|selectattr('stage','equalto',0)|list|length}}{% elif
+      loop.index==4
+      %}{{cases|selectattr('stage','equalto',stages|length-1)|list|length}}{%
+      else
+      %}{{cases|rejectattr('stage','equalto',0)|rejectattr('stage','equalto',stages|length-1)|list|length}}{%
+      endif %}</strong
+    >
+  </div>
+  {% endfor %}
+</div>
+{% if view=='table' %}
+<div class="panel">
+  <table class="mip-table">
+    <thead>
+      <tr>
+        <th>Case</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th>Stage</th>
+        <th>Creator</th>
+        <th>Owner</th>
+        <th>Reviewed</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in cases %}
+      <tr>
+        <td>{{c.number}}</td>
+        <td><a href="/cases/{{c.id}}">{{c.name}}</a></td>
+        <td>
+          {{'Completed' if c.stage==stages|length-1 else 'In progress' if
+          c.stage else 'New'}}
+        </td>
+        <td>{{stages[c.stage]}}</td>
+        <td>{{c.creator_name}}</td>
+        <td>
+          {{c.owner_name or 'Unassigned'}}{% if c.owner_name and not
+          c.owner_active %} (disabled){% endif %}
+        </td>
+        <td>
+          {{c.readiness|rejectattr('status','equalto','Pending')|list|length}} /
+          {{c.readiness|length}}
+        </td>
+        <td>
+          <form method="post" action="/cases/{{c.id}}/backup">
+            {{token(csrf)}}<button class="case-backup-button">Backup</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="8">Your first MIP starts here. Create a case to begin.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="case-grid mip-board">
+  {% for c in cases %}
+  <article class="panel case-card mip-card">
+    <a class="case-card-link" href="/cases/{{c.id}}"
+      ><div class="heading">
+        <span class="eyebrow">{{c.number}}</span
+        ><span
+          class="state {{'state-populated' if c.stage==stages|length-1 else 'state-pending'}}"
+          >{{'Completed' if c.stage==stages|length-1 else 'In progress' if
+          c.stage else 'New'}}</span
+        >
+      </div>
+      <h2>{{c.name}}</h2>
+      <p class="card-description">{{(c.description or '')|truncate(110)}}</p>
+      <p class="case-assignment">
+        Creator: <strong>{{c.creator_name}}</strong><br />Assigned owner:
+        <strong>{{c.owner_name or 'Unassigned'}}</strong>{% if c.owner_name and
+        not c.owner_active %} (disabled){% endif %}
+      </p>
+      <div class="lifecycle-bar" aria-label="{{stages[c.stage]}}">
+        {% for stage in stages %}<span
+          class="{{'completed' if loop.last and c.stage==stages|length-1 else 'active' if loop.index0==c.stage else 'passed' if loop.index0<c.stage else ''}}"
+          title="{{stage}}"
+        ></span
+        >{% endfor %}
+      </div>
+      <p class="current-stage">{{stages[c.stage]}}</p>
+      <div class="card-ready">
+        {% for r in c.readiness %}
+        <div title="{{r.status}}">
+          <span class="readiness-icon {{r.status|replace(' ','-')|lower}}"
+            >{{'✓' if r.status=='Populated' else '—' if r.status=='Not
+            applicable' else '○'}}</span
+          ><span>{{r.label}}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="card-footer">
+        {{c.readiness|rejectattr('status','equalto','Pending')|list|length}} /
+        {{c.readiness|length}} categories reviewed <span>Open workbench</span>
+      </div></a
+    >
+    <form method="post" action="/cases/{{c.id}}/backup">
+      {{token(csrf)}}<button class="case-backup-button">Backup</button>
+    </form>
+  </article>
+  {% else %}
+  <section class="panel">
+    <h2>Your first MIP starts here</h2>
+    <p>
+      Create a case. Its package folders and report templates will be ready
+      immediately.
+    </p>
+  </section>
+  {% endfor %}
+</div>
+{% endif %}{% endblock %}

@@ -1,22 +1,111 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<h1>API</h1><br/>
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<h1>API</h1>
+<br />
 <section class="panel" id="api-tokens">
-<h2>API bearer tokens</h2>
-<p class="muted">Tokens grant API access using your current role permissions. The secret is shown once; store it securely.</p>
-{% if new_api_token %}<p class="dangerous-sample-export"><strong>Copy this token now:</strong> <code>{{new_api_token}}</code></p>{% endif %}
-<form method="post" action="/account/api-tokens">{{token(csrf)}}<label>Token name<input name="name" maxlength="80" required></label><label>Expires after (days, optional)<input name="expires_in_days" type="number" min="1" max="3650" step="1"></label><button>Create bearer token</button></form>
-{% if api_tokens %}<div class="table-scroll"><table><thead><tr><th>Name</th><th>Token prefix</th><th>Created</th><th>Last used</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>{% for item in api_tokens %}<tr><td>{{item.name}}</td><td><code>{{item.token_prefix}}…</code></td><td>{{item.created}}</td><td>{{item.last_used or 'Never'}}</td><td>{{item.expires or 'Never'}}</td><td>{{'Revoked' if item.revoked else 'Expired' if item.expires and item.expires < now_utc else 'Active'}}</td><td>{% if not item.revoked %}<form method="post" action="/account/api-tokens/{{item.id}}/revoke">{{token(csrf)}}<button>Revoke</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+  <h2>API bearer tokens</h2>
+  <p class="muted">
+    Tokens grant API access using your current role permissions. The secret is
+    shown once; store it securely.
+  </p>
+  {% if new_api_token %}
+  <p class="dangerous-sample-export">
+    <strong>Copy this token now:</strong> <code>{{new_api_token}}</code>
+  </p>
+  {% endif %}
+  <form method="post" action="/account/api-tokens">
+    {{token(csrf)}}<label
+      >Token name<input name="name" maxlength="80" required /></label
+    ><label
+      >Expires after (days, optional)<input
+        name="expires_in_days"
+        type="number"
+        min="1"
+        max="3650"
+        step="1" /></label
+    ><button>Create bearer token</button>
+  </form>
+  {% if api_tokens %}
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Token prefix</th>
+          <th>Created</th>
+          <th>Last used</th>
+          <th>Expires</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in api_tokens %}
+        <tr>
+          <td>{{item.name}}</td>
+          <td><code>{{item.token_prefix}}…</code></td>
+          <td>{{item.created}}</td>
+          <td>{{item.last_used or 'Never'}}</td>
+          <td>{{item.expires or 'Never'}}</td>
+          <td>
+            {{'Revoked' if item.revoked else 'Expired' if item.expires and
+            item.expires < now_utc else 'Active'}}
+          </td>
+          <td>
+            {% if not item.revoked %}
+            <form method="post" action="/account/api-tokens/{{item.id}}/revoke">
+              {{token(csrf)}}<button>Revoke</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 </section>
 
 <section class="panel">
-<h2>Available endpoints</h2>
-<p class="muted">All paths are relative to <code>/api/v1</code>. The permission column is the role permission required for that method.</p>
-{% for group,items in endpoint_groups.items() %}<h3>{{group}}</h3><div class="table-scroll"><table><thead><tr><th>Method</th><th>Path</th><th>Permission</th></tr></thead><tbody>{% for item in items %}<tr><td><code>{{item.method}}</code></td><td><code>{{item.path}}</code></td><td>{{item.permission}}</td></tr>{% endfor %}</tbody></table></div>{% endfor %}
+  <h2>Available endpoints</h2>
+  <p class="muted">
+    All paths are relative to <code>/api/v1</code>. The permission column is the
+    role permission required for that method.
+  </p>
+  {% for group,items in endpoint_groups.items() %}
+  <h3>{{group}}</h3>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Path</th>
+          <th>Permission</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td><code>{{item.method}}</code></td>
+          <td><code>{{item.path}}</code></td>
+          <td>{{item.permission}}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
 </section>
 
 <section class="panel">
-<h2>Using the API from Python 3</h2>
-<p class="muted">Base URL: <code>{{request.host_url}}api/v1</code>. Send the token as <code>Authorization: Bearer &lt;token&gt;</code>. Responses are JSON and errors look like <code>{"error": "..."}</code>. List endpoints accept <code>limit</code> (max 500) and <code>offset</code>. Install the client library with <code>python3 -m pip install requests</code>.</p>
-<pre><code>import os
+  <h2>Using the API from Python 3</h2>
+  <p class="muted">
+    Base URL: <code>{{request.host_url}}api/v1</code>. Send the token as
+    <code>Authorization: Bearer &lt;token&gt;</code>. Responses are JSON and
+    errors look like <code>{"error": "..."}</code>. List endpoints accept
+    <code>limit</code> (max 500) and <code>offset</code>. Install the client
+    library with <code>python3 -m pip install requests</code>.
+  </p>
+  <pre><code>import os
 import requests
 
 BASE = "{{request.host_url}}api/v1"
@@ -86,7 +175,13 @@ with open("mip.zip", "wb") as out:
 # Back up every case
 with open("all-cases.zip", "wb") as out:
     out.write(check(session.post(f"{BASE}/backups/export")).content)</code></pre>
-<p class="muted">Case-changing calls follow the same rules as the web interface: an active owner is required, and content cannot be edited while a case is Not started or Completed. Status codes: 400 invalid input, 401 missing or invalid token, 403 missing permission, 404 not found, 409 conflict with the case state, 429 rate limit exceeded (600 requests per minute per token).</p>
+  <p class="muted">
+    Case-changing calls follow the same rules as the web interface: an active
+    owner is required, and content cannot be edited while a case is Not started
+    or Completed. Status codes: 400 invalid input, 401 missing or invalid token,
+    403 missing permission, 404 not found, 409 conflict with the case state, 429
+    rate limit exceeded (600 requests per minute per token).
+  </p>
 </section>
 
 {% endblock %}

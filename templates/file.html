@@ -1,1 +1,27 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}<a href="/cases/{{cid}}">Back to workbench</a><section class="panel"><h1>{{path}}</h1><form method="post"><fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}<input type="hidden" name="path" value="{{path}}"><label>File content<textarea class="editor" name="content" rows="25">{{content}}</textarea></label><button>Save file</button></fieldset>{% if c.workspace_locked %}<p class="muted">Start analysis or reopen the case to edit content.</p>{% endif %}</form><a href="{{url_for('file',cid=cid,path=path,download=1)}}">Download file</a></section>{% endblock %}
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content
+%}<a href="/cases/{{cid}}">Back to workbench</a>
+<section class="panel">
+  <h1>{{path}}</h1>
+  <form method="post">
+    <fieldset
+      class="workflow-controls"
+      {%
+      if
+      c.workspace_locked
+      %}disabled{%
+      endif
+      %}
+    >
+      {{token(csrf)}}<input type="hidden" name="path" value="{{path}}" /><label
+        >File content<textarea class="editor" name="content" rows="25">
+{{content}}</textarea
+        ></label
+      ><button>Save file</button>
+    </fieldset>
+    {% if c.workspace_locked %}
+    <p class="muted">Start analysis or reopen the case to edit content.</p>
+    {% endif %}
+  </form>
+  <a href="{{url_for('file',cid=cid,path=path,download=1)}}">Download file</a>
+</section>
+{% endblock %}

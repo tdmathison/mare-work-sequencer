@@ -1,1 +1,36 @@
-<div class="completion-checklist" id="{{checklist_id}}"><div class="heading"><h2>Completion checklist</h2><span class="badge">{{completion|length}} outstanding actions</span></div><p class="muted">Generating a report adds content; it does not mark that content reviewed. New or changed files reset their category to Pending. Downloading a ZIP with acknowledged issues does not resolve them or complete the case.</p>{% if completion %}<ol class="completion-actions">{% for item in completion %}<li><span>{{item.message}}</span><a href="?tab={{item.tab}}#{{item.target}}" data-case-tab="{{item.tab}}" data-case-target="{{item.target}}">{{item.action}}</a></li>{% endfor %}</ol>{% else %}<p class="state state-populated">All completion requirements are resolved. You can finish Packaging & Delivery from the Workbench.</p><a href="?tab=workbench#panel-workbench" data-case-tab="workbench" data-case-target="panel-workbench">Open Workbench</a>{% endif %}</div>
+<div class="completion-checklist" id="{{checklist_id}}">
+  <div class="heading">
+    <h2>Completion checklist</h2>
+    <span class="badge">{{completion|length}} outstanding actions</span>
+  </div>
+  <p class="muted">
+    Generating a report adds content; it does not mark that content reviewed.
+    New or changed files reset their category to Pending. Downloading a ZIP with
+    acknowledged issues does not resolve them or complete the case.
+  </p>
+  {% if completion %}
+  <ol class="completion-actions">
+    {% for item in completion %}
+    <li>
+      <span>{{item.message}}</span
+      ><a
+        href="?tab={{item.tab}}#{{item.target}}"
+        data-case-tab="{{item.tab}}"
+        data-case-target="{{item.target}}"
+        >{{item.action}}</a
+      >
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="state state-populated">
+    All completion requirements are resolved. You can finish Packaging &
+    Delivery from the Workbench.
+  </p>
+  <a
+    href="?tab=workbench#panel-workbench"
+    data-case-tab="workbench"
+    data-case-target="panel-workbench"
+    >Open Workbench</a
+  >{% endif %}
+</div>

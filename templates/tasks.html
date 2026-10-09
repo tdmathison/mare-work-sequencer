@@ -1,5 +1,76 @@
 {% macro task_editor(task=None) %}{% set tid=task.id if task else 'new' %}
-<dialog id="{{'edit-task-dialog-' ~ tid if task else 'add-task-dialog'}}" class="task-workspace-dialog" aria-labelledby="task-title-{{tid}}"><h2 id="task-title-{{tid}}">{{'Edit task' if task else 'Add Task'}}</h2><form method="post" action="/cases/{{c.id}}/tasks{{'/' ~ tid ~ '/edit' if task else ''}}"><fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}<div class="task-editor-fields"><label>Name<input name="name" required maxlength="200" value="{{task.title if task else ''}}"></label><label>Priority<select name="priority">{% for priority in ['Low','Normal','High','Critical'] %}<option {{'selected' if (task.priority if task else 'Normal')==priority else ''}}>{{priority}}</option>{% endfor %}</select></label>{% if task %}<label>State<select name="state">{% for state in ['Not Started','In Progress','Completed'] %}<option {{'selected' if task.state==state else ''}}>{{state}}</option>{% endfor %}</select></label>{% endif %}</div>
-<section class="manual-section task-markdown-section"><h3>Description</h3><div class="editor-view-tabs task-editor-view-tabs" role="tablist" aria-label="Task description view"><button type="button" data-task-raw role="tab" aria-selected="true">Raw</button><button type="button" data-task-preview role="tab" aria-selected="false">Preview</button></div><div class="markdown-preview" hidden role="tabpanel"></div>{% include 'markdown_toolbar.html' %}<div class="markdown-editor wrap-on"><div class="line-numbers" aria-hidden="true"><pre></pre></div><pre class="markdown-highlight" aria-hidden="true"></pre><textarea class="markdown-input" name="description" data-image-section="{{'task-' ~ tid if task else 'task-draft'}}" maxlength="20000" aria-label="Task description Markdown" spellcheck="false" wrap="soft">{{task.body if task else ''}}</textarea></div><div class="report-image-list" aria-label="Task images"></div><p data-editor-status role="status"></p></section>
-<div class="dialog-actions"><button>{{'Save task' if task else 'Create task'}}</button><button type="button" data-close-task-dialog>Cancel</button></div></fieldset></form></dialog>{% endmacro %}
-<section class="panel task-toolbar"><div class="heading"><h2>Tasks</h2><button type="button" id="add-task-button" data-open-task="add-task-dialog" {% if c.workspace_locked %}disabled{% endif %}>Add Task</button></div></section><div class="case-grid task-grid" id="case-tasks">{% for t in tasks %}<article class="panel case-card task-card"><div class="heading"><span class="task-priority priority-{{t.priority|lower}}">{{t.priority}} priority</span><span class="state task-state-{{t.state|replace(' ','-')|lower}}">{{t.state}}</span></div><h2>{{t.title}}</h2><p class="task-body">{{(t.body or 'No description.')|truncate(240)}}</p><small>Created {{t.created}}</small><div class="report-actions"><button type="button" data-open-task="edit-task-dialog-{{t.id}}" {% if c.workspace_locked %}disabled{% endif %}>Edit task</button></div></article>{% else %}<section class="panel"><h2>No tasks yet</h2><p>Add a task to track a unit of work.</p></section>{% endfor %}</div>{{task_editor()}}{% for t in tasks %}{{task_editor(t)}}{% endfor %}<script defer src="{{url_for('static',filename='tasks.js')}}"></script>
+<dialog id="{{'edit-task-dialog-' ~ tid if task else 'add-task-dialog'}}" class="task-workspace-dialog" aria-labelledby="task-title-{{tid}}">
+    <h2 id="task-title-{{tid}}">{{'Edit task' if task else 'Add Task'}}</h2>
+    <form method="post" action="/cases/{{c.id}}/tasks{{'/' ~ tid ~ '/edit' if task else ''}}">
+        <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
+            <div class="task-editor-fields">
+                <label>Name<input name="name" required maxlength="200" value="{{task.title if task else ''}}"></label>
+                <label>Priority<select name="priority">{% for priority in ['Low','Normal','High','Critical'] %}<option {{'selected' if (task.priority if task else 'Normal')==priority else ''}}>{{priority}}</option>{% endfor %}</select></label>
+                {% if task %}
+                    <label>State
+                        <select name="state">
+                            {% for state in ['Not Started','In Progress','Completed'] %}
+                                <option {{'selected' if task.state==state else ''}}>{{state}}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                {% endif %}
+            </div>
+            <section class="manual-section task-markdown-section">
+                <h3>Description</h3>
+                <div class="editor-view-tabs task-editor-view-tabs" role="tablist" aria-label="Task description view">
+                    <button type="button" data-task-raw role="tab" aria-selected="true">Raw</button>
+                    <button type="button" data-task-preview role="tab" aria-selected="false">Preview</button>
+                </div>
+                <div class="markdown-preview" hidden role="tabpanel"></div>{% include 'markdown_toolbar.html' %}
+                <div class="markdown-editor wrap-on">
+                    <div class="line-numbers" aria-hidden="true">
+                        <pre></pre>
+                    </div>
+                    <pre class="markdown-highlight" aria-hidden="true"></pre>
+                    <textarea class="markdown-input" name="description" data-image-section="{{'task-' ~ tid if task else 'task-draft'}}" maxlength="20000" aria-label="Task description Markdown" spellcheck="false" wrap="soft">{{task.body if task else ''}}</textarea>
+                </div>
+                <div class="report-image-list" aria-label="Task images"></div>
+                <p data-editor-status role="status"></p>
+            </section>
+            <div class="dialog-actions">
+                <button>{{'Save task' if task else 'Create task'}}</button>
+                <button type="button" data-close-task-dialog>Cancel</button>
+            </div>
+        </fieldset>
+    </form>
+</dialog>
+{% endmacro %}
+
+<section class="panel task-toolbar">
+    <div class="heading">
+        <h2>Tasks</h2>
+        <button type="button" id="add-task-button" data-open-task="add-task-dialog" {% if c.workspace_locked %}disabled{% endif %}>Add Task</button>
+    </div>
+</section>
+<div class="case-grid task-grid" id="case-tasks">
+    {% for t in tasks %}
+        <article class="panel case-card task-card">
+            <div class="heading">
+                <span class="task-priority priority-{{t.priority|lower}}">{{t.priority}} priority</span>
+                <span class="state task-state-{{t.state|replace(' ','-')|lower}}">{{t.state}}</span>
+            </div>
+            <h2>{{t.title}}</h2>
+            <p class="task-body">{{(t.body or 'No description.')|truncate(240)}}</p>
+            <small>Created {{t.created}}</small>
+            <div class="report-actions">
+                <button type="button" data-open-task="edit-task-dialog-{{t.id}}" {% if c.workspace_locked %}disabled{% endif %}>Edit task</button>
+            </div>
+        </article>
+    {% else %}
+        <section class="panel">
+            <h2>No tasks yet</h2>
+            <p>Add a task to track a unit of work.</p>
+        </section>
+    {% endfor %}
+</div>
+{{task_editor()}}
+{% for t in tasks %}
+    {{task_editor(t)}}
+{% endfor %}
+<script defer src="{{url_for('static',filename='tasks.js')}}"></script>
