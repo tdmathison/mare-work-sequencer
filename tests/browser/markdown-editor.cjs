@@ -60,6 +60,17 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   if(result.cursorDifference!==null)assert.ok(result.cursorDifference<3,JSON.stringify(result));
  }
  async function checkToolbar(workspace=section) {
+  const view=workspace.locator('.markdown-menu').nth(2);
+  assert.equal(await view.locator('button').count(),0,'View must contain only preferences');
+  assert.equal(await view.locator('input[type=checkbox]').count(),4);
+  const expandButton=workspace.locator('[data-editor-expand]');
+  const expanded=await expandButton.getAttribute('aria-expanded')==='true';
+  assert.equal((await expandButton.textContent()).trim().slice(1).trim(),expanded?'Collapse':'Expand');
+  const previewButton=workspace.locator('[data-editor-preview]');
+  if(await previewButton.count()) {
+   const visible=await workspace.locator('.markdown-preview').evaluate(pane=>!pane.hidden);
+   assert.equal((await previewButton.textContent()).trim().slice(1).trim(),visible?'Hide Preview':'Show Preview');
+  }
   const geometry=await workspace.evaluate(node=>{
    const toolbar=node.querySelector('.markdown-toolbar').getBoundingClientRect();
    const active=node.querySelector('.markdown-editor:not([hidden]),.markdown-preview:not([hidden])').getBoundingClientRect();
@@ -68,6 +79,13 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   assert.ok(geometry.toolbar.bottom<=geometry.active.top+1,JSON.stringify(geometry));
   if(geometry.expanded)assert.ok(geometry.toolbar.top>=0 && geometry.toolbar.bottom<page.viewportSize().height,JSON.stringify(geometry));
   assert.ok(geometry.active.height>0,JSON.stringify(geometry));
+  const groups=await workspace.evaluate(node=>{
+   const toolbar=node.querySelector('.markdown-toolbar').getBoundingClientRect(),menus=node.querySelector('.markdown-toolbar-menus').getBoundingClientRect(),actions=node.querySelector('.markdown-toolbar-actions').getBoundingClientRect();
+   return {toolbar:{left:toolbar.left,right:toolbar.right},menus:{left:menus.left,right:menus.right,bottom:menus.bottom},actions:{left:actions.left,right:actions.right,top:actions.top}};
+  });
+  assert.ok(groups.actions.right<=groups.toolbar.right+1 && groups.actions.left>=groups.toolbar.left-1);
+  assert.ok(groups.actions.left>=groups.menus.right-1 || groups.actions.top>=groups.menus.bottom-1,'action group must not overlap menus');
+
  }
  async function checkMenus(workspace=section) {
   for(const menu of await workspace.locator('.markdown-menu').all()) {
@@ -87,15 +105,26 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await page.waitForFunction(expected=>window.MareEditors.getValue(document.querySelector('textarea[name=executive_summary]'))===expected,fixture.initial);
  assert.equal((await state()).doc,fixture.initial);
  await checkToolbar();await checkMenus();
+ const initialEditorState=await state();
+ await section.locator('[data-editor-preview]').click();await section.locator('.markdown-preview strong').waitFor();await checkToolbar();
+ await section.locator('[data-editor-expand]').click();await checkToolbar();
+ await section.locator('[data-editor-preview]').click();await section.locator('.markdown-preview strong').waitFor();await checkToolbar();
+ await section.locator('[data-editor-expand]').click();await checkToolbar();
+ assert.deepEqual(await state(),initialEditorState);
+ // Legacy controls and keyboard actions must update the new buttons too.
+ await section.locator('.editor-preview-tab').evaluate(node=>node.click());await delay(50);await checkToolbar();
+ await section.locator('.editor-raw-tab').evaluate(node=>node.click());await delay(50);await checkToolbar();
+ await section.locator('[data-editor-expand]').click();await page.keyboard.press('Escape');await delay(50);await checkToolbar();
  // A normal toolbar near the viewport bottom must flip its long menu upward.
  await section.locator('.markdown-toolbar').evaluate(node=>{const r=node.getBoundingClientRect();window.scrollBy(0,r.bottom-window.innerHeight+48);});
  await section.locator('.markdown-menu').first().locator('summary').click();await delay(50);
  assert.equal(await section.locator('.markdown-menu').first().evaluate(menu=>menu.querySelector('.markdown-menu-items').getBoundingClientRect().bottom<=menu.querySelector('summary').getBoundingClientRect().top+1),true);
  await section.locator('.markdown-menu').first().locator('summary').click();
 
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();
+ await section.locator('[data-editor-expand]').click();
  await checkToolbar();await checkMenus();
  await page.setViewportSize({width:1024,height:600});await delay(50);await checkToolbar();await checkMenus();
+ await page.setViewportSize({width:360,height:640});await delay(50);await checkToolbar();await checkMenus();
  await page.setViewportSize({width:1366,height:900});
  // Regression corpus includes the exact inline/fenced wrap boundaries from the old overlay.
  const long=Array.from({length:700},(_,i)=>`${i} aaa \`bbb\` ${'long wrapped paragraph '.repeat(i%7+1)}`).join('\n')+'\n\n```python\n'+('a'.repeat(35)+'\n').repeat(20)+'```';
@@ -116,16 +145,17 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await section.locator('.word-wrap').check();await section.locator('.markdown-menu').nth(2).locator('summary').click();
  await page.setViewportSize({width:1920,height:1080});await delay(100);await checkGeometry();
  await page.setViewportSize({width:1366,height:768});await delay(100);await checkGeometry();
+ // Let CodeMirror complete resize measurement before setting a test viewport.
  // Keep the original EditorView and its logical scroll anchor across expansion.
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();
+ await section.locator('[data-editor-expand]').click();await delay(100);
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);window.originalEditor=e.view;e.view.scrollDOM.scrollTop=2500;});
  await delay(100);const beforeExpand=await state();
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();await delay(100);
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();await delay(100);
+ await section.locator('[data-editor-expand]').click();await delay(100);
+ await section.locator('[data-editor-expand]').click();await delay(100);
  assert.equal(await page.locator(source).evaluate(area=>window.MareEditors.get(area).view===window.originalEditor),true);
  assert.equal((await state()).doc,beforeExpand.doc);assert.deepEqual((await state()).selection,beforeExpand.selection);
  assert.ok(Math.abs((await state()).scroll-beforeExpand.scroll)<3,`scroll changed: ${beforeExpand.scroll} -> ${(await state()).scroll}`);
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();
+ await section.locator('[data-editor-expand]').click();
 
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.view.scrollDOM.scrollTop=6000;});
  await delay(100);
@@ -133,14 +163,14 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   const e=window.MareEditors.get(area),snapshot=e.view.scrollSnapshot().value;
   return {position:snapshot.range.head,margin:snapshot.yMargin};
  });
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();await delay(100);
+ await section.locator('[data-editor-expand]').click();await delay(100);
  const restoredOffset=await page.locator(source).evaluate((area,snapshot)=>{
   const view=window.MareEditors.get(area).view;return view.lineBlockAt(snapshot.position).top-view.scrollDOM.scrollTop;
  },expandedSnapshot);
  // CodeMirror's anchor includes its content padding; allow one line for
  // rounding a wrapped-line anchor when widths change.
  assert.ok(Math.abs(restoredOffset-expandedSnapshot.margin)<24,`expanded viewport reset: ${restoredOffset} vs ${expandedSnapshot.margin}`);
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();
+ await section.locator('[data-editor-expand]').click();
  // Command transactions preserve logical-line boundaries and all selections.
  await page.locator(source).evaluate(area=>{
   const e=window.MareEditors.get(area),same=(actual,expected)=>{if(actual!==expected)throw Error(JSON.stringify({actual,expected}));};
@@ -206,6 +236,8 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await section.locator('.markdown-menu').nth(1).locator('summary').click();await section.locator('[data-md=html-table]').click();
  await section.locator('.markdown-table-input').fill('<table><tr><th>A</th><th>B</th></tr><tr><td>x</td><td>y</td></tr></table>');
  await section.locator('[data-html-table-convert]').click();assert.ok((await state()).doc.includes('| A | B |'));
+ assert.equal(await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);const line=e.view.state.doc.lineAt(e.selection().head);return line.text;}),'','Paste Table caret must land on a blank line after the table');
+
  // Clipboard HTML wins over misleading TSV, and only extracted text is inserted.
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.setSelection(e.getValue().length);});
  await section.locator('.markdown-menu').nth(1).locator('summary').click();await section.locator('[data-md=html-table]').click();
@@ -238,8 +270,8 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await clipboardOrDrop('paste');await page.waitForFunction(()=>window.MareEditors.getValue(document.querySelector('textarea[name=executive_summary]')).includes('*Figure 3:*'));
  await clipboardOrDrop('paste',true);await page.waitForFunction(()=>window.MareEditors.getValue(document.querySelector('textarea[name=executive_summary]')).includes('ordinary text paste'));
  assert.ok(!(await state()).doc.includes('*Figure 4:*'),'rich clipboard should paste text instead of uploading its image');
- const beforePreview=await state();await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-preview]').click();await section.locator('.markdown-preview img').first().waitFor();await checkToolbar();await checkMenus();
- assert.equal((await state()).doc,beforePreview.doc);await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-preview]').click();
+ const beforePreview=await state();await section.locator('[data-editor-preview]').click();await section.locator('.markdown-preview img').first().waitFor();await checkToolbar();await checkMenus();
+ assert.equal((await state()).doc,beforePreview.doc);await section.locator('[data-editor-preview]').click();
  // Ctrl/Cmd-F is CodeMirror's local search panel, not a browser search overlay.
  await content.click();await page.keyboard.press(process.platform==='darwin'?'Meta+f':'Control+f');await section.locator('.cm-search').waitFor();
  await section.locator('.cm-search [name=search]').fill('Column1');await section.locator('.cm-search [name=search]').press('ArrowRight');
@@ -247,18 +279,18 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await section.locator('.cm-search [name=replaceAll]').click();assert.ok((await state()).doc.includes('| Header1 |'));
  await page.keyboard.press('Escape');assert.ok(await section.evaluate(el=>el.classList.contains('editor-expanded')),'search Escape must not collapse editor');
  if(process.env.MARE_EDITOR_SCREENSHOT)await page.screenshot({path:process.env.MARE_EDITOR_SCREENSHOT});
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-expand]').click();
+ await section.locator('[data-editor-expand]').click();
  // Independent non-expanded section previews may finish out of order.
  const second=page.locator('.manual-section').filter({has:page.locator('textarea[name=key_findings]')});
  await page.locator('textarea[name=key_findings]').evaluate(area=>window.MareEditors.get(area).setValue('Other section preview',{notify:true}));
  let previewRelease;const previewBlocked=new Promise(resolve=>{previewRelease=resolve;});
  let previewCount=0;
  await page.route(`**/cases/${cid}/markdown-preview`,async route=>{if(++previewCount===1)await previewBlocked;await route.continue();});
- await section.locator('.markdown-menu').nth(2).locator('summary').click();await section.locator('[data-editor-preview]').click();
- await second.locator('.markdown-menu').nth(2).locator('summary').click();await second.locator('[data-editor-preview]').click();
+ await section.locator('[data-editor-preview]').click();
+ await second.locator('[data-editor-preview]').click();
  await second.locator('.markdown-preview').filter({hasText:'Other section preview'}).waitFor();previewRelease();await section.locator('.markdown-preview img').first().waitFor();
  await page.unroute(`**/cases/${cid}/markdown-preview`);
- for(const workspace of [section,second]) {await workspace.locator('.markdown-menu').nth(2).locator('summary').click();await workspace.locator('[data-editor-preview]').click();}
+ for(const workspace of [section,second]) {await workspace.locator('[data-editor-preview]').click();}
  await page.locator('textarea[name=key_findings]').evaluate(area=>window.MareEditors.get(area).setValue('',{notify:true}));
  // Save with a delayed response while more text is typed; no editor reset is allowed.
  let release;const blocked=new Promise(resolve=>{release=resolve;});
@@ -295,14 +327,14 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await page.locator('#tab-tasks').click();await page.locator('[data-open-task="add-task-dialog"]').click();
  const task=page.locator('#add-task-dialog');await checkToolbar(task);await checkMenus(task);await task.locator('[name=name]').fill('CM task');await task.locator('.cm-content').fill('Task **Markdown**');
  assert.equal(await task.locator('textarea[name=description]').evaluate(area=>new FormData(area.form).get('description')),'Task **Markdown**');
- await task.locator('.markdown-menu').nth(2).locator('summary').click();await task.locator('[data-editor-preview]').click();await task.locator('.markdown-preview strong').waitFor();await checkToolbar(task);await checkMenus(task);await task.locator('.markdown-menu').nth(2).locator('summary').click();await task.locator('[data-editor-preview]').click();
+ await task.locator('[data-editor-preview]').click();await task.locator('.markdown-preview strong').waitFor();await checkToolbar(task);await checkMenus(task);await task.locator('[data-editor-preview]').click();
  await task.getByRole('button',{name:'Create task'}).click();await page.waitForURL(`**/cases/${cid}?tab=tasks`);assert.ok(await page.locator('.task-body').filter({hasText:'Task **Markdown**'}).count());
  await page.locator('#tab-report').click();
  await page.locator('#mitre-attack-markdown').evaluate(area=>window.MareEditors.get(area).insert('### MITRE Attack\n\nSaved mapping'));
  await page.locator('#save-mitre-mappings').click();await page.locator('#mitre-mapping-status').filter({hasText:'saved to mappings'}).waitFor();
  await page.goto(`${base}/cases/${cid}/file?path=mappings/mitre-attack.md`);
  await page.locator('.cm-content').waitFor();assert.equal(await page.locator('textarea[name=content]').evaluate(area=>window.MareEditors.getValue(area)), '### MITRE Attack\n\nSaved mapping');
- await page.locator('.mare-editor-workspace .markdown-menu').nth(2).locator('summary').click();await page.locator('.mare-editor-workspace [data-editor-expand]').click();
+ await page.locator('.mare-editor-workspace [data-editor-expand]').click();
  assert.equal(await page.locator('.mare-editor-workspace').evaluate(node=>node.classList.contains('mare-editor-expanded')),true);await checkToolbar(page.locator('.mare-editor-workspace'));await checkMenus(page.locator('.mare-editor-workspace'));
  await page.keyboard.press('Escape');assert.equal(await page.locator('.mare-editor-workspace').evaluate(node=>node.classList.contains('mare-editor-expanded')),false);
  await page.locator('textarea[name=content]').evaluate(area=>window.MareEditors.get(area).insert('\nEdited file'));

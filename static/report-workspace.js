@@ -548,7 +548,7 @@
         return;
       }
       collapse();
-      previousFocus = button;
+      previousFocus = section.querySelector("[data-editor-expand]") || button;
       expanded = section;
       window.MareEditors.get(section.querySelector(".markdown-source")).preserveLayout();
       rawView(section);

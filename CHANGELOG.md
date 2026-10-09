@@ -1,5 +1,7 @@
 # Latest update
 
+- Moved Markdown Preview and Expand/Collapse into dedicated right-aligned toolbar buttons with state-synchronized labels and glyphs; View now contains only editor preference checkboxes. Preserved top placement, viewport-aware menus, and existing preview/expansion handlers.
+
 - Kept Markdown toolbars above source and preview in expanded workspaces; menus now fit the viewport, open upward when needed, and scroll without clipping. Added normal/expanded, laptop, task-dialog, and standalone layout regressions while retaining the same CodeMirror instance and state.
 
 - Enhanced the existing CodeMirror editors with shared Format/Insert/View menus, six heading levels, reversible inline formatting, lists, folding, multiple selections, and compartment-based View preferences. Preserved MARE image/caption workflows and alignment controls; added validated body-row table dialogs and HTML/TSV merged-cell conversion. Preview prose uses local Aptos fallbacks; Word defaults to Aptos only without an explicit template Normal font. Added browser and Word typography regressions.

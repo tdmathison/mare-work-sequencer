@@ -16,6 +16,8 @@ export function mountToolbar(editor) {
   const toolbar = section?.querySelector('.markdown-toolbar') || document.createElement('div');
   if (!toolbar.isConnected) { toolbar.className = 'markdown-toolbar'; editor.container.before(toolbar); }
   toolbar.setAttribute('role','toolbar'); toolbar.setAttribute('aria-label','Markdown commands');
+  const menuGroup = document.createElement('div'); menuGroup.className = 'markdown-toolbar-menus'; toolbar.append(menuGroup);
+  const actions = document.createElement('div'); actions.className = 'markdown-toolbar-actions'; toolbar.append(actions);
   const menus = new Map();
   // Keep menus in their original DOM (including dialog/fieldset semantics),
   // but position against the viewport so scroll-container overflow cannot clip them.
@@ -47,7 +49,7 @@ export function mountToolbar(editor) {
   for (const [label, commands] of [['Format', format], ['Insert', insert], ['View', []]]) {
     const menu = document.createElement('details'); menu.className = 'markdown-menu';
     const summary = document.createElement('summary'); summary.textContent = label; menu.append(summary);
-    const items = document.createElement('div'); items.className = 'markdown-menu-items'; menu.append(items); menus.set(label, {menu, items}); toolbar.append(menu);
+    const items = document.createElement('div'); items.className = 'markdown-menu-items'; menu.append(items); menus.set(label, {menu, items}); menuGroup.append(menu);
     menu.addEventListener('toggle', () => { if (menu.open) positionMenus(); });
     summary.addEventListener('click', () => { for (const other of menus.values()) if (other.menu !== menu) other.menu.open = false; });
     for (const [command, text] of commands) {
@@ -70,29 +72,46 @@ export function mountToolbar(editor) {
     input.addEventListener('change', () => editor.setPreference(setting,input.checked));
   }
   const preview = section?.querySelector('.editor-preview-tab,[data-task-preview]'), raw = section?.querySelector('.editor-raw-tab,[data-task-raw]');
-  if (preview && raw) {
-    const node = button('Show/Hide Markdown Preview'); node.dataset.editorPreview = ''; menus.get('View').items.append(node);
-    node.addEventListener('click', () => { menus.get('View').menu.open = false; (section.querySelector('.markdown-preview').hidden ? preview : raw).click(); });
-  }
-  const expand = button('Expanded Editor'); expand.dataset.editorExpand = ''; menus.get('View').items.append(expand);
+  const pane = section?.querySelector('.markdown-preview');
   const existingExpand = section?.querySelector('.expand-editor');
+  function actionButton(attribute) {
+    const node = button(''); node.dataset[attribute] = '';
+    const icon = document.createElement('span'); icon.className = 'markdown-action-icon'; icon.setAttribute('aria-hidden','true');
+    const label = document.createElement('span'); node.append(icon,label); actions.append(node);
+    return {node, icon, label};
+  }
+  const previewAction = preview && raw && pane ? actionButton('editorPreview') : null;
+  const expandAction = actionButton('editorExpand'), expand = expandAction.node;
+  function syncActions() {
+    if (previewAction) {
+      previewAction.label.textContent = pane.hidden ? 'Show Preview' : 'Hide Preview';
+      previewAction.icon.textContent = pane.hidden ? '◉' : '○';
+      previewAction.node.setAttribute('aria-pressed',String(!pane.hidden));
+    }
+    const expanded = existingExpand ? existingExpand.getAttribute('aria-expanded') === 'true' : editor.workspace?.classList.contains('mare-editor-expanded');
+    expandAction.label.textContent = expanded ? 'Collapse' : 'Expand';
+    expandAction.icon.textContent = expanded ? '↙' : '↗';
+    expand.setAttribute('aria-expanded',String(Boolean(expanded)));
+  }
+  function closeMenus() { for (const {menu} of menus.values()) menu.open = false; }
+  previewAction?.node.addEventListener('click', () => {
+    closeMenus(); (pane.hidden ? preview : raw).click(); syncActions();
+  });
   if (section && !existingExpand) { expand.disabled = true; expand.title = 'Task editors already use the expanded task workspace.'; }
   expand.addEventListener('click', () => {
-    menus.get('View').menu.open = false;
+    closeMenus();
     if (existingExpand) existingExpand.click();
     else {
       editor.preserveLayout(); editor.workspace.classList.toggle('mare-editor-expanded');
-      const expanded = editor.workspace.classList.contains('mare-editor-expanded');
-      expand.textContent = expanded ? 'Restore Editor' : 'Expanded Editor';
-      expand.setAttribute('aria-expanded',String(expanded));
       editor.restoreLayout(); editor.focus();
     }
+    syncActions();
   });
-  let expansionObserver;
-  if (existingExpand) {
-    expansionObserver = new MutationObserver(() => { expand.textContent = existingExpand.getAttribute('aria-expanded') === 'true' ? 'Restore Editor' : 'Expanded Editor'; });
-    expansionObserver.observe(existingExpand, {attributes:true,attributeFilter:['aria-expanded']});
-  }
+  const actionObserver = new MutationObserver(syncActions);
+  if (pane) actionObserver.observe(pane, {attributes:true,attributeFilter:['hidden']});
+  if (existingExpand) actionObserver.observe(existingExpand, {attributes:true,attributeFilter:['aria-expanded']});
+  if (editor.workspace) actionObserver.observe(editor.workspace, {attributes:true,attributeFilter:['class']});
+  syncActions();
   const table = dialog(toolbar, 'Insert Table'); table.className = 'markdown-insert-table-dialog';
   const fields = {};
   for (const [name, label, min, max, value] of [['columns','Columns',1,20,2],['rows','Body rows (excluding header)',1,100,2]]) {
@@ -129,7 +148,7 @@ export function mountToolbar(editor) {
   convert.addEventListener('click',()=>{
     const result = pastedTable(clipboardHTML || input.value, clipboardPlain || input.value);
     if (!result) { error.textContent = 'Paste an HTML table or tab-delimited table text.'; return; }
-    editor.view.dispatch({selection:pasteSelection}); paste.close(); insertBlock(editor,result);
+    editor.view.dispatch({selection:pasteSelection}); paste.close(); insertBlock(editor,result,{afterBlock:true});
   });
   close.addEventListener('click',()=>paste.close()); paste.addEventListener('close',()=>editor.focus());
   // Capture Escape before expanded-workspace handlers, but leave CM search alone.
@@ -157,5 +176,5 @@ export function mountToolbar(editor) {
     window.removeEventListener('resize',schedulePosition);
     document.removeEventListener('scroll',schedulePosition,true);
     window.visualViewport?.removeEventListener('resize',schedulePosition);
-    window.visualViewport?.removeEventListener('scroll',schedulePosition); document.removeEventListener('click',outside); document.removeEventListener('keydown',escapeExpanded); expansionObserver?.disconnect(); toolbar.remove(); }};
+    window.visualViewport?.removeEventListener('scroll',schedulePosition); document.removeEventListener('click',outside); document.removeEventListener('keydown',escapeExpanded); actionObserver.disconnect(); toolbar.remove(); }};
 }

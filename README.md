@@ -515,8 +515,12 @@ Normal text, Bold, Italic, Strikethrough, Inline code, Fenced code block, Bullet
 list, Numbered list, Blockquote, Horizontal rule, Indent/Outdent, and the existing
 MARE Left/Center/Right alignment containers. **Insert** provides Link, Image,
 Table, Paste Table, Fenced code block, and Horizontal rule. **View** provides Word
-Wrap, Line Numbers, Active Line Highlight, Code Folding, preview where supported,
-and Expanded/Restore Editor. Task dialogs already use an expanded workspace, so
+Wrap, Line Numbers, Active Line Highlight, and Code Folding only. Dedicated
+right-aligned **Show Preview / Hide Preview** and **Expand / Collapse** buttons
+invoke the existing handlers and follow actual pane/workspace state, including
+keyboard changes. They wrap gracefully on narrow screens and remain above the
+editor in expanded mode. Preview is shown only where the existing renderer is
+supported. Task dialogs already use an expanded workspace, so
 the additional expansion command is disabled there. Mapping/file editors can
 expand without changing their document or editor instance. Escape restores them.
 

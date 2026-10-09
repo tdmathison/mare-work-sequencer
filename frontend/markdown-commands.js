@@ -39,14 +39,14 @@ function inline(view, marker) {
   });
   dispatch(view, changes.changes, changes.selection);
 }
-export function insertBlock(editor, text, {header = false} = {}) {
+export function insertBlock(editor, text, {header = false, afterBlock = false} = {}) {
   if (editor.readOnly) return;
   const view = editor.view, range = view.state.selection.main;
   const before = view.state.sliceDoc(0, range.from), after = view.state.sliceDoc(range.to);
   const prefix = before && !before.endsWith('\n\n') ? (before.endsWith('\n') ? '\n' : '\n\n') : '';
   const suffix = after && !after.startsWith('\n\n') ? (after.startsWith('\n') ? '\n' : '\n\n') : '\n\n';
   const insert = prefix + text + suffix;
-  const position = range.from + prefix.length + (header ? 2 : text.length);
+  const position = range.from + prefix.length + (header ? 2 : text.length + (afterBlock ? 1 : 0));
   dispatch(view, {from: range.from, to: range.to, insert}, EditorSelection.cursor(position));
 }
 export function runCommand(editor, command) {

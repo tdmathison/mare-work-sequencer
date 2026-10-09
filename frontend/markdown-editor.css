@@ -41,3 +41,8 @@
 .manual-section.editor-expanded>.markdown-preview{min-height:0}
 .manual-section.editor-expanded>.markdown-editor,.mare-editor-expanded>.markdown-editor{min-height:0;flex:1 1 0}
 .markdown-menu[open]>.markdown-menu-items{position:fixed;box-sizing:border-box;max-width:calc(100vw - 16px);min-width:min(215px,calc(100vw - 16px));overscroll-behavior:contain}
+
+.markdown-toolbar-menus,.markdown-toolbar-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:100%}
+.markdown-toolbar-actions{margin-left:auto}
+.markdown-toolbar-actions button{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.markdown-action-icon{display:inline-block;width:1em;text-align:center}
