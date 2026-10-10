@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build:editors": "esbuild frontend/markdown-editor.js --bundle --minify --format=iife --target=es2020 --outfile=static/vendor/codemirror/markdown-editor.js --legal-comments=external && node frontend/build-notices.cjs",
+    "build:editors": "esbuild frontend/markdown-editor.js --bundle --minify --format=iife --target=es2020 --outfile=static/vendor/codemirror/markdown-editor.js --legal-comments=external && esbuild frontend/text-worker.js --bundle --minify --format=iife --target=es2020 --outfile=static/text-worker.js && node frontend/build-notices.cjs",
     "test:editors": "node tests/browser/markdown-editor.cjs"
   },
   "dependencies": {

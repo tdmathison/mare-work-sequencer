@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict'),{buildSync}=require('esbuild');
+const code=buildSync({entryPoints:['frontend/text-operations.js'],bundle:true,platform:'node',format:'cjs',write:false}).outputFiles[0].text;
+const moduleForTest={exports:{}};new Function('module','exports',code)(moduleForTest,moduleForTest.exports);const run=moduleForTest.exports.transform;
+assert.equal(run('empty-lines','a\r\n \rb\n'),'a\nb');
+assert.equal(run('carriage-returns','a\r\nb\rc\n'),'abc');
+assert.equal(run('spaces','a b\tc\n'),'ab\tc\n');
+assert.equal(run('cr-spaces','a\r\nb\rc'),'a b c');assert.equal(run('cr-commas','a\nb'),'a,b');assert.equal(run('cr-comma-space','a\nb'),'a, b');assert.equal(run('cr-quotes','a"b\nc'),'"a\\"b", "c"');
+assert.equal(run('semicolon-cr','a;b'),'a\nb');assert.equal(run('space-cr','a b\tc'),'a\nb\tc');assert.equal(run('comma-space-cr','a, b,c'),'a\nb,c');
+assert.equal(run('split','a.*b.*c','.*'),'a\nb\nc');assert.throws(()=>run('split','a',''));
+assert.equal(run('egrep','abc\ndef\nabc2','abc'),'abc\nabc2');assert.equal(run('egrep-v','abc\ndef','abc'),'def');assert.equal(run('egrep-o','a12b34\nc56','\\d+'),'12\n34\n56');assert.equal(run('egrep-o','abc','^|$'),'');assert.throws(()=>run('egrep','abc','['));
+assert.equal(run('uniq','a\nb\na\nA'),'a\nb\nA');assert.equal(run('uniq-count','a\nb\na'),'a|2\nb|1');assert.equal(run('sort','b\nA\na\n\nb'),'\nA\na\nb\nb');
+console.log('PASS: local line, replacement, literal split, ECMAScript regex, counting and sorting operations.');

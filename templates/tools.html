@@ -9,7 +9,7 @@
   </div>
   <div class="tool-panels">
   {% for tool in tools %}<section id="tool-panel-{{tool.identifier}}" role="tabpanel" aria-labelledby="tool-tab-{{tool.identifier}}" {% if tool != selected %}hidden{% endif %}>
-    <iframe title="{{tool.name}} — {{tool.description}}" data-src="{{url_for(tool.endpoint)}}" sandbox="allow-scripts allow-same-origin allow-downloads" referrerpolicy="no-referrer"></iframe>
+    <iframe title="{{tool.name}} — {{tool.description}}" data-src="{{url_for(tool.endpoint)}}" {% if tool.tool_type=='native' %}allow="clipboard-write"{% endif %} sandbox="allow-scripts allow-same-origin allow-downloads" referrerpolicy="no-referrer"></iframe>
   </section>{% else %}<p>No analyst tools are enabled for your account.</p>{% endfor %}
   </div>
 </section>

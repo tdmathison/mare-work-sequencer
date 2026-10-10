@@ -854,3 +854,102 @@ For manual release checks, also test custom roles, assignment-only users, empty
 results, large catalogs, duplicate creation, confirmation failures, RAW/full
 restore on another installation, and drawer use with card/table view. Confirm
 case workflow controls and CodeMirror editor/preview/expanded mode remain usable.
+
+### Text Manipulation
+
+Open **Tools → Text Manipulation** for one-shot processing of text, logs, and IOC
+lists. Paste into the CodeMirror editor and click a command; the result replaces
+the current document. The compact command panel contains Extract, Remove, Replace,
+Regex, IP Functions, Misc, and Formatting sections. Its scrolling is independent
+of the editor. Clear, Copy All, Undo, Redo, and Word Wrap appear above the editor.
+Text and native history remain initialized while switching tool tabs or expanding
+the workspace; a page reload clears them. Nothing is saved to cases automatically.
+
+Each changed result is one isolated CodeMirror history transaction, including
+large transformations. Undo/Redo buttons track available native history and restore
+content and selection without rebuilding the editor. Standard shortcuts are
+Cmd+Z / Cmd+Shift+Z on macOS and Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z on Windows/Linux.
+Typing and pasting use the same history. Successful commands record a whole-document
+replacement even when a nonempty result is unchanged, keeping operation-by-operation
+Undo predictable. Clear is also undoable. An already-empty document has no text
+change for CodeMirror to record.
+
+Simple line operations, literal splitting, exact line deduplication/counting, and
+alphabetical sorting run in a local browser worker. The Regex buttons use
+**ECMAScript Unicode regular expressions**, not POSIX ERE/GNU grep: JS escapes,
+lookarounds, alternation, and leftmost-first matching apply; POSIX bracket classes
+and GNU flags are not supported. egrep and egrep -v return matching/nonmatching
+lines; egrep -o returns nonempty matches per line and safely skips zero-length
+matches. Split by always uses a literal, nonempty delimiter. Patterns are retained
+across commands. Workers time out after two seconds, leaving the input unchanged.
+
+IOC extraction uses validated Python `ipaddress`, URL parsing, and offline IDNA
+handling on the local MARE server. IPv6 representations normalize to compressed
+form; mapped addresses do not also become standalone IPv4s. All IPs emits IPv4
+then IPv6; IPs & Domains preserves cross-type order. Extraction deduplicates;
+IP Sort retains duplicates and places malformed lines last with a warning.
+Domains use IDNA (Python's built-in IDNA 2003) plus DNS-label/TLD syntax checks,
+without DNS or a public suffix list. Consequently a syntactically valid filename
+or nonexistent domain can match; extraction does not establish registration or
+reachability. Emails use common unquoted mailbox syntax, not every RFC mailbox form.
+URLs preserve paths, queries, and fragments; closing prose punctuation is trimmed.
+
+Non-Routable IPs uses the bundled `resources/ip-special-purpose.json` snapshot
+of the [IANA IPv4](https://www.iana.org/assignments/iana-ipv4-special-registry/)
+and [IPv6](https://www.iana.org/assignments/iana-ipv6-special-registry/) registries,
+following [RFC 6890](https://www.rfc-editor.org/rfc/rfc6890). The snapshot was
+checked on 2026-10-09 against registries updated 2025-10-09. Longest-prefix matching
+honors globally reachable exceptions; False/unspecified designations are removed.
+Multicast is excluded explicitly. Unlisted IPv4 is retained; unlisted IPv6 is
+retained only in global-unicast `2000::/3`. This is address designation, not live
+routing verification, and does not depend on Python-version `is_global` behavior.
+Only whole lines containing validated nonglobal IPs are removed. Unrelated lines,
+invalid IP-looking text, and log lines containing a private IP remain intact.
+For updates, download the official CSV URLs recorded in the JSON, regenerate its
+network/global entries, review changed prefixes/exceptions, update snapshot dates,
+and run the classification tests. No registry access occurs during processing.
+
+Defang uses `[.]`, IPv6 `[:]`, and http(s) → hxxp(s); Refang reverses these
+conventions inside recognized indicators. URL paths/query strings are preserved.
+Defanging is idempotent for supported indicators. Refang is heuristic for common
+conventions and does not perform network validation.
+
+Format JSON uses four-space indentation and preserves arbitrary-precision numeric
+values. Format XML rejects DTDs/entities, performs no external resolution, and
+preserves mixed content, existing whitespace-only nodes, and `xml:space` rather
+than inserting semantic whitespace. Format Python uses pinned **Black 25.1.0**
+with its AST safety check; source is parsed/formatted, never executed. All three
+switch the editor's syntax highlighting without replacing its instance. Errors
+leave content/history intact. Nested JSON/XML formatting is limited to 150 levels.
+
+IOC/IP, defang/refang, JSON/XML/Python commands explicitly POST text to the existing
+local authenticated `/tools/text-manipulation/process` endpoint using session CSRF.
+The frontend entry point is `/tools/text-manipulation/app/`. Requests are capped at
+2 MiB of UTF-8 input. Responses are not cached; submitted text is not audited or
+persisted. There are no third-party processing requests, shell commands, or code
+execution endpoints. If editing continues while a request is running, its stale
+result is rejected. Install Python requirements before deployment:
+
+```sh
+.venv/bin/pip install -r requirements.txt
+npm ci
+npm run build:editors
+```
+
+Node is needed only to build the existing shared CodeMirror bundle and local worker,
+not to run Flask. No additional frontend dependencies were added. The Text
+Manipulation editor uses the same bundled CodeMirror modules/theme as Markdown,
+without Markdown toolbars. Bundled licenses remain under `static/vendor/codemirror`.
+
+```sh
+.venv/bin/python -m pytest -q tests/test_text_manipulation.py tests/test_tools.py
+node tests/text-operations.cjs
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/text-manipulation.cjs
+```
+
+Manually verify large pastes, every command group, errors preserving input,
+consecutive Undo/Redo and platform shortcuts, Copy All under HTTPS, Word Wrap,
+independent panel scrolling, tab state retention, expanded/restored workspace,
+small laptop layouts, and CyberChef recipes after switching tabs. Confirm existing
+Markdown editing/preview/autosave still works. Clipboard access requires a secure
+browser context; if unavailable, select and copy manually.
