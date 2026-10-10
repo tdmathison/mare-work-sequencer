@@ -6,3 +6,4 @@ vendor/cyberchef/dist/
 node_modules/
 playwright-report/
 test-results/
+.DS_Store

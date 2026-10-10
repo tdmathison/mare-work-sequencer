@@ -1,3 +1,4 @@
+from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
 """Portable case backups: nested RAW packages plus validated workbench metadata."""
 import hashlib
 import io
@@ -143,7 +144,7 @@ def validate_metadata(meta):
     sequence = meta.get('figure_sequence', 0)
     if not isinstance(sequence, int) or not 0 <= sequence < 9223372036854775807:
         raise ValueError('Invalid figure sequence.')
-    return c, sections, refs, clean, images, max([sequence]+[i['figure'] for i in images])
+    return c, sections, refs, clean, images, max([sequence]+[i['figure'] for i in images]), validate_tags(meta.get('tagging'))
 
 
 def register_backups(app, ROOT, db, case, package, ensure_package, build_archive, allocate, audit, now):
@@ -165,6 +166,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             package(cid)/'reports/sections/assets'/row['name']).is_file()]
         seq = db().execute('SELECT value FROM figure_sequence WHERE case_id=?', (cid,)).fetchone()
         data['figure_sequence'] = seq[0] if seq else 0
+        if tag_prototype(db()): raise ValueError('Migrate prototype tags before exporting RAW backups.')
+        data['tagging'] = portable_tags(db(), cid)
         return data
 
     def case_backup(cid, email_safe=False, include_samples=False):
@@ -293,7 +296,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             return redirect('/import-export')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
-            index = {'schema': SCHEMA, 'created': now(), 'cases': []}
+            index = {'schema': SCHEMA, 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
             total = 0
             with zipfile.ZipFile(out, 'w', zipfile.ZIP_STORED) as outer:
                 for row in db().execute('SELECT id FROM cases ORDER BY id').fetchall():
@@ -374,6 +377,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 with zipfile.ZipFile(incoming) as outer:
                     members, _ = checked_members(outer)
                     index = read_json(outer, 'backup.json')
+                    tag_catalog = validate_tags(index.get('tagging'))
                     entries = index.get('cases')
                     if index.get('schema') != SCHEMA or not isinstance(entries, list) or len(entries) > 1000:
                         raise ValueError(
@@ -485,7 +489,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                                 (folder/category).mkdir(exist_ok=True)
                             plans.append((folder.parent, validated))
                 connection.execute('BEGIN IMMEDIATE')
-                for folder, (c, sections, refs, rows, images, sequence) in plans:
+                restore_tags(connection, tag_catalog)
+                for folder, (c, sections, refs, rows, images, sequence, tags) in plans:
                     number = allocate(connection)
                     identity = c.get('assigned_user')
                     owner = None
@@ -496,6 +501,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                             owner = match[0]
                     cid = connection.execute('INSERT INTO cases(number,name,description,stage,created,owner,external_system,external_number,creator,creator_username,owner_required) VALUES(?,?,?,?,?,?,?,?,?,?,1)', (
                         number, c['name'], c.get('description', ''), c['stage'], now(), owner, c.get('external_system', ''), c.get('external_number', ''), g.user['id'], g.user['username'])).lastrowid
+                    restore_tags(connection, tags, cid)
                     connection.execute(
                         'UPDATE cases SET report_path=? WHERE id=?', (c.get('report_path', ''), cid))
                     for table, values in rows.items():

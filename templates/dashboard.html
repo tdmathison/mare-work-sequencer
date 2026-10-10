@@ -5,14 +5,18 @@
     <h1>MIP Dashbaord</h1>
   </div>
   <div>
+    {% if can_tags_read and tags_ready %}<button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags %} ({{selected_tags|length}}){% endif %}</button>{% endif %}
     <a
       class="board-create"
-      href="/?view={{'cards' if view=='table' else 'table'}}"
+      href="/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}"
       >{{'Card view' if view=='table' else 'Table view'}}</a
     >
     <a class="board-create" href="/cases/new">Create case</a>
   </div>
 </div>
+<div class="tag-board-layout">
+{% if can_tags_read and tags_ready %}{% include 'board_tags.html' %}{% endif %}
+<div class="tag-board-content">
 <div class="metrics">
   {% for title in ['All MIPs','Not started','In progress','Completed'] %}
   <div class="panel">
@@ -71,7 +75,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="8">Your first MIP starts here. Create a case to begin.</td>
+        <td colspan="8">No cases found. Clear filters or create a case.</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -97,6 +101,7 @@
         <strong>{{c.owner_name or 'Unassigned'}}</strong>{% if c.owner_name and
         not c.owner_active %} (disabled){% endif %}
       </p>
+      {% if can_tags_read and board_tags.get(c.id) %}<div class="card-tags">{% for tag in board_tags[c.id][:3] %}<span class="tag-chip" title="{{tag.name}}">{{tag.name}}</span>{% endfor %}{% if board_tags[c.id]|length>3 %}<span tabindex="0" title="{{board_tags[c.id][3:]|map(attribute='name')|join(', ')}}">+{{board_tags[c.id]|length-3}}</span>{% endif %}</div>{% endif %}
       <div class="lifecycle-bar" aria-label="{{stages[c.stage]}}">
         {% for stage in stages %}<span
           class="{{'completed' if loop.last and c.stage==stages|length-1 else 'active' if loop.index0==c.stage else 'passed' if loop.index0<c.stage else ''}}"
@@ -126,12 +131,12 @@
   </article>
   {% else %}
   <section class="panel">
-    <h2>Your first MIP starts here</h2>
+    <h2>No cases found</h2>
     <p>
-      Create a case. Its package folders and report templates will be ready
-      immediately.
+      <a href="/">Clear filters</a> or create a case. Its package folders and report templates will be ready immediately.
     </p>
   </section>
   {% endfor %}
 </div>
-{% endif %}{% endblock %}
+{% endif %}
+</div></div>{% endblock %}

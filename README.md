@@ -733,3 +733,124 @@ Manual release checklist:
   remain read-only and existing CSRF/workflow rules still reject unauthorized edits.
 - Repeat critical editing flows in supported Chromium, Firefox, and Safari browsers
   through production HTTPS/Nginx/Gunicorn; check for console errors and asset failures.
+
+## Case Tags
+
+Tags are shared, human-readable strings. Analysts choose their own conventions,
+for example `MAL-REDLINE_STEALER`, `TA-APT41`, `TECH-PERSISTENCE`, or `PHISHING`.
+MARE does not interpret prefixes. Names retain their entered spelling, with
+surrounding whitespace trimmed; Unicode case-folded names prevent duplicates.
+Names may contain 1–120 characters, without control characters.
+
+### Workbench and board
+
+The thin **Tags** bar at the top of the Workbench contains assigned chips and one
+inline **+ Add tag…** input. Type to search, click a suggestion, or select it with
+Arrow Up/Down and Enter. Escape dismisses suggestions. With no suggestion selected,
+Enter assigns an exact existing name or creates and assigns the typed name. Partial
+matches never implicitly replace the typed name. A **Create “name”** suggestion
+makes creation explicit. Assignment-only roles must select an existing tag.
+Chip **×** controls remove case assignments while retaining the shared definition.
+Hover over a chip for assignment attribution. Writes use normal server-confirmed
+forms and CSRF protection, and preserve existing workflow/owner edit restrictions.
+
+On the MIP Board, **Filters** opens a narrow left drawer. Search tags, check multiple
+names, choose **Match Any** (OR) or **Match All** (AND), then Apply. Case search combines
+with the selected tags. **Clear Filters** removes tag restrictions while retaining
+case search and card/table view. Collapse or Escape hides the drawer without
+clearing active filters; the Filters button shows the active selection count.
+The closed drawer consumes no horizontal space; below 900px it overlays the board.
+Cards show up to three subdued chips and a **+N** overflow indicator with remaining
+names in its tooltip; all tags are available in the case Workbench.
+
+Search controls return up to 100 matching suggestions; narrow the search for larger
+catalogs. Selected board filters remain selected across searches. Controls support
+keyboard navigation and use the existing MARE theme.
+
+### Tag Manager and permissions
+
+The authenticated **Tags** navigation item appears between Metrics and Tools.
+The compact manager lists Tag Name, Cases, and Actions, supports search and
+name/usage sorting, and provides inline creation. Click a name or usage count to
+view associated case numbers, names, workflow stages, and owners.
+
+Administrators can rename a tag, merge it into an explicitly selected destination,
+or delete it. Rename preserves its ID and immediately changes its display everywhere.
+A conflicting name is rejected with a suggestion to merge. Merge shows names and
+usage counts, requires confirmation, moves assignments without duplicates, keeps
+the destination identity, and deletes the source in one transaction. Existing
+destination attribution wins on duplicate assignments. Deletion shows usage and
+requires confirmation; it deletes assignments and the tag, never case records.
+Creation, assignment, removal, rename, merge, and deletion use the existing audit log.
+
+Custom roles use `tags:read`, `tags:create`, `tags:assign`, and `tags:manage`.
+The built-in User role receives the first three; Administrator receives all four.
+Case assignment/removal also requires `cases:update`, and existing case edit locks
+apply. Related case details require `cases:read`. Custom roles need explicit grants.
+Authorization is enforced by the server.
+
+Backend helpers and routes live in `tagging.py`: `/tags`, `/tags/search`,
+`/tags/<id>`, `/tags/create`, `/tags/<id>/<rename|merge|delete>`,
+`/cases/<id>/tags` (read), `/cases/<id>/tags/create`, and
+`/cases/<id>/tags/<tag_id>/<assign|remove>`. These follow existing session-authenticated
+Flask conventions rather than adding a second REST authentication system.
+
+### Persistence, migration, and backups
+
+Startup adds only `tags` (ID, display name, unique normalized name, creation time)
+and `case_tags` (case/tag IDs, assignment time, optional user), plus the reverse
+relationship index and `simple-case-tags-v1` migration marker. Initialization is
+repeatable. Foreign keys remove assignments when a case or tag is deleted; user
+deletion clears attribution. Cases, reports, numbering, and Markdown editors are
+not rewritten. No additional runtime dependencies are required.
+
+If a prototype schema is detected, MARE leaves it untouched, shows a setup message,
+and disables tag routes and RAW backup export rather than silently losing tags.
+To explicitly convert a known earlier prototype, **stop MARE**, then run:
+
+```sh
+.venv/bin/python tagging.py --migrate-prototype data/workflow.sqlite3 --confirm-flatten
+```
+
+Use the actual database path if `MARE_DATA_DIR` differs. The command creates and
+prints a full SQLite backup path before conversion. It retains original tables
+as `prototype_tags`, `prototype_case_tags`, and `prototype_tag_categories`.
+Identical case-insensitive names across former groups merge into one shared tag;
+the lowest original ID supplies display spelling and creation time. Assignment
+collisions retain the earliest assignment and its actor. IDs are remapped, case
+records remain untouched, and conversion is transactional. Unknown schemas are
+refused. Restart MARE after success. For rollback, keep MARE stopped and restore
+the printed full database backup. Historical prototype tables are retained for
+manual inspection, not used by the new interface.
+
+Individual RAW backups include optional `tagging` in `case-data.json`:
+
+```json
+{"schema_version": 1, "tags": ["MAL-REDLINE_STEALER", "TA-APT41"]}
+```
+
+Export All also includes the entire shared catalog in `backup.json`, preserving
+unused definitions. Import validates versions, structure, types, lengths, and
+duplicate names before restoring any case. Existing normalized names are reused
+without overwriting display spelling; missing names are created. Relationships
+are restored against newly allocated IDs. Older archives without tag metadata
+continue importing; malformed metadata rejects the import with rollback. The
+portable format contains no database IDs or attribution: imported assignments get
+the import time and unknown actor. Existing owner/user mapping remains unchanged.
+Standard MIP deliverables do not include internal tag backup metadata. Older
+prototype tag metadata requires explicit conversion rather than a silent import.
+
+### Verification
+
+```sh
+.venv/bin/python -m pytest -q tests/test_tagging.py tests/test_backups.py tests/test_case_deletion.py tests/test_archive_modes.py tests/test_api.py
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/tags.cjs
+```
+
+The browser check uses an isolated temporary database and verifies partial/exact
+Enter behavior, keyboard selection and Escape, long names/many chips, desktop and
+narrow drawers, Match All/card overflow, merge, rename, and assignment removal.
+For manual release checks, also test custom roles, assignment-only users, empty
+results, large catalogs, duplicate creation, confirmation failures, RAW/full
+restore on another installation, and drawer use with card/table view. Confirm
+case workflow controls and CodeMirror editor/preview/expanded mode remain usable.

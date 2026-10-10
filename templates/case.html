@@ -48,6 +48,7 @@
         {% endfor %}
     </div>
     <section id="panel-workbench" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-workbench">
+        {% include 'case_tags.html' %}
         <div class="columns workbench-columns"><div>
             <section class="panel stage-panel">
                 {% if c.stage==stages|length-2 %}{% set checklist_id='completion-workbench' %}{% include 'completion_checklist.html' %}{% endif %}

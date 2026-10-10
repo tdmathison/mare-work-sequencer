@@ -1,0 +1,12 @@
+<aside id="tag-filter-drawer" class="tag-filter-drawer" hidden>
+<div class="tag-drawer-heading"><strong>Filters</strong><button type="button" data-filter-toggle aria-label="Collapse filters">×</button></div>
+<form action="/" method="get" data-tag-filter data-selected='{{selected_tags|tojson}}' data-labels='{{selected_tag_labels|tojson}}'>
+<input type="hidden" name="view" value="{{view}}">
+<label>Case search<input name="q" value="{{board_query}}" placeholder="Name or case number"></label>
+<label>Tag search<input data-filter-search placeholder="Find tags" autocomplete="off"></label>
+<div data-filter-tags class="tag-filter-list" aria-label="Available tags"></div>
+<label>Matching<select name="match"><option value="any" {% if tag_match=='any' %}selected{% endif %}>Match Any</option><option value="all" {% if tag_match=='all' %}selected{% endif %}>Match All</option></select></label>
+<div class="tag-filter-actions"><button>Apply</button><button type="button" data-clear-tags>Clear Filters</button></div>
+<p class="tag-feedback" role="status"></p>
+</form>
+</aside>

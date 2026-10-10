@@ -1,4 +1,8 @@
 PERMISSIONS = {
+    'tags:read': 'Read tags and filter cases',
+    'tags:create': 'Create shared tags',
+    'tags:assign': 'Assign and remove case tags',
+    'tags:manage': 'Rename, merge, and delete shared tags',
     'cases:read': 'Read case records and workspaces',
     'cases:create': 'Create cases',
     'cases:update': 'Edit case details and workflow data',
@@ -26,6 +30,7 @@ PERMISSIONS = {
 }
 
 USER_PERMISSIONS = {
+    'tags:read', 'tags:create', 'tags:assign',
     'cases:read', 'cases:create', 'cases:update', 'cases:delete', 'cases:workflow',
     'cases:assets', 'cases:export', 'indicators:read', 'indicators:write',
     'references:read', 'references:write', 'reports:read', 'reports:write',
