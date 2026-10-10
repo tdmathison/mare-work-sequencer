@@ -1,5 +1,7 @@
 # Latest update
 
+- Added Tools → Text Manipulation: compact one-shot IOC/IP, line, replacement, regex, sorting, defang/refang, and JSON/XML/Python commands. Reuses the shared CodeMirror 6 bundle/theme with native atomic Undo/Redo, retained tab state, independent scrolling, and minimal toolbar. Added local worker processing, authenticated CSRF-protected 2 MiB processing endpoint, pinned Black formatter, offline IANA classification snapshot, and server/browser regression coverage.
+
 - Added simple shared string tags: a compact inline Workbench autocomplete, collapsible left MIP Board filter drawer with Match Any/All, card chips, and a dense Tag Manager with permission-controlled rename, merge, and deletion. Added audited transactional persistence, validated RAW/full-backup tag metadata, and an explicit backed-up conversion path for prototype tables. Standard MIP contents and Markdown editors remain unchanged.
 
 - Moved Markdown Preview and Expand/Collapse into dedicated right-aligned toolbar buttons with state-synchronized labels and glyphs; View now contains only editor preference checkboxes. Preserved top placement, viewport-aware menus, and existing preview/expansion handlers.

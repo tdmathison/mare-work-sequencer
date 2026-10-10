@@ -1,3 +1,4 @@
+import {mountTextTool} from './text-editor';
 import {Annotation, Compartment, EditorState, Transaction} from '@codemirror/state';
 import {EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, placeholder} from '@codemirror/view';
 import {defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory} from '@codemirror/commands';
@@ -251,3 +252,5 @@ new MutationObserver(records => {
     if (records.some(record => record.target.contains(editor.source) && ['hidden', 'open', 'class'].includes(record.attributeName))) editor.measure();
   }
 }).observe(document.body, {attributes: true, subtree: true, childList: true, attributeFilter: ['disabled', 'readonly', 'hidden', 'open', 'class']});
+
+if (document.querySelector('[data-text-tool]')) mountTextTool({theme, highlighting});

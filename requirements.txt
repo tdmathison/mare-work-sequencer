@@ -7,3 +7,4 @@ mdit-py-plugins>=0.4,<1
 Pygments>=2.17,<3
 Pillow>=10,<13
 pyzipper>=0.3.6,<1
+black==25.1.0
