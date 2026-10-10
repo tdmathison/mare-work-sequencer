@@ -1,0 +1,11 @@
+{% if can_tags_read %}
+<div id="case-tags" class="case-tag-bar" aria-label="Case tags">
+<span>Tags:</span>
+{% if not tags_ready %}<span>Prototype tags need <a href="/tags">explicit migration</a>.</span>{% else %}
+{% for tag in case_tags(c.id) %}<span class="tag-chip" data-tag-id="{{tag.id}}" title="{{tag.name}} — assigned {{tag.assigned_at}} by {{tag.assigned_by or 'unknown user'}}">{{tag.name}}{% if can_tags_assign and not c.workspace_locked %}<form method="post" action="/cases/{{c.id}}/tags/{{tag.id}}/remove">{{token(csrf)}}<button type="button" data-remove-tag aria-label="Remove {{tag.name}} from case">×</button></form>{% endif %}</span>{% endfor %}
+{% if can_tags_assign and not c.workspace_locked %}
+<form method="post" action="/cases/{{c.id}}/tags/create" class="tag-autocomplete" data-tag-case="{{c.id}}" data-can-create="{{'true' if can_tags_create else 'false'}}">{{token(csrf)}}
+<input name="name" maxlength="120" placeholder="+ Add tag…" aria-label="Add tag" role="combobox" aria-autocomplete="list" aria-controls="tag-suggestions" aria-expanded="false" autocomplete="off" required>
+<ul id="tag-suggestions" role="listbox" class="tag-suggestions" hidden></ul><span class="tag-feedback" role="status"></span>
+</form>{% endif %}{% endif %}
+</div>{% endif %}

@@ -33,7 +33,7 @@
     </header>
     {% if user %}
     <nav class="admin-nav">
-      <a href="/">MIP BOARD</a><a href="/metrics">METRICS</a><a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
+      <a href="/">MIP BOARD</a><a href="/metrics">METRICS</a>{% if can_tags_read %}<a href="/tags">TAGS</a>{% endif %}<a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
       user.role=='Administrator' %}<a href="/users">USERS</a
       ><a href="/audit">AUDIT</a>{% endif %}<a href="/account">SETTINGS</a
       ><a href="/api">API</a><a href="/import-export">IMPORT &amp; EXPORT</a>
@@ -47,6 +47,7 @@
       include 'sample_archive_settings.html' %}{% endif %}
     </main>
     <footer>MARE Work Sequencer // Case Lifecycle Management</footer>
+  <script src="{{url_for('static', filename='tags.js')}}" defer></script>
   </body>
 </html>
 {% macro token(csrf) %}<input type="hidden" name="csrf" value="{{csrf}}" />{%

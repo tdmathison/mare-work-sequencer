@@ -1,5 +1,7 @@
 # Latest update
 
+- Added simple shared string tags: a compact inline Workbench autocomplete, collapsible left MIP Board filter drawer with Match Any/All, card chips, and a dense Tag Manager with permission-controlled rename, merge, and deletion. Added audited transactional persistence, validated RAW/full-backup tag metadata, and an explicit backed-up conversion path for prototype tables. Standard MIP contents and Markdown editors remain unchanged.
+
 - Moved Markdown Preview and Expand/Collapse into dedicated right-aligned toolbar buttons with state-synchronized labels and glyphs; View now contains only editor preference checkboxes. Preserved top placement, viewport-aware menus, and existing preview/expansion handlers.
 
 - Kept Markdown toolbars above source and preview in expanded workspaces; menus now fit the viewport, open upward when needed, and scroll without clipping. Added normal/expanded, laptop, task-dialog, and standalone layout regressions while retaining the same CodeMirror instance and state.

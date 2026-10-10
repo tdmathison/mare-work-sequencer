@@ -1,3 +1,4 @@
+from tagging import register_tags, assignments as tag_assignments, case_filter, prototype as tag_prototype
 from indicators import register_indicators
 from api import register_api
 from backups import register_backups
@@ -568,13 +569,29 @@ def save_sample_archive_password():
 
 @app.get('/')
 def dashboard():
-    cases = [dict(c) for c in db().execute(CASE_QUERY+' ORDER BY c.id DESC')]
+    selected = request.args.getlist('tag')
+    if len(selected) > 100 or any(not v.isdigit() or len(v) > 10 for v in selected): abort(400)
+    selected = sorted(set(map(int, selected)))
+    match = request.args.get('match', 'any')
+    if match not in ('any', 'all'): abort(400)
+    can_read_tags = has_permission(g.user, 'tags:read', db())
+    if selected and not can_read_tags: abort(403)
+    if selected and tag_prototype(db()): abort(503, 'Prototype tag migration required.')
+    query = request.args.get('q', '').strip()
+    sql, args = case_filter(selected, match)
+    cases = [dict(c) for c in db().execute(CASE_QUERY+" WHERE (instr(lower(c.name),?)>0 OR instr(lower(c.number),?)>0 OR instr(lower(coalesce(c.description,'')),?)>0)"+sql+' ORDER BY c.id DESC', [query.lower()]*3+args)]
+    tag_map = {}
+    if can_read_tags and not tag_prototype(db()):
+        for tag in tag_assignments(db()): tag_map.setdefault(tag['case_id'], []).append(tag)
     for c in cases:
         c['readiness'] = readiness(c['id'])
     view = request.args.get('view')
     if view not in ('cards', 'table'):
         view = g.user['board_view']
-    return render_template('dashboard.html', cases=cases, view=view)
+    selected_labels = {t['id']: t['name'] for rows in tag_map.values() for t in rows if t['id'] in selected}
+    if selected and not tag_prototype(db()):
+        selected_labels.update({r['id']:r['name'] for r in db().execute('SELECT id,name FROM tags WHERE id IN ('+','.join('?' for _ in selected)+')', selected)})
+    return render_template('dashboard.html', selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
 
 
 def metrics_data():
@@ -1270,3 +1287,5 @@ register_tools(app, db)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)
+
+register_tags(app, db, case)

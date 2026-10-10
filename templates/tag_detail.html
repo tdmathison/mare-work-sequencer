@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<a href="/tags">Tag Manager</a><div class="heading"><h1>{{tag.name}}</h1><span>{{tag.uses}} cases</span></div>
+{% if can_tags_manage %}<div class="tag-manager-controls">
+<form action="/tags/{{tag.id}}/rename" method="post">{{token(csrf)}}<input name="name" value="{{tag.name}}" maxlength="120" required aria-label="Rename tag"><button>Rename</button></form>
+<details><summary>Merge tag</summary><form action="/tags/{{tag.id}}/merge" method="post" class="tag-management-form">{{token(csrf)}}<p>Source: {{tag.name}} ({{tag.uses}} cases). Its assignments move to the destination; the source is deleted.</p><label>Destination<select name="destination" required>{% for other in all_tags if other.id!=tag.id %}<option value="{{other.id}}">{{other.name}} ({{other.uses}} cases)</option>{% endfor %}</select></label><label class="tag-confirm"><input type="checkbox" name="confirm" value="1" required> Confirm merge into the selected destination</label><button>Confirm merge</button></form></details>
+<details><summary>Delete tag</summary><form action="/tags/{{tag.id}}/delete" method="post" class="tag-management-form">{{token(csrf)}}<p>Delete {{tag.name}} and its assignments from {{tag.uses}} cases. Case records remain.</p><label class="tag-confirm"><input type="checkbox" name="confirm" value="1" required> Confirm deletion</label><button>Delete tag</button></form></details>
+</div>{% endif %}
+<div class="panel tag-table"><table><thead><tr><th>Case</th><th>Name</th><th>Workflow stage</th><th>Owner</th></tr></thead><tbody>{% for c in cases %}<tr><td><a href="/cases/{{c.id}}">{{c.number}}</a></td><td><a href="/cases/{{c.id}}">{{c.name}}</a></td><td>{{stages[c.stage]}}</td><td>{{c.owner or 'Unassigned'}}</td></tr>{% else %}<tr><td colspan="4">No associated cases available.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<div class="heading"><h1>Tag Manager</h1></div>
+<div class="tag-manager-controls">
+<form method="get"><input name="q" value="{{request.args.get('q','')}}" aria-label="Search tags" placeholder="Search tags"><select name="sort" aria-label="Sort tags">{% for value,label in [('name','Name'),('most','Most used'),('least','Least used')] %}<option value="{{value}}" {% if request.args.get('sort','name')==value %}selected{% endif %}>{{label}}</option>{% endfor %}</select><button>Search</button></form>
+{% if can_tags_create %}<form method="post" action="/tags/create">{{token(csrf)}}<input name="name" maxlength="120" placeholder="New tag" aria-label="New tag" required><button>Create tag</button></form>{% endif %}
+</div>
+<div class="panel tag-table"><table><thead><tr><th>Tag Name</th><th>Cases</th><th>Actions</th></tr></thead><tbody>{% for tag in tags %}<tr><td><a class="tag-chip" href="/tags/{{tag.id}}">{{tag.name}}</a></td><td><a href="/tags/{{tag.id}}">{{tag.uses}}</a></td><td><a href="/tags/{{tag.id}}">{{'Rename / Merge / Delete' if can_tags_manage else 'View cases'}}</a></td></tr>{% else %}<tr><td colspan="3">No matching tags.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}
