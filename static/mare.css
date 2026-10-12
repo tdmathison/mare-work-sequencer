@@ -864,6 +864,60 @@ footer {
 
 .case-card-link{display:block;color:inherit;text-decoration:none}.case-backup-button{margin-top:16px}.autosave-countdown{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 
+/* Compact classic board table; card and other application tables are unchanged. */
+.mip-table-panel { min-width: 0; }
+.mip-table-scroll { max-width: 100%; overflow-x: auto; }
+.mip-table { width: 100%; min-width: 1060px; table-layout: fixed; font-size: 13px; }
+.mip-table th, .mip-table td {
+    padding: 7px 12px;
+    vertical-align: middle;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+}
+.mip-table tbody tr:hover { background: rgba(217, 174, 88, .04); }
+.mip-table th.mip-table-number { width: 170px; }
+.mip-table td.mip-table-number { overflow-wrap: anywhere; }
+.mip-table-reference { color: var(--muted); font-size: 11px; }
+.mip-table th.mip-table-person { width: 135px; }
+.mip-table th.mip-table-stage { width: 180px; }
+.mip-table th.mip-table-reviewed { width: 90px; }
+.mip-table th.mip-table-actions { width: 100px; }
+.mip-table-title a, .mip-table-person span {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mip-table-stage-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.mip-table-stage-badge.is-active { color: var(--accent); background: rgba(217, 174, 88, .1); }
+.mip-table-stage-badge.is-completed { color: var(--ok); background: rgba(110, 207, 147, .1); }
+.mip-table-stage-badge.is-not-started { color: var(--muted); background: var(--panel-2); }
+.mip-table .mip-table-actions { text-align: right; }
+.mip-table-actions form { margin: 0; padding: 0; }
+.mip-table .case-backup-button {
+    margin: 0;
+    min-height: 29px;
+    padding: 3px 9px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--accent);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.mip-table .case-backup-button:hover { border-color: var(--accent-dim); background: var(--panel-2); }
+@media (pointer: coarse) {
+    .mip-table .case-backup-button { min-height: 44px; min-width: 44px; }
+}
+
 .markdown-menu{position:relative;margin:0}.markdown-menu summary{cursor:pointer;padding:6px 12px;border:1px solid var(--line);background:var(--bg);color:var(--accent);font-size:14px;list-style:none}.markdown-menu summary::-webkit-details-marker{display:none}.markdown-menu summary::after{content:' ▾'}.markdown-menu-items{position:absolute;top:100%;left:0;z-index:110;background:var(--panel);border:1px solid var(--accent-dim);padding:6px;min-width:170px;box-shadow:0 8px 24px #0008;display:flex;flex-direction:column;gap:4px}.markdown-menu-items button{text-align:left;width:100%}.task-workspace-dialog{position:fixed;inset:100px 24px 24px;margin:0;width:auto;height:auto;max-width:none;max-height:none;box-sizing:border-box;padding:24px;overflow:auto}.task-workspace-dialog[open]{display:flex;flex-direction:column}.task-workspace-dialog form,.task-workspace-dialog fieldset{flex:1;min-height:0;display:flex;flex-direction:column}.task-editor-fields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px}.task-markdown-section{flex:1;min-height:200px;display:flex;flex-direction:column}.task-markdown-section h3{margin:8px 0}.task-markdown-section .markdown-editor{flex:1;height:auto;min-height:200px}.task-editor-view-tabs{display:flex;gap:8px;margin-bottom:8px}.task-editor-view-tabs button[aria-selected="true"]{color:var(--accent);border:1px solid var(--accent)}.task-workspace-dialog .dialog-actions{flex-shrink:0;margin:12px 0 0}.task-workspace-dialog .report-image-list{max-height:75px;flex-shrink:0}.task-workspace-dialog [data-editor-status]{margin:6px 0;font-size:13px}.task-workspace-dialog h2{margin:0 0 12px}@media(max-width:700px){.task-workspace-dialog{inset:12px;padding:16px}.task-editor-fields{grid-template-columns:1fr}}
 
 .task-markdown-section .editor-view-tabs{display:flex}.task-markdown-section .editor-view-tabs button{background:transparent;color:var(--text);border:1px solid var(--line)}.task-markdown-section .editor-view-tabs button[aria-selected="true"]{color:var(--accent);border-color:var(--accent)}.mitre-prompt-panel{margin-top:24px;padding:20px;border:1px solid var(--line)}#mitre-prompt-text{width:100%;font-family:monospace;margin:12px 0;min-height:220px}
