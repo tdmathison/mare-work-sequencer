@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='mip-search.css')}}">
+<section class="panel mip-search"><h1>{{doc.label}}</h1><p>{{doc.version}} · {{doc.type}} · {{doc.source}}</p>
+<p><a href="{{search_url}}">Back to Search</a>{% if case_url %} · <a class="button-secondary" href="{{case_url}}">Open case</a> · <a href="{{section_url}}">Open case section</a>{% endif %}{% if asset_url %} · <a href="{{asset_url}}">Download current asset</a>{% endif %}</p>
+{% if doc.warning %}<p class="notice">{{doc.warning}}</p>{% endif %}
+{% for excerpt in excerpts %}<p>{{excerpt.location}}: {% for part in excerpt.parts %}{% if part.highlight %}<mark>{{part.text}}</mark>{% else %}{{part.text}}{% endif %}{% endfor %}</p>{% endfor %}
+<p class="muted">Read-only extracted content from this exact source version. PDF pages and Word blocks are labeled. No source HTML is rendered.</p>
+{% if doc.fields %}<p class="muted">Database fields in order: {{doc.fields|join(', ')}}</p>{% endif %}
+<pre class="search-preview">{{doc.text or 'No extractable text. This finding matched the artifact path.'}}</pre>
+</section>{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}{% block content %}
+<section class="panel mip-search">
+<h1>MIP Search</h1>
+<p class="muted">Search case data and artifact contents locally. Downloads are not retained; only stored MIP ZIPs can be searched.</p>
+<form id="mip-search-form" class="mip-search-controls">
+<label>Search text<input name="q" maxlength="300" placeholder="IP, domain, hash, phrase, or technical identifier" required></label>
+<label>Search in<select name="kind"><option value="everything">Everything</option>{% for key,label in kinds.items() %}<option value="{{key}}">{{label}}</option>{% endfor %}</select></label>
+<label>Source<select name="source"><option value="all">All sources</option><option value="current">Current MIP workspaces</option><option value="archive">Stored MIP archives</option></select></label>
+<label>Case stage<select name="stage"><option value="">All stages</option>{% for stage in stages %}<option value="{{loop.index0}}">{{stage}}</option>{% endfor %}</select></label>
+<button class="primary" type="submit">Search</button><button type="reset">Clear</button>
+</form>
+<p id="search-status" role="status" aria-live="polite">Enter a search to inspect accessible packages.</p>
+<details><summary>Coverage and skipped files</summary><p id="search-coverage"></p><ul id="search-skipped"></ul><p class="muted">Scanned PDFs require OCR and are not content-searchable. Samples, backups, private files, and nested ZIPs are excluded. Unassociated archives are visible only to administrators.</p></details>
+</section>
+<div id="mip-search-results"></div><nav id="search-pagination" aria-label="Search pages"></nav>
+<link rel="stylesheet" href="{{url_for('static',filename='mip-search.css')}}">
+<script src="{{url_for('static',filename='mip-search.js')}}" defer></script>
+{% endblock %}

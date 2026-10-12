@@ -1,0 +1,16 @@
+.mip-search-controls { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.mip-search-controls label:first-child { flex:2 1 300px; }
+.mip-search-controls label { flex:1 1 160px; margin-bottom:0; }
+.mip-search-controls button { margin-top:0; }
+.mip-search .button-secondary { margin-top:0; padding:6px 10px; }
+.mip-search-controls input,.mip-search-controls select { width:100%; }
+.search-result-table { width:100%; table-layout:fixed; }
+.search-result-table td { vertical-align:top; overflow-wrap:anywhere; }
+.search-result-table th:first-child { width:22%; }
+.search-result-table th:nth-child(5) { width:30%; }
+.search-table-wrap { overflow-x:auto; }
+.search-result-table { min-width:850px; }
+.mip-search mark,.search-result-table mark { background:var(--accent); color:var(--bg); padding:0 2px; }
+.search-preview { white-space:pre-wrap; overflow-wrap:anywhere; max-height:70vh; overflow:auto; background:var(--panel-2); padding:16px; }
+#search-pagination { display:flex; gap:12px; align-items:center; margin:16px 0; }
+#mip-search-results .panel { margin-top:16px; }

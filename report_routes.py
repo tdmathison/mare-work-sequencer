@@ -268,6 +268,8 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                 message = message[:500]
                 progress(message, 'failed')
             finally:
+                if 'mip_search' in app.extensions:
+                    app.extensions['mip_search'].invalidate()
                 shutil.rmtree(snapshot, ignore_errors=True)
 
     @app.post('/cases/<int:cid>/generate-report')
