@@ -1,3 +1,6 @@
+{% macro application_nav_link(label, href, section) -%}
+<a href="{{href}}"{% if active_navigation == section %} aria-current="page"{% endif %}>{{label}}</a>
+{%- endmacro %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -33,10 +36,18 @@
     </header>
     {% if user %}
     <nav class="admin-nav">
-      <a href="/">MIP BOARD</a>{% if can_mip_search %}<a href="{{url_for('mip_search')}}">SEARCH</a>{% endif %}<a href="/metrics">METRICS</a>{% if can_tags_read %}<a href="/tags">TAGS</a>{% endif %}<a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
-      user.role=='Administrator' %}<a href="/users">USERS</a
-      ><a href="/audit">AUDIT</a>{% endif %}<a href="/account">SETTINGS</a
-      ><a href="/api">API</a><a href="/import-export">IMPORT &amp; EXPORT</a>
+      {{application_nav_link('MIP BOARD', '/', 'board')}}
+      {% if can_mip_search %}{{application_nav_link('SEARCH', url_for('mip_search'), 'search')}}{% endif %}
+      {{application_nav_link('METRICS', '/metrics', 'metrics')}}
+      {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
+      {{application_nav_link('TOOLS', url_for('tools_workspace'), 'tools')}}
+      {% if user.role=='Administrator' %}
+      {{application_nav_link('USERS', '/users', 'users')}}
+      {{application_nav_link('AUDIT', '/audit', 'audit')}}
+      {% endif %}
+      {{application_nav_link('SETTINGS', '/account', 'settings')}}
+      {{application_nav_link('API', '/api', 'api')}}
+      {{application_nav_link('IMPORT & EXPORT', '/import-export', 'import_export')}}
     </nav>
     {% endif %}
     <main class="page">

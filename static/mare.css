@@ -130,6 +130,13 @@ body {
 }
 
 .admin-nav a:hover { color: var(--accent); }
+.admin-nav a[aria-current="page"] {
+    color: var(--accent);
+    text-decoration: underline;
+    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 8px;
+}
 .admin-nav .disabled-link { opacity: .35; cursor: default; }
 
 .page {

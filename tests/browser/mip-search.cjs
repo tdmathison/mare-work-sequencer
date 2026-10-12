@@ -16,13 +16,23 @@ let log='',browser;server.stderr.on('data',data=>log+=data);
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith(base))external.push(r.url());});
  await page.goto(base+'/login');await page.locator('[name=username]').fill('editor-test');await page.locator('[name=password]').fill('temporary-editor-test-123');
  await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
- await page.getByRole('link',{name:'SEARCH',exact:true}).click();
+ async function checkNavigation(href){
+  const active=page.locator('.admin-nav a[aria-current="page"]');assert.equal(await active.count(),1);assert.equal(await active.getAttribute('href'),href);
+  const style=await active.evaluate(link=>{const css=getComputedStyle(link);return {color:css.color,decoration:css.textDecorationLine,thickness:css.textDecorationThickness};});
+  assert.deepEqual(style,{color:'rgb(217, 174, 88)',decoration:'underline',thickness:'2px'});
+  await active.focus();assert.equal(await active.evaluate(link=>getComputedStyle(link).outlineStyle),'solid');
+ }
+ for(const [route,parent] of [['/','/'],['/cases/new','/'],['/cases/1','/'],['/metrics','/metrics'],['/tags','/tags'],['/tools','/tools'],['/users','/users'],['/audit','/audit'],['/account','/account'],['/api','/api'],['/import-export','/import-export']]){
+  await page.goto(base+route);await checkNavigation(parent);
+ }
+ await page.getByRole('link',{name:'SEARCH',exact:true}).click();await checkNavigation('/search');
  await page.locator('[name=q]').fill('search needle');await page.locator('[name=q]').press('Enter');
  await page.waitForFunction(()=>document.querySelector('#search-status').textContent.includes('1 matching packages')&&document.querySelector('#search-status').textContent.includes('2 matching artifacts'),null,{timeout:30000});
  assert.ok(await page.locator('#mip-search-results mark').count()>=3);assert.equal(await page.locator('#mip-search-results script').count(),0);
  assert.match(await page.locator('#mip-search-results').innerText(),/old.zip/);
  const archivedRow=page.locator('tr').filter({hasText:'old.txt'});await archivedRow.getByRole('link',{name:'Open finding'}).click();
  assert.equal(await page.locator('.search-preview').textContent(),'archived search needle');
+ await checkNavigation('/search');
  await page.getByRole('link',{name:'Back to Search'}).click();await page.locator('[name=q]').fill('evil.example.com');await page.getByRole('button',{name:'Search',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#search-status').textContent.includes('1 matching artifacts'));
  assert.equal(await page.locator('#mip-search-results mark').textContent(),'evil[.]example[.]com');
