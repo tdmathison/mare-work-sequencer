@@ -943,3 +943,55 @@ footer {
 .tag-board-layout{display:flex;align-items:flex-start;gap:14px;position:relative}.tag-board-content{flex:1;min-width:0}.tag-filter-drawer{flex:0 0 255px;width:255px;padding:10px;border:1px solid var(--line);background:var(--panel);position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;z-index:30}.tag-filter-drawer[hidden]{display:none}.tag-drawer-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}.tag-drawer-heading button{padding:2px 7px}.tag-filter-drawer label{display:block;font-size:12px;margin:5px 0}.tag-filter-drawer input:not([type=checkbox]),.tag-filter-drawer select{width:100%;padding:5px 7px}.tag-filter-list{max-height:40vh;overflow:auto;margin:8px 0}.tag-filter-list label,.tag-confirm{display:flex;align-items:center;gap:6px;overflow-wrap:anywhere}.tag-filter-list input[type=checkbox],.tag-confirm input{width:auto;margin:0;flex-shrink:0}.tag-filter-actions{display:flex;gap:5px;margin-top:8px}.tag-filter-actions button{font-size:12px;padding:5px 7px}
 .card-tags{display:flex;align-items:center;gap:4px;flex-wrap:nowrap;margin:7px 0;min-height:22px}.card-tags .tag-chip{max-width:30%;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.card-tags>span:last-child{font-size:11px}.tag-manager-controls{display:flex;align-items:flex-start;flex-wrap:wrap;gap:12px;margin:12px 0}.tag-manager-controls>form{display:flex;gap:5px;flex-wrap:wrap}.tag-manager-controls input,.tag-manager-controls select,.tag-manager-controls button{padding:6px 9px;font-size:12px}.tag-management-form{max-width:450px;padding:8px 0;font-size:12px}.tag-table{padding:8px;overflow:auto}.tag-table td{overflow-wrap:anywhere}.tag-suggestions li:focus-visible{outline:2px solid var(--accent)}
 @media(max-width:900px){.tag-filter-drawer{position:absolute;left:0;top:0;width:min(275px,90vw);box-shadow:8px 5px 24px #0009;max-height:75vh}.tag-manager-controls>form input{max-width:65vw}}
+
+/* Executive scorecard, scoped to Metrics. */
+.performance-dashboard { min-width: 0; }
+.performance-dashboard h2 { margin: 0 0 14px; font-size: 17px; }
+.performance-header { align-items: end; margin-bottom: 30px; }
+.performance-header h1 { margin-bottom: 8px; }
+.performance-header p, .performance-context { color: var(--muted); font-size: 13px; line-height: 1.6; }
+.performance-period { margin: 0; flex-shrink: 0; }
+.performance-period label { display: block; font-size: 12px; margin-bottom: 6px; color: var(--muted); }
+.performance-period div { display: flex; gap: 8px; }
+.performance-period select, .performance-period button { margin: 0; padding: 8px 12px; font-size: 13px; }
+.performance-scorecards { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 20px; }
+.performance-scorecards .panel { margin-bottom: 0; }
+.performance-scorecards h2 { color: var(--muted); font-size: 14px; }
+.performance-number { display: block; color: var(--accent); font-size: clamp(28px,3vw,42px); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.performance-number small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.performance-number.performance-unavailable { font-size: 24px; color: var(--muted); }
+.performance-scorecards p { margin-bottom: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.performance-output .performance-number, .performance-pipeline .performance-output strong { color: var(--ok); }
+.performance-columns { display: grid; grid-template-columns: minmax(0,2fr) minmax(280px,1fr); gap: 24px; margin-top: 24px; }
+.performance-main, .performance-side { min-width: 0; }
+.performance-table-scroll, .performance-chart-scroll { max-width: 100%; overflow-x: auto; }
+.performance-chart { display: block; width: 100%; min-width: 640px; }
+.performance-chart text { fill: var(--muted); font-size: 14px; }
+.performance-gridline { stroke: var(--line); stroke-width: 1; }
+.performance-area { fill: var(--accent); fill-opacity: .1; }
+.performance-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.performance-point-target { fill: transparent; }
+.performance-point-dot { fill: var(--accent); }
+.performance-point { cursor: pointer; }
+.performance-point:focus-visible { outline: none; }
+.performance-point:hover .performance-point-target, .performance-point:focus-visible .performance-point-target { stroke: var(--accent); stroke-width: 2; }
+.performance-chart-detail { min-height: 22px; font-size: 13px; color: var(--accent); }
+.performance-dashboard summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.performance-dashboard table { min-width: 440px; font-size: 13px; }
+.performance-dashboard th, .performance-dashboard td { padding: 8px 12px; vertical-align: middle; }
+.performance-analysts th:first-child { min-width: 140px; overflow-wrap: anywhere; }
+.performance-analysts td { font-variant-numeric: tabular-nums; }
+.performance-analysts small { color: var(--muted); font-size: 11px; }
+.performance-pipeline, .performance-ages { list-style: none; padding: 0; margin: 20px 0 0; }
+.performance-pipeline li, .performance-ages li div { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.performance-pipeline li { padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.performance-pipeline strong { color: var(--accent); }
+.performance-ages li { margin: 18px 0; font-size: 13px; }
+.performance-ages meter { display: block; width: 100%; height: 10px; margin-top: 7px; }
+.performance-ages meter::-webkit-meter-bar { background: var(--panel-2); border: 0; }
+.performance-ages meter::-webkit-meter-optimum-value { background: var(--accent); }
+.performance-ages meter::-moz-meter-bar { background: var(--accent); }
+.performance-definitions p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+@media(max-width:1100px) { .performance-scorecards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:900px) { .performance-columns { grid-template-columns: minmax(0,1fr); } .performance-side { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; } }
+@media(max-width:600px) { .performance-header { align-items: stretch; flex-direction: column; } .performance-period { width: 100%; } .performance-period select { min-width: 0; flex: 1; } .performance-scorecards, .performance-side { grid-template-columns: minmax(0,1fr); } .performance-dashboard .panel { padding: 18px; } }

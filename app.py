@@ -7,6 +7,7 @@ from report_assets import register_assets
 from analyst_tools import register_tools
 from mip_search import register_search
 from navigation import register_navigation
+from performance_metrics import scorecard, PERIODS
 from references import register_references
 import shutil
 import os
@@ -614,8 +615,10 @@ def metrics_data():
 
 @app.get('/metrics')
 def metrics():
-    users, chart_data = metrics_data()
-    return render_template('metrics.html', metrics_users=users, chart_data=chart_data)
+    period = request.args.get('weeks', '12')
+    if period not in {str(value) for value in PERIODS}:
+        abort(400)
+    return render_template('metrics.html', performance=scorecard(db(), int(period)))
 
 
 def external_reference(form):

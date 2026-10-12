@@ -1073,3 +1073,70 @@ workspace; verify a stale warning after changing its ZIP; try a restricted role;
 check pagination, Clear/Enter, and laptop layout; confirm skipped-file coverage and
 that no source HTML executes. No reverse-proxy route or timeout changes are needed;
 normal search requests do not wait for document extraction.
+
+## Executive Metrics scorecard
+
+METRICS presents **MARE performance overview** with 4, 12 (default), 26, or 52
+full Monday–Sunday weeks. Reporting uses **UTC**, consistent with application
+timestamps; the current partial week is excluded. Legacy timestamps without an
+offset are interpreted as UTC. No server-local timezone or browser timezone is
+used. Changing the period affects activity and comparisons, not current snapshots.
+
+- **MIPs created:** creation timestamps in the selected period, compared with the
+  immediately preceding equal-length period. Missing, malformed, or future
+  creation dates are excluded from activity or aging as appropriate.
+- **MIPs completed:** distinct cases with reliable completion history in the
+  period. The existing history records the stage being exited: the final
+  Packaging & Delivery exit (stage 2, outcome Done, No applicable work, or
+  Deferred), followed by a recorded Reopened event or remaining as the terminal
+  history entry of a currently Completed case, establishes completion. Adjacent
+  legacy stage-2 entries are treated as a run; only the final qualifying exit is
+  used. Completed status alone supplies no event date. Missing/inconsistent
+  history is not backfilled. Deleted cases and their deleted history are absent.
+- **Recompletion:** count at most once per case in each reporting period, using
+  its earliest qualifying completion in that period. A reopened case may count
+  again in a later period. Weekly totals use exactly the same selected events.
+  Completed is a workflow state, not proof of delivery.
+- **In progress:** current Malware Analysis plus Packaging & Delivery cases.
+- **Median cycle time:** elapsed days from creation to the selected completion
+  event. Cases with missing/invalid creation dates or history predating creation
+  (including imports) are excluded from timing, but valid completion events still
+  count as output. The dashboard reports exclusions and valid timing coverage.
+  Differences are in days, rounded to one decimal; unavailable periods are explicit.
+- **Comparisons:** percentage changes use one decimal. A zero prior period and
+  positive activity displays “No prior-period baseline”; two zeros display
+  “No change.” No fabricated historical values are used.
+- **Pipeline and age:** current snapshots across all cases, independent of period.
+  Age is whole elapsed days since creation for all unfinished cases, grouped into
+  0–7, 8–14, 15–30, and 31+ days. Invalid/future dates have unavailable age.
+  These buckets are descriptive, not an SLA or an overdue assessment.
+- **Analyst workload & output:** Created uses the stored creator identifier and
+  selected period; Assigned includes all currently owned cases; In Progress uses
+  current ownership in stages 1–2. Completed is explicitly a **current-owner
+  attribution fallback**, because history has no owner-at-completion identifier.
+  It is not a historical ownership claim or an analyst ranking. Disabled accounts
+  remain visible, deleted creators retain their saved names, and unassigned or
+  missing owners receive explicit rows. Expand the all-time snapshot to see the
+  previous dashboard's all-time creator and current completed-owner counts.
+
+The chart uses lightweight, locally served native SVG and JavaScript rather than
+an external chart service. Hover, keyboard focus, Enter/Space, or touch shows the
+week range and created/completed counts; an expandable weekly table supplies the
+same data without JavaScript. Narrow screens scroll the chart inside its panel to
+keep date labels readable. Aggregation lives in `performance_metrics.py`, uses
+batched read-only queries over existing records, and adds no schema or dependencies.
+The existing API metrics response remains unchanged. The board currently filters
+text and tags, not stages or age; snapshot counts therefore do not link to
+misleading unfiltered board results.
+
+Metrics regression checks:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_performance_metrics.py tests/test_ownership.py tests/test_navigation.py tests/test_api.py
+# Use installed Playwright Chromium, or set MARE_BROWSER_EXECUTABLE to local Chrome.
+node tests/browser/performance-metrics.cjs
+```
+
+The browser test uses an isolated temporary database and checks populated/empty
+scorecards, all reporting periods, long/disabled analysts, desktop/mobile layout,
+chart mouse/keyboard/touch details, local-only requests, and the active METRICS tab.
