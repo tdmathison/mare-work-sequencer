@@ -47,7 +47,7 @@
 </section>
 <div class="case-grid task-grid" id="case-tasks">
     {% for t in tasks %}
-        <article class="panel case-card task-card">
+        <article class="panel case-card task-card" id="task-{{t.id}}">
             <div class="heading">
                 <span class="task-priority priority-{{t.priority|lower}}">{{t.priority}} priority</span>
                 <span class="state task-state-{{t.state|replace(' ','-')|lower}}">{{t.state}}</span>

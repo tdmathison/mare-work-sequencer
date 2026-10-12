@@ -120,7 +120,7 @@
                 </form>
                 
                 {% for n in notes %}
-                    <article class="note">
+                    <article class="note" id="note-{{n.id}}">
                         <h3>{{n.title or 'Note'}}</h3>
                         <small>{{n.author}} · {{n.created}} · {{'Included in MIP' if n.include_export else 'Internal'}}</small>
                         <p>{{n.body}}</p>

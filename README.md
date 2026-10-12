@@ -953,3 +953,123 @@ independent panel scrolling, tab state retention, expanded/restored workspace,
 small laptop layouts, and CyberChef recipes after switching tabs. Confirm existing
 Markdown editing/preview/autosave still works. Clipboard access requires a secure
 browser context; if unavailable, select and copy manually.
+
+## Application-wide MIP Search
+
+The **SEARCH** tab immediately after MIP BOARD searches saved case data and actual
+artifact contents. User and Administrator roles use their existing permissions;
+custom roles need `cases:read`. Files and archives additionally require
+`cases:assets`, with indicator, reference, and report read permissions applied to
+the corresponding content. Case ownership is not a read restriction in the current
+application. Unassociated archives are restricted to administrators.
+
+Search uses case-insensitive literal substrings, retaining punctuation in hashes,
+IPs, domains, URLs, and technical identifiers. Refanged and defanged forms match
+(e.g. `evil.example.com` matches `evil[.]example[.]com`, and `https://` matches
+`hxxps://`). No user regular expressions, AI, URL fetching, or external service is
+involved. Excerpts retain the stored text and are escaped before highlighting.
+
+Search covers case numbers, external references, title, description, creator and
+owner; saved notes; task titles, descriptions, priority and state; indicator
+section titles/descriptions and individual rows; reference rows; artifact
+descriptions; report Markdown sections; filenames and relative paths. Generated
+indicator/reference CSV mirrors are searched by filename while their current
+contents are represented by database rows, avoiding duplicate content findings.
+Unsaved editor content and private note drafts are outside the index.
+
+Readable formats include UTF-8 (with optional BOM) and BOM-marked UTF-16 text:
+CSV, TXT, Markdown, JSON/JSONL, XML, HTML, YAML, Python (including email-safe `.py_`),
+PowerShell, JavaScript/TypeScript, shell/batch/VBS scripts, YARA/signatures, logs,
+configuration files, and other listed source formats. HTML is searched as literal
+source text, never rendered. Word `.docx` paragraphs/tables are extracted with
+python-docx; text PDF pages with pypdf. Install the updated dependencies:
+
+```sh
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+### Stored archives and source previews
+
+Existing Standard/RAW MIP ZIPs are discovered in the configured data directory's
+`archives/` subtree and within current `cases/<id>/mip/` package categories. The
+`archives/` directory is optional and can be populated by an administrator using
+normal filesystem deployment tools; there is no new upload endpoint. MIP ZIP
+exports still stream downloads and **are not automatically retained**. A ZIP
+previously downloaded to an analyst's computer is not searchable on the server.
+Installation backups, imported temporary files, account folders, samples, report
+backups, keys, databases, and private/dot files are not searched.
+
+A single `mare-mip/2.0` manifest identifies Standard or RAW packages and associates
+an archive with a current case using its system case number. Renumbered imported
+cases may leave an archive unassociated. RAW `case-data.json` supplies archived
+case fields, notes, tasks, indicators and references; account/job/history records
+are not indexed. Different retained ZIP versions remain distinct sources within
+their associated case group. ZIP contents are read in memory, never unpacked into
+case folders; nested ZIPs are not recursively searched. DOCX containers are handled
+only by the document parser.
+
+Results group by case/package, with ten whole groups per page. Multiple occurrences
+within a source artifact become one row with a count and up to three excerpts.
+**Open finding** shows read-only extracted content and locations from the exact
+indexed source version, including archived members. **Open case/section** links
+reach the associated workspace; current assets also provide a download link.
+Saved notes/tasks link to their item anchors where possible. The server accepts
+opaque finding IDs and rechecks permissions and source identity. Changed/deleted
+sources produce an explicit stale result; run the search again. Once a refresh
+replaces that version, its previous finding ID expires. A current workspace file
+is never substituted for an archived match.
+
+### Indexing, limits, and coverage
+
+`MARE_DATA_DIR/search-index/index.sqlite3` is derived local data containing readable
+case text. Protect it like the source data. It uses the existing configured data
+location, has restrictive directory/file permissions, and is excluded from
+installation backups. Stop workers and remove `search-index/` to rebuild it; the
+next search repopulates it without modifying source cases or artifacts.
+
+The first search and later invalidations launch a background refresh. Successful
+mutation requests invalidate the index across Gunicorn workers through a shared
+marker; report-job completion also invalidates it. A subsequent search refreshes
+it, and ongoing searches poll during indexing. Independently changed files and
+retained archives are rechecked on searches at most two minutes after the last
+refresh. File identities include device, inode, size, modification and change
+timestamps. Unchanged file extractions are reused, so PDFs and DOCX files are not
+reparsed per query. A process-shared lock serializes refreshes; atomic publication
+retains the previous snapshot during indexing. Results are explicitly incomplete
+while indexing or when limits are reached.
+
+Limits: 16 MiB per extracted file/member; 2 million characters per artifact;
+64 MiB total indexed original text; 40,000 database records; 20,000 file/member
+records; 90 seconds per refresh (plus at most one parser timeout); 4,000 ZIP/DOCX
+members, 128 MiB per ZIP container/declared expansion, and member paths limited to
+2,048 characters/32 components; a 200:1 ZIP compression ratio limit
+for members larger than 1 MiB; PDF limit 500 pages; ten seconds per document
+extraction with an eight-second CPU budget and a 512 MiB address-space cap on
+Linux (macOS enforces time/content limits, but lacks the Linux memory cap).
+Search processing has a five-second result-processing budget; totals are labeled
+partial if reached. Each displayed group is capped at 200 findings; narrow the
+query/filters when that limit is shown. The coverage drawer lists up to 500 skip
+reasons and the total skipped/partial count.
+
+Unsafe member paths, duplicate members, and symlinks reject an entire archive.
+Encrypted, oversized, unsupported, binary, unreadable, and nested artifacts have
+explicit skip/partial reasons; safe member filenames may still be searchable.
+Scanned PDFs with no extractable text are reported as unsupported for content
+search; OCR is out of scope. A parser failure does not imply successful coverage.
+PDF extraction order/layout can differ from its visual page, and Word extraction
+is text-only rather than a reproduction of document formatting.
+
+Validation commands:
+
+```sh
+.venv/bin/python -m pytest -q tests/test_mip_search.py tests/test_archive_modes.py tests/test_backups.py tests/test_case_deletion.py tests/test_ownership.py tests/test_installation_paths.py tests/test_reporting.py
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/mip-search.cjs
+```
+
+Manual checks: run a long search during background indexing; verify metadata,
+indicator rows, report tables and PDF pages; switch category/source/stage filters;
+compare two retained archive versions; open an archived result after changing the
+workspace; verify a stale warning after changing its ZIP; try a restricted role;
+check pagination, Clear/Enter, and laptop layout; confirm skipped-file coverage and
+that no source HTML executes. No reverse-proxy route or timeout changes are needed;
+normal search requests do not wait for document extraction.

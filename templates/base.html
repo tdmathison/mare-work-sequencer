@@ -33,7 +33,7 @@
     </header>
     {% if user %}
     <nav class="admin-nav">
-      <a href="/">MIP BOARD</a><a href="/metrics">METRICS</a>{% if can_tags_read %}<a href="/tags">TAGS</a>{% endif %}<a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
+      <a href="/">MIP BOARD</a>{% if can_mip_search %}<a href="{{url_for('mip_search')}}">SEARCH</a>{% endif %}<a href="/metrics">METRICS</a>{% if can_tags_read %}<a href="/tags">TAGS</a>{% endif %}<a href="{{url_for('tools_workspace')}}">TOOLS</a>{% if
       user.role=='Administrator' %}<a href="/users">USERS</a
       ><a href="/audit">AUDIT</a>{% endif %}<a href="/account">SETTINGS</a
       ><a href="/api">API</a><a href="/import-export">IMPORT &amp; EXPORT</a>

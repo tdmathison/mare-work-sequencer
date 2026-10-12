@@ -5,6 +5,7 @@ from backups import register_backups
 from report_routes import register_reporting
 from report_assets import register_assets
 from analyst_tools import register_tools
+from mip_search import register_search
 from references import register_references
 import shutil
 import os
@@ -1284,6 +1285,8 @@ register_api(app, db, run, case, package, ensure_package, now, audit, allocate_c
              mark_pending, readiness, review_issues, STAGES, safe_path, build_archive, report_helpers, asset_helpers, backup_helpers, metrics_data)
 
 register_tools(app, db)
+
+register_search(app, ROOT, db, CASE_QUERY, STAGES)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)
