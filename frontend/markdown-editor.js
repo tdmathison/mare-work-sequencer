@@ -21,10 +21,13 @@ const theme = EditorView.theme({
   '.cm-content': {padding: '14px 0', caretColor: 'var(--text)'},
   '.cm-line': {padding: '0 14px'},
   '.cm-cursor, .cm-dropCursor': {borderLeftColor: 'var(--accent)'},
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {backgroundColor: 'var(--accent-dim)'},
+  // Match the specificity of CodeMirror's focused dark-theme selection rule.
+  '&.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, &.cm-editor .cm-selectionBackground': {backgroundColor: '#99ff7780'},
   '.cm-gutters': {backgroundColor: 'var(--panel)', color: 'var(--muted)', borderRight: '1px solid var(--line)'},
   '.cm-placeholder': {color: 'var(--muted)'},
-  '.cm-activeLine': {backgroundColor: 'var(--panel-2)'},
+  // Active lines paint above selections. Don't tint the green while text is selected.
+  '.cm-activeLine': {backgroundColor: 'color-mix(in srgb, var(--panel-2) 50%, transparent)'},
+  '&:has(.cm-selectionBackground) .cm-activeLine': {backgroundColor: 'transparent'},
   '.cm-activeLineGutter': {backgroundColor: 'var(--panel-2)', color: 'var(--accent)'},
   '.cm-panels, .cm-tooltip': {backgroundColor: 'var(--panel)', color: 'var(--text)', borderColor: 'var(--line)'},
   '.cm-searchMatch': {backgroundColor: 'var(--accent-dim)', outline: '1px solid var(--accent)'},

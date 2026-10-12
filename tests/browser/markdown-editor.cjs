@@ -128,6 +128,18 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await page.setViewportSize({width:1366,height:900});
  // Regression corpus includes the exact inline/fenced wrap boundaries from the old overlay.
  const long=Array.from({length:700},(_,i)=>`${i} aaa \`bbb\` ${'long wrapped paragraph '.repeat(i%7+1)}`).join('\n')+'\n\n```python\n'+('a'.repeat(35)+'\n').repeat(20)+'```';
+ // Primary selection must match the green occurrence highlight, including on the active line.
+ await setDocument('Testing\ntest\n\nThis is a test\n');
+ await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.setSelection(8,12);e.focus();});
+ await section.locator('.cm-selectionMatch').first().waitFor();await delay(80);
+ const selectionColors=await section.locator('.cm-editor').evaluate(editor=>({
+  primary:getComputedStyle(editor.querySelector('.cm-selectionBackground')).backgroundColor,
+  match:getComputedStyle(editor.querySelector('.cm-selectionMatch')).backgroundColor,
+  active:getComputedStyle(editor.querySelector('.cm-activeLine')).backgroundColor,
+ }));
+ assert.equal(selectionColors.primary,selectionColors.match);
+ assert.match(selectionColors.primary,/^rgba\(153, 255, 119, 0\.5/);
+ assert.equal(selectionColors.active,'rgba(0, 0, 0, 0)');
  await setDocument(long,0);
  await page.keyboard.type('BEGIN '+ 'continuous typing '.repeat(15));assert.ok((await state()).doc.startsWith('BEGIN '));
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.setSelection(Math.floor(e.getValue().length/2));e.focus();});
