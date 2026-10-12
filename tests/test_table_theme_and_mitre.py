@@ -47,3 +47,14 @@ def test_legacy_settings_migration_keeps_template(tmp_path):
     subprocess.run([sys.executable,'-c',"from app import app,db,run,ROOT\nwith app.app_context():\n uid=run(\"INSERT INTO users(username,password,role) VALUES('legacy','hash','User')\").lastrowid\n run(\"CREATE TABLE ai_settings(user_id INTEGER PRIMARY KEY,key_cipher TEXT,model TEXT,template_id TEXT)\")\n run(\"INSERT INTO ai_settings VALUES(?,?,?,?)\",(uid,'encrypted-key','legacy-model','selected-template'))\n (ROOT/'api-keys.key').write_text('legacy key')"],env=env,check=True,capture_output=True)
     result=subprocess.run([sys.executable,'-c',"import json\nfrom app import app,db,ROOT\nwith app.app_context():\n print(json.dumps({'template':db().execute('SELECT template_id FROM report_settings').fetchone()[0],'ai_table':bool(db().execute(\"SELECT 1 FROM sqlite_master WHERE name='ai_settings'\").fetchone()),'key_exists':(ROOT/'api-keys.key').exists()}))"],env=env,check=True,capture_output=True,text=True)
     assert json.loads(result.stdout)=={'template':'selected-template','ai_table':False,'key_exists':False}
+
+
+def test_table_nbsp_spacer_in_preview_and_word():
+    from markdown_support import markdown_parser
+    from reporting import add_markdown
+    text='| Example |\n| --- |\n| example content |\n\n&nbsp;\n\nThis is a line after the table.'
+    assert '</table>\n<p>\u00a0</p>\n<p>This is a line after the table.</p>' in markdown_parser().render(text)
+    document=Document()
+    elements=add_markdown(document,text)
+    assert [element.tag for element in elements]==[qn('w:tbl'),qn('w:p'),qn('w:p')]
+    assert [paragraph.text for paragraph in document.paragraphs]==['\u00a0','This is a line after the table.']

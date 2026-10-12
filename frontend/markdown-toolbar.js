@@ -129,7 +129,7 @@ export function mountToolbar(editor) {
     if (!Number.isInteger(columns) || columns < 1 || columns > 20 || !Number.isInteger(rows) || rows < 1 || rows > 100) { tableError.textContent = 'Choose 1–20 columns and 1–100 body rows.'; return; }
     editor.view.dispatch({selection: tableSelection});
     const values = [Array.from({length:columns},(_,i)=>'Column'+(i+1)),...Array.from({length:rows},()=>Array(columns).fill(''))];
-    table.close(); insertBlock(editor,tableMarkdown(values),{header:true});
+    table.close(); insertBlock(editor,tableMarkdown(values),{header:true,tableSpacer:true});
   });
   cancel.addEventListener('click',()=>table.close());
   table.addEventListener('close',()=>editor.focus());
@@ -148,7 +148,7 @@ export function mountToolbar(editor) {
   convert.addEventListener('click',()=>{
     const result = pastedTable(clipboardHTML || input.value, clipboardPlain || input.value);
     if (!result) { error.textContent = 'Paste an HTML table or tab-delimited table text.'; return; }
-    editor.view.dispatch({selection:pasteSelection}); paste.close(); insertBlock(editor,result,{afterBlock:true});
+    editor.view.dispatch({selection:pasteSelection}); paste.close(); insertBlock(editor,result,{afterBlock:true,tableSpacer:true});
   });
   close.addEventListener('click',()=>paste.close()); paste.addEventListener('close',()=>editor.focus());
   // Capture Escape before expanded-workspace handlers, but leave CM search alone.

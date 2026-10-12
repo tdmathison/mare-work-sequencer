@@ -239,7 +239,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await setDocument('BeforeAfter',6);
  await section.locator('.markdown-menu').nth(1).locator('summary').click();await section.locator('[data-md=table]').click();
  await section.locator('[data-table-size=columns]').fill('3');await section.locator('[data-table-size=rows]').fill('2');await section.locator('[data-table-create]').click();
- assert.equal((await state()).doc,'Before\n\n| Column1 | Column2 | Column3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\nAfter');
+ assert.equal((await state()).doc,'Before\n\n| Column1 | Column2 | Column3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n\n&nbsp;\n\nAfter');
  assert.equal((await state()).selection.head,10);
  await page.keyboard.press(process.platform==='darwin'?'Meta+z':'Control+z');assert.equal((await state()).doc,'BeforeAfter');
  await page.keyboard.press(process.platform==='darwin'?'Meta+Shift+z':'Control+Shift+z');assert.ok((await state()).doc.includes('| Column1 |'));
@@ -254,6 +254,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await section.locator('.markdown-table-input').fill('<table><tr><th>A</th><th>B</th></tr><tr><td>x</td><td>y</td></tr></table>');
  await section.locator('[data-html-table-convert]').click();assert.ok((await state()).doc.includes('| A | B |'));
  assert.equal(await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);const line=e.view.state.doc.lineAt(e.selection().head);return line.text;}),'','Paste Table caret must land on a blank line after the table');
+ assert.match((await state()).doc,/\|[^\n]*\|\n\n&nbsp;\n\n/,'Paste Table must add a separate nonbreaking-space paragraph');
 
  // Clipboard HTML wins over misleading TSV, and only extracted text is inserted.
  await page.locator(source).evaluate(area=>{const e=window.MareEditors.get(area);e.setSelection(e.getValue().length);});
