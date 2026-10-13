@@ -15,6 +15,7 @@ from indicators import load_table, validate_sections, DEFAULT_COLUMNS
 from references import load_references
 from reporting import SECTIONS, is_backup
 from mip import CATEGORIES
+from zip_metadata import copied_info, generated_info, restore_mtime
 SCHEMA = 'mare-case-backup/1'
 MAX_TOTAL = 2*1024**3
 MAX_FILE = 256*1024**2
@@ -200,14 +201,14 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                             continue
                         rel = info.filename[len(name)+1:]
                         destination = name+'/'+renamed.get(rel, rel)
-                        with source.open(info) as src, target.open(destination, 'w') as dst:
+                        with source.open(info) as src, target.open(copied_info(info, destination), 'w') as dst:
                             shutil.copyfileobj(src, dst)
                     for item in manifest['files']:
                         item['path'] = renamed.get(item['path'], item['path'])
-                    target.writestr(name+'/case-data.json', data)
+                    target.writestr(generated_info(name+'/case-data.json'), data)
                     manifest['files'].append(
                         {'path': 'case-data.json', 'sha256': hashlib.sha256(data).hexdigest(), 'size': len(data)})
-                    target.writestr(name+'/manifest.json',
+                    target.writestr(generated_info(name+'/manifest.json'),
                                     json_bytes(manifest))
             if out.tell() > MAX_FILE:
                 raise ValueError(
@@ -314,7 +315,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                         path = f'cases/{cid}.zip'
                         digest = hashlib.sha256()
                         length = 0
-                        with outer.open(path, 'w') as destination:
+                        with outer.open(generated_info(path, zipfile.ZIP_STORED), 'w') as destination:
                             while chunk := inner.read(1024**2):
                                 destination.write(chunk)
                                 digest.update(chunk)
@@ -326,7 +327,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                             {'path': path, 'size': length, 'sha256': digest.hexdigest()})
                     finally:
                         inner.close()
-                outer.writestr('backup.json', json_bytes(index))
+                outer.writestr(generated_info('backup.json', zipfile.ZIP_STORED), json_bytes(index))
             if out.tell() > 1024**3:
                 raise ValueError('Backup exceeds the 1 GiB upload limit.')
             out.seek(0)
@@ -427,6 +428,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                                 declared[rel] = item
                             folder = temporary/f'case-{n}'/'mip'
                             folder.mkdir(parents=True)
+                            directories = []
                             for filename, info in files.items():
                                 parts = safe_name(filename)
                                 if parts[0] != prefix or len(parts) < 2:
@@ -440,6 +442,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                                     raise ValueError(
                                         'Package categories must be directories.')
                                 if info.is_dir():
+                                    (folder/rel).mkdir(parents=True, exist_ok=True)
+                                    directories.append((folder/rel, info))
                                     continue
                                 if rel == 'manifest.json':
                                     continue
@@ -459,6 +463,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                                 if digest.hexdigest() != declared[rel]['sha256'] or size != declared[rel]['size']:
                                     raise ValueError(
                                         'RAW package file checksum failed.')
+                                restore_mtime(destination, info)
                             if actual != set(declared):
                                 raise ValueError('Missing RAW package file.')
                             meta = read_json(archive, prefix+'/case-data.json')
@@ -487,6 +492,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                                 (folder/generated).unlink(missing_ok=True)
                             for category in CATEGORIES:
                                 (folder/category).mkdir(exist_ok=True)
+                            for directory, info in sorted(directories, key=lambda item: len(item[0].parts), reverse=True):
+                                restore_mtime(directory, info)
                             plans.append((folder.parent, validated))
                 connection.execute('BEGIN IMMEDIATE')
                 restore_tags(connection, tag_catalog)

@@ -8,6 +8,7 @@ from analyst_tools import register_tools
 from mip_search import register_search
 from navigation import register_navigation
 from performance_metrics import scorecard, PERIODS
+from zip_metadata import source_info, generated_info
 from references import register_references
 import shutil
 import os
@@ -1117,11 +1118,13 @@ def build_archive(cid, archive_type, include_samples=False):
     out = tempfile.SpooledTemporaryFile(max_size=8*1024*1024)
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
         for folder in CATEGORIES:
-            z.writestr(name+'/'+folder+'/', b'')
+            directory = root/folder
+            z.writestr(source_info(directory, name+'/'+folder+'/') if directory.is_dir() else generated_info(name+'/'+folder+'/'), b'')
         for rel, content in contents.items():
             digest = hashlib.sha256()
             size = 0
-            with z.open(name+'/'+rel, 'w') as destination:
+            info = source_info(content, name+'/'+rel) if isinstance(content, Path) else generated_info(name+'/'+rel)
+            with z.open(info, 'w') as destination:
                 if isinstance(content, Path):
                     with content.open('rb') as source:
                         while True:
@@ -1137,7 +1140,7 @@ def build_archive(cid, archive_type, include_samples=False):
                     size = len(content)
             manifest['files'].append(
                 {'path': rel, 'sha256': digest.hexdigest(), 'size': size})
-        z.writestr(name+'/manifest.json', json.dumps(manifest, indent=2))
+        z.writestr(generated_info(name+'/manifest.json'), json.dumps(manifest, indent=2))
     out.seek(0)
     return out, name
 
