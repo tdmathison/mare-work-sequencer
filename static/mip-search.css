@@ -14,3 +14,12 @@
 .search-preview { white-space:pre-wrap; overflow-wrap:anywhere; max-height:70vh; overflow:auto; background:var(--panel-2); padding:16px; }
 #search-pagination { display:flex; gap:12px; align-items:center; margin:16px 0; }
 #mip-search-results .panel { margin-top:16px; }
+
+.mip-search .search-fold-controls{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.mip-search .search-fold-controls button{margin:0;padding:6px 10px;font-size:12px;background:transparent;color:var(--accent);border-color:var(--line)}
+.mip-search .search-fold-controls button:disabled{opacity:.4;cursor:default}
+.mip-search .search-group-header{display:flex;align-items:center;gap:10px;min-width:0}
+.mip-search .search-group-header h2{margin:0;overflow-wrap:anywhere}
+.mip-search .search-group-toggle{flex:0 0 28px;margin:0;padding:2px;min-height:28px;background:transparent;color:var(--accent);border:1px solid var(--line);font-size:18px;line-height:1}
+.mip-search .search-group-toggle:hover{border-color:var(--accent)}
+.mip-search .search-table-wrap[hidden]{display:none}
