@@ -90,6 +90,18 @@ def test_source_timestamps_standard_raw_backup_and_restore():
         for info in archive.infolist():
             assert info.date_time[0] == time.localtime().tm_year
             assert info.compress_type == zipfile.ZIP_STORED
+            assert abs(time.mktime((*info.date_time, 0, 0, -1)) - time.time()) < 60
+    assert (
+        post(
+            "/import-export/import", backup=(io.BytesIO(full.data), "full.zip")
+        ).status_code
+        == 302
+    )
+    with app.app_context():
+        restored = db().execute("SELECT max(id) FROM cases").fetchone()[0]
+        assert (
+            abs((package(restored) / "scripts/decode.py").stat().st_mtime - MTIME) <= 2
+        )
 
 
 def test_copy_does_not_mutate_source_and_preserves_attributes():

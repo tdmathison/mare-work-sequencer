@@ -1140,3 +1140,31 @@ node tests/browser/performance-metrics.cjs
 The browser test uses an isolated temporary database and checks populated/empty
 scorecards, all reporting periods, long/disabled analysts, desktop/mobile layout,
 chart mouse/keyboard/touch details, local-only requests, and the active METRICS tab.
+
+## ZIP modification timestamps
+
+Standard/RAW MIP exports and case backups preserve source-file modification times
+while streaming content and calculating the existing SHA-256 checksums. Repackaging
+copies entry timestamps, compression, and file/directory attributes; email-safe
+`.py` → `_py.txt` renaming does not change modification times. Generated README,
+notes, manifests, case metadata, backup indexes, and nested case ZIP entries use
+export-generation time. Real category directories preserve their modification
+times; generated directories receive current timestamps.
+
+ZIP's standard timestamp stores **modification time only**, has two-second
+precision, and contains no timezone. Conversion consistently uses the deployment
+host's local timezone (including its `TZ` configuration) for writing and restoring.
+Use the same timezone on export and restore hosts; configuring both to UTC avoids
+DST ambiguity. ZIP alone cannot identify the original timezone or distinguish
+ambiguous DST times. Valid source dates are retained; dates before 1980 or after
+2107 are clamped to ZIP's minimum or maximum date without crashing.
+
+RAW/full-case imports restore artifact and represented directory modification
+times after checksum validation in the staging directory. Renaming Python files
+and moving the directory preserve these times. Imports reject timestamp application
+for invalid calendar dates, dates beyond ZIP's range, dates over 24 hours in the
+future, or the exact legacy default `1980-01-01 00:00:00`; those files retain their
+extraction-time modification date. Unsupported filesystem timestamp operations
+are safely skipped. Original dates for legacy entries containing the 1980 default
+cannot be recovered from the ZIP alone. Case creation dates, stage history, and
+account metadata follow their existing import behavior unchanged.

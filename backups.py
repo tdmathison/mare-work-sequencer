@@ -267,7 +267,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 finally:
                     source.close()
                     destination.close()
-                with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
+                with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as archive:
                     archive.write(snapshot, 'data/workflow.sqlite3')
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
