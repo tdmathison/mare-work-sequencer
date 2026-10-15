@@ -1,5 +1,7 @@
 # Latest update
 
+- Grouped synchronization review by proposed action with accessible folding, restrained action badges, original classification counts, and a separate live planned-outcome summary. Preserved indexed decisions through folding, added replacement warnings and legacy-link validation, and distinguished actual completion/failure outcomes from plans.
+
 - Fixed streamed ZIP entries defaulting to 1980: Standard/RAW exports and backups now preserve source modification timestamps, compression, and attributes through independent metadata copies and Python filename conversion. Generated entries use generation time; validated restores retain safe artifact/directory times. Documented local timezone, two-second precision, range clamping, and unrecoverable legacy dates; added archive/restore regressions.
 
 - Redesigned METRICS as an executive scorecard with UTC full-week reporting, truthful period comparisons, distinct historical completion output and cycle times, an accessible local SVG activity chart, current pipeline and unfinished age buckets, and explicitly labeled current-owner analyst attribution. Preserved all-time snapshots and API metrics; added data-coverage notes and server/browser regressions without schema changes or dependencies.

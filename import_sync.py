@@ -22,6 +22,7 @@ from case_sync import (
     synchronized_file,
 )
 from tagging import restore as restore_tags
+from sync_review import decision_model, review_context
 
 TTL = 3600
 
@@ -420,6 +421,7 @@ class ImportSync:
             )
         return render_template(
             "import_review.html",
+            **review_context(plan, outcomes),
             operation=operation,
             items=items,
             outcomes=outcomes,
@@ -584,11 +586,9 @@ class ImportSync:
             durable_json(journal, data)
 
     def apply_one(self, operation, index, item, decision, ownership, target):
-        if decision not in ("", "keep", "replace", "new", "link") or ownership not in (
-            "local",
-            "incoming",
-        ):
-            raise ValueError("Invalid conflict or ownership decision.")
+        planned_action = decision_model(
+            item['preview']['classification'], decision, ownership, target, validate_target=False
+        )
         preview = item["preview"]
         classification = preview["classification"]
         outcome = {
@@ -605,7 +605,7 @@ class ImportSync:
             "reason": preview["reason"],
             "recovery": None,
         }
-        if classification == "invalid":
+        if planned_action == "invalid":
             outcome.update(action="Invalid/failed")
             return outcome
         if classification in ("conflict", "review") and decision not in (
@@ -636,8 +636,7 @@ class ImportSync:
         nodes = validate_graph(source, preview["fingerprint"]) if source else {}
         cid = preview["destination_id"]
         if classification == "review" and decision == "link":
-            if not target or not str(target).isdigit():
-                raise ValueError("Choose a destination for legacy linking.")
+            decision_model(classification, decision, ownership, target)
             cid = int(target)
             self.describe_local(preview, cid, incoming)
             state = self.sync.reconcile(cid)
@@ -674,7 +673,7 @@ class ImportSync:
         if classification == "older":
             outcome.update(action="Skipped older")
             return outcome
-        if decision == "keep":
+        if planned_action == "kept":
             outcome.update(action="Kept local")
             return outcome
         if source and cid and classification == "conflict" and decision != "replace":

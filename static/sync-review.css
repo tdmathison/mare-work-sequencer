@@ -1,0 +1,37 @@
+/* Case synchronization review only; primary actions retain MARE gold. */
+.sync-review{min-width:0}
+.sync-review .sync-action-new{--sync-color:var(--ok);--sync-tint:rgba(110,207,147,.09)}
+.sync-review .sync-action-update{--sync-color:#68b8d5;--sync-tint:rgba(104,184,213,.09)}
+.sync-review .sync-action-review{--sync-color:var(--accent);--sync-tint:rgba(217,174,88,.09)}
+.sync-review .sync-action-unchanged{--sync-color:var(--muted);--sync-tint:rgba(135,148,163,.09)}
+.sync-review .sync-action-older{--sync-color:var(--muted);--sync-tint:rgba(135,148,163,.04)}
+.sync-review .sync-action-invalid{--sync-color:var(--danger);--sync-tint:rgba(214,108,98,.09)}
+.sync-review .sync-section-title{font-size:15px;margin:22px 0 12px}
+.sync-review .sync-counts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.sync-review .sync-badge{display:inline-flex;align-items:center;gap:8px;padding:3px 7px;border-radius:4px;background:var(--sync-tint);color:var(--sync-color);font-size:12px;font-weight:650;line-height:1.5}
+.sync-review .sync-fold-controls{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.sync-review .sync-fold-controls button{margin:0;padding:6px 10px;background:transparent;color:var(--accent);border-color:var(--line);font-size:12px}
+.sync-review button:disabled{opacity:.4;cursor:default}
+.sync-review .sync-action-group{border:1px solid var(--line);margin-bottom:16px;min-width:0}
+.sync-review .sync-group-heading{margin:0;font-size:15px;border-left:3px solid var(--sync-color);background:var(--sync-tint)}
+.sync-review .sync-group-heading button{display:flex;align-items:center;gap:10px;width:100%;margin:0;padding:12px;border:0;background:transparent;color:var(--sync-color);text-align:left;font:inherit;letter-spacing:normal}
+.sync-review .sync-group-count{margin-left:auto;font-size:12px;white-space:nowrap}
+.sync-review [data-sync-panel][hidden],.sync-review [data-sync-replacement][hidden]{display:none}
+.sync-review table{min-width:960px;table-layout:fixed;font-size:13px}
+.sync-review th:nth-child(1){width:22%}.sync-review th:nth-child(2),.sync-review th:nth-child(3){width:13%}.sync-review th:nth-child(4){width:28%}.sync-review th:nth-child(5){width:24%}
+.sync-review th,.sync-review td{padding:12px;vertical-align:top;overflow-wrap:anywhere}
+.sync-review td p{font-size:12px;line-height:1.5}
+.sync-review td select{width:100%;min-width:0;padding:7px;font-size:12px}
+.sync-review td label{font-size:12px;margin-bottom:10px}
+.sync-review .sync-classification{font-size:11px;color:var(--muted)}
+.sync-review .sync-effective-action{font-weight:650}
+.sync-review [data-effective-action="unresolved"]{color:var(--accent)}
+.sync-review [data-effective-action="replacement"],.sync-review .sync-replacement-warning{color:var(--danger)}
+.sync-review .sync-replacement-warning{border-left:2px solid var(--danger);padding-left:8px}
+.sync-review .sync-outcomes ul{list-style:none;padding:0}
+.sync-review .sync-outcomes li{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.sync-review .sync-outcomes li small{color:var(--muted)}
+.sync-review .sync-apply-summary{margin:24px 0;padding:20px;border:1px solid var(--line);background:var(--panel)}
+.sync-review .sync-apply-summary h2{font-size:17px;margin-top:0}
+.sync-review .sync-apply-summary li{overflow-wrap:anywhere;font-size:13px;margin:8px 0}
+@media(max-width:600px){.sync-review .sync-apply-summary{padding:12px}.sync-review .sync-group-heading button{padding:10px}.sync-review .sync-outcomes{padding:16px}}
