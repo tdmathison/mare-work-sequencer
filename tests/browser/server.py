@@ -37,4 +37,8 @@ def editor_fixture():
     return dict(cid=cid, task_id=task_id, initial=initial, template=str(template_path), paragraphs=paragraphs, inline_shapes=inline_shapes)
 
 if __name__ == '__main__':
+    if os.environ.get('MARE_EDITOR_TEST_SCRIPT_PREFIX'):
+        from werkzeug.middleware.dispatcher import DispatcherMiddleware
+        original = app.wsgi_app
+        app.wsgi_app = DispatcherMiddleware(original, {os.environ['MARE_EDITOR_TEST_SCRIPT_PREFIX']: original})
     app.run(host='127.0.0.1', port=int(os.environ['MARE_EDITOR_TEST_PORT']), use_reloader=False)

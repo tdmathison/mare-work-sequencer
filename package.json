@@ -4,11 +4,14 @@
   "version": "1.0.0",
   "scripts": {
     "build:editors": "esbuild frontend/markdown-editor.js --bundle --minify --format=iife --target=es2020 --outfile=static/vendor/codemirror/markdown-editor.js --legal-comments=external && esbuild frontend/text-worker.js --bundle --minify --format=iife --target=es2020 --outfile=static/text-worker.js && node frontend/build-notices.cjs",
-    "test:editors": "node tests/browser/markdown-editor.cjs"
+    "test:editors": "node tests/browser/markdown-editor.cjs",
+    "build:api-docs": "node frontend/build-api-docs.cjs",
+    "test:api-docs": "node tests/browser/api-documentation.cjs"
   },
   "dependencies": {
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
     "@codemirror/language": "6.13.1",
     "@codemirror/language-data": "6.5.2",
     "@codemirror/search": "6.7.2",
@@ -17,8 +20,10 @@
     "@lezer/highlight": "1.2.5"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "12.1.0",
     "esbuild": "0.28.2",
-    "playwright": "1.64.0"
+    "playwright": "1.64.0",
+    "swagger-ui-dist": "5.33.3"
   },
   "engines": {
     "node": ">=20"

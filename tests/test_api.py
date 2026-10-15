@@ -174,11 +174,11 @@ def test_api_page_lists_endpoints_and_tokens(admin):
     with client.session_transaction() as s:
         s.update(uid=admin[0], version=1, csrf='t')
     page = client.get('/api').data
-    assert b'/cases/&lt;int:case_id&gt;/report/final' in page or b'/cases/<int:case_id>/report/final' in page
+    assert b'Interactive API reference' in page and b'/api/openapi.json' in page
     assert b'import requests' in page and b'href="/api"' in page
     response = client.post('/account/api-tokens', data={'csrf': 't', 'name': 'ui', 'expires_in_days': '7'})
     assert response.status_code == 302 and response.headers['Location'].endswith('/api#api-tokens')
-    assert b'Copy this token now' in client.get('/api').data
+    assert b'Reveal new token once' in client.get('/api').data
     assert b'api-tokens' not in client.get('/account').data
 
 

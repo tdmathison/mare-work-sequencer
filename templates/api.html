@@ -1,4 +1,9 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<link rel="stylesheet" href="{{url_for('static', filename='vendor/swagger-ui/swagger-ui.css')}}" />
+<link rel="stylesheet" href="{{url_for('static', filename='api-documentation.css')}}" />
+<script defer src="{{url_for('static', filename='vendor/swagger-ui/swagger-ui-bundle.js')}}"></script>
+<script defer src="{{url_for('static', filename='api-documentation.js')}}"></script>
+<div class="api-workspace" data-api-documentation data-spec-url="{{url_for('api_openapi')}}">
 <h1>API</h1>
 <br />
 <section class="panel" id="api-tokens">
@@ -7,12 +12,13 @@
     Tokens grant API access using your current role permissions. The secret is
     shown once; store it securely.
   </p>
-  {% if new_api_token %}
-  <p class="dangerous-sample-export">
-    <strong>Copy this token now:</strong> <code>{{new_api_token}}</code>
-  </p>
+  {% if has_new_api_token %}
+  <div class="dangerous-sample-export" data-new-token data-reveal-url="{{url_for('reveal_account_api_token')}}">
+    <button type="button" data-reveal-token>Reveal new token once</button>
+    <span role="status" data-token-status></span><code data-token-secret></code>
+  </div>
   {% endif %}
-  <form method="post" action="/account/api-tokens">
+  <form method="post" action="{{url_for('create_account_api_token')}}">
     {{token(csrf)}}<label
       >Token name<input name="name" maxlength="80" required /></label
     ><label
@@ -52,7 +58,7 @@
           </td>
           <td>
             {% if not item.revoked %}
-            <form method="post" action="/account/api-tokens/{{item.id}}/revoke">
+            <form method="post" action="{{url_for('revoke_account_api_token', token_id=item.id)}}">
               {{token(csrf)}}<button>Revoke</button>
             </form>
             {% endif %}
@@ -65,50 +71,34 @@
   {% endif %}
 </section>
 
-<section class="panel">
-  <h2>Available endpoints</h2>
-  <p class="muted">
-    All paths are relative to <code>/api/v1</code>. The permission column is the
-    role permission required for that method.
-  </p>
-  {% for group,items in endpoint_groups.items() %}
-  <h3>{{group}}</h3>
-  <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Method</th>
-          <th>Path</th>
-          <th>Permission</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-        <tr>
-          <td><code>{{item.method}}</code></td>
-          <td><code>{{item.path}}</code></td>
-          <td>{{item.permission}}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% endfor %}
+<section class="panel api-reference" aria-labelledby="api-reference-title">
+  <h2 id="api-reference-title">Interactive API reference</h2>
+  <p>Use <strong>Authorize</strong> to enter a bearer token, then <strong>Try it out</strong> and <strong>Execute</strong> on an operation.
+    Credentials stay in memory for this page only. Logout or session expiry blocks further execution.</p>
+  <p class="dangerous-sample-export"><strong>Live application data:</strong> write and delete operations change real cases, accounts, and settings.
+    Use isolated test data. Backup downloads can contain sensitive material. Review every request before executing.</p>
+  <p><a href="{{url_for('api_openapi')}}">Raw OpenAPI specification (JSON)</a></p>
+  <p role="status" data-api-status>Loading local API documentation…</p>
+  <div id="swagger-ui"></div>
+  <noscript>Enable JavaScript for interactive documentation. The raw specification remains available above.</noscript>
 </section>
 
 <section class="panel">
   <h2>Using the API from Python 3</h2>
   <p class="muted">
-    Base URL: <code>{{request.host_url}}api/v1</code>. Send the token as
+    Base URL: <code>{{url_for('api.me', _external=True)[:-3]}}</code>. Send the token as
     <code>Authorization: Bearer &lt;token&gt;</code>. Responses are JSON and
     errors look like <code>{"error": "..."}</code>. List endpoints accept
     <code>limit</code> (max 500) and <code>offset</code>. Install the client
     library with <code>python3 -m pip install requests</code>.
   </p>
-  <pre><code>import os
+  <button type="button" data-copy-python>Copy code</button>
+  <span role="status" data-copy-status></span>
+  <div class="api-python-example">
+  <textarea readonly aria-label="Python API example" data-python-example spellcheck="false">import os
 import requests
 
-BASE = "{{request.host_url}}api/v1"
+BASE = "{{url_for('api.me', _external=True)[:-3]}}"
 session = requests.Session()
 session.headers["Authorization"] = "Bearer " + os.environ["MARE_TOKEN"]
 # session.verify = "/path/to/ca.pem"   # for an internal certificate authority
@@ -152,8 +142,9 @@ with open("template.docx", "rb") as handle:
     check(session.post(f"{BASE}/templates", files={"template": handle}))
 
 # Save report sections, then generate the Word report and wait for the job
-check(session.put(f"{BASE}/cases/{case_id}/report", json={"sections": {"executive_summary": "Summary text"}}))
-check(session.post(f"{BASE}/cases/{case_id}/report/generate", json={"previous": "overwrite"}))
+sections = {"executive_summary": "Summary text"}
+check(session.put(f"{BASE}/cases/{case_id}/report", json={"sections": sections}))
+check(session.post(f"{BASE}/cases/{case_id}/report/generate", json={"previous": "overwrite", "sections": sections}))
 import time
 while True:
     job = session.get(f"{BASE}/cases/{case_id}/report/job").json()["job"]
@@ -174,7 +165,8 @@ with open("mip.zip", "wb") as out:
 
 # Back up every case
 with open("all-cases.zip", "wb") as out:
-    out.write(check(session.post(f"{BASE}/backups/export")).content)</code></pre>
+    out.write(check(session.post(f"{BASE}/backups/export")).content)</textarea>
+  </div>
   <p class="muted">
     Case-changing calls follow the same rules as the web interface: an active
     owner is required, and content cannot be edited while a case is Not started
@@ -184,4 +176,5 @@ with open("all-cases.zip", "wb") as out:
   </p>
 </section>
 
+</div>
 {% endblock %}

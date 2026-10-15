@@ -241,7 +241,7 @@ Stop the service before renaming or moving the installation. Keep the complete e
 
 ## REST API
 
-Create a bearer token in Settings (or `POST /api/v1/tokens`) and send `Authorization: Bearer <token>`. Tokens act as their owner, are shown once, can be revoked, and may expire (`expires_in_days`, 1-3650). Each token is limited to 600 requests per minute per process (override with `MARE_API_RATE_LIMIT`; `0` disables). Accounts with a forced password change cannot use the API. Errors are JSON: `{"error": "..."}`. List endpoints accept `limit` (max 500) and `offset` and return `total`.
+Create a bearer token in the API tab (or `POST /api/v1/tokens`) and send `Authorization: Bearer <token>`. Tokens act as their owner, are shown once, can be revoked, and may expire (`expires_in_days`, 1-3650). Each token is limited to 600 requests per minute per process (override with `MARE_API_RATE_LIMIT`; `0` disables). Accounts with a forced password change cannot use the API. Errors are JSON: `{"error": "..."}`. List endpoints accept `limit` (max 500) and `offset` and return `total`.
 
 Each endpoint requires a role permission (see `GET /api/v1/permissions`). New permissions: `metrics:read` and `templates:manage` (both granted to the User role), plus the existing `backups:manage` and `audit:read`.
 
@@ -1168,3 +1168,90 @@ extraction-time modification date. Unsupported filesystem timestamp operations
 are safely skipped. Original dates for legacy entries containing the 1980 default
 cannot be recovered from the ZIP alone. Case creation dates, stage history, and
 account metadata follow their existing import behavior unchanged.
+
+## Interactive API documentation
+
+Open **API → Interactive API reference** while signed in. Swagger UI lists the
+implemented public `/api/v1` operations, schemas, required role permissions,
+uploads, downloads, and error responses. The **Raw OpenAPI specification (JSON)**
+link serves `/api/openapi.json` under the same web-session protection as the API
+tab. Internal Workbench JSON routes are not public APIs.
+
+Create a bearer token using the existing token controls. Choose **Reveal new
+token once**, copy it to secure storage, then use Swagger's **Authorize** control
+and enter only the secret (without `Bearer `). Revelation uses the existing web
+session and CSRF protection; the secret is not embedded in the initial HTML or
+specification and is never automatically supplied to Swagger. Authorizations
+remain in memory only, are cleared when leaving the page, and are not stored in
+local/session storage. Each Execute checks the current web session first, so a
+logged-out or expired documentation session cannot continue executing requests.
+External API clients still use bearer authentication independently of the web
+session; logout does not revoke tokens. Revoke them explicitly when appropriate.
+
+Expand an operation, select **Try it out**, enter parameters/body or choose a
+file, then **Execute**. Inspect the actual status, headers, response body, and
+file download link. Nothing runs automatically. **Writes and deletes affect real
+application data**: use isolated test cases, review identifiers, and respect
+existing permissions, workflow/revision checks, sample-export acknowledgements,
+and report-replacement choices. A successful request status is not a guarantee
+that every staged backup case applied: inspect individual synchronization
+outcomes. The database/installation backup additionally requires the built-in
+Administrator role. Tokens, passwords, uploaded material and API responses are
+sensitive; do not share screenshots or copied requests containing credentials.
+
+The existing Python workflow remains at the bottom, displayed by the shared
+CodeMirror 6 bundle with Python highlighting, line numbers, horizontal scrolling,
+and read-only selection/copy. **Copy code** copies only the original code. It
+uses `MARE_TOKEN` from the environment, never a rendered secret. Clipboard access
+requires a secure browser context (HTTPS or localhost); select/copy directly if
+browser policy prevents the button from using the clipboard.
+
+Swagger UI **5.33.3** is pinned in `package-lock.json`; official compiled assets
+are committed under `static/vendor/swagger-ui/` with Apache-2.0 LICENSE/NOTICE and
+origin information. No Node.js or downloads are needed at Flask startup or in
+production. Reproduce assets at build time with Node.js 20+:
+
+```sh
+npm ci
+npm run build:api-docs
+npm run build:editors
+```
+
+The initial `npm ci` requires access to the configured npm registry (or a populated
+offline cache). Runtime documentation uses only local assets and same-origin
+requests. The external validator and query-string configuration are disabled.
+The relative server URL includes Flask's `SCRIPT_NAME`; a proxy mounting the app
+under a prefix must configure the WSGI script root correctly. No CORS, CSRF or
+existing Content Security Policy settings are weakened. If adding a stricter CSP
+at the proxy, verify Swagger/CodeMirror's runtime style elements and Swagger's
+local blob-based downloads with that policy; do not allow broad external hosts
+or unsafe script execution. Missing assets or an unavailable session/spec show
+an actionable loading message. Check `/api/openapi.json`, browser console/network
+errors, installed asset paths, proxy prefix/HTTPS forwarding, and login state.
+
+Maintain contracts in `api_documentation.py`, separate from presentation code.
+The builder derives paths/methods and permission metadata from registered public
+Flask routes; request/response schemas and operational descriptions are explicit.
+When editing an API, update its contract and response examples/constraints too.
+The coverage test fails for missing or obsolete contracts and mismatched methods,
+paths, parameter names or permissions. Fields returned from extensible storage
+records allow additional properties; this is not a generated client SDK contract.
+To update Swagger, pin a reviewed `swagger-ui-dist` version, rebuild local assets,
+retain licensing, and verify scoped overrides in `static/api-documentation.css`.
+Python examples reuse `frontend/python-example.js` and the existing MARE theme.
+
+```sh
+.venv/bin/python -m pytest -q tests/test_api_documentation.py tests/test_api.py tests/test_navigation.py
+npm run test:api-docs
+# Optional installed Chrome instead of Playwright's Chromium:
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npm run test:api-docs
+```
+
+The focused tests validate OpenAPI 3.0.3 using pinned Swagger Parser with external
+reference resolution disabled. The browser test creates a temporary database,
+executes GET/write/upload/download/error requests, verifies session gating,
+checks local-only loading and narrow layouts, and tests read-only Python copying.
+For manual release verification, also test User/custom-role permissions, revoked
+and expired tokens, logout in another tab, HTTPS behind the deployed proxy (with
+any configured path prefix/CSP), large upload limits, and native keyboard
+selection/copy. No real cases should be used for destructive verification.

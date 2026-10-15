@@ -1,5 +1,7 @@
 # Latest update
 
+- Added locally hosted Swagger UI 5.33.3 to the API tab with a validated OpenAPI 3.0.3 contract covering existing public operations, route/permission drift checks, authenticated specification access, same-origin session-gated execution, and no credential persistence. Kept token management with CSRF-protected one-time revelation; reused shared CodeMirror 6 for the read-only Python example and Copy code. Added isolated server/browser coverage and maintenance documentation.
+
 - Grouped synchronization review by proposed action with accessible folding, restrained action badges, original classification counts, and a separate live planned-outcome summary. Preserved indexed decisions through folding, added replacement warnings and legacy-link validation, and distinguished actual completion/failure outcomes from plans.
 
 - Fixed streamed ZIP entries defaulting to 1980: Standard/RAW exports and backups now preserve source modification timestamps, compression, and attributes through independent metadata copies and Python filename conversion. Generated entries use generation time; validated restores retain safe artifact/directory times. Documented local timezone, two-second precision, range clamping, and unrecoverable legacy dates; added archive/restore regressions.

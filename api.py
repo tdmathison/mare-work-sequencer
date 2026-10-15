@@ -10,7 +10,7 @@ import zipfile
 from functools import wraps
 from pathlib import Path
 
-from flask import Blueprint, abort, render_template, g, get_flashed_messages, jsonify, redirect, request, send_file, session
+from flask import Blueprint, abort, render_template, g, get_flashed_messages, jsonify, redirect, request, send_file, session, url_for
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
@@ -1004,7 +1004,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         secret, _ = new_token(g.user['id'], name, expires)
         session['new_api_token'] = secret
         audit('Created API token '+name)
-        return redirect('/api#api-tokens')
+        return redirect(url_for('api_page', _anchor='api-tokens'))
 
     @app.post('/account/api-tokens/<int:token_id>/revoke')
     def revoke_account_api_token(token_id):
@@ -1016,23 +1016,29 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
             abort(404)
         run('UPDATE api_tokens SET revoked=? WHERE id=?', (now(), token_id))
         audit('Revoked API token '+row['name'])
-        return redirect('/api#api-tokens')
+        return redirect(url_for('api_page', _anchor='api-tokens'))
 
     @app.get('/api')
     def api_page():
         tokens = db().execute('SELECT id,name,token_prefix,created,last_used,revoked,expires FROM api_tokens WHERE user_id=? ORDER BY id DESC',
                               (g.user['id'],)).fetchall()
-        groups = {}
-        for rule in sorted(app.url_map.iter_rules(), key=lambda item: item.rule):
-            if not rule.endpoint.startswith('api.'):
-                continue
-            permission = getattr(
-                app.view_functions[rule.endpoint], 'permission', None)
-            path = rule.rule[len('/api/v1'):]
-            group = path.strip('/').split('/')[0] or 'root'
-            for method in sorted(rule.methods-{'HEAD', 'OPTIONS'}):
-                needed = permission.get(method) if isinstance(
-                    permission, dict) else permission
-                groups.setdefault(group, []).append(
-                    {'method': method, 'path': path, 'permission': needed or 'any authenticated user'})
-        return render_template('api.html', api_tokens=tokens, now_utc=now(), new_api_token=session.pop('new_api_token', None), endpoint_groups=groups)
+        return render_template('api.html', api_tokens=tokens, now_utc=now(),
+                               has_new_api_token=bool(session.get('new_api_token')))
+
+    @app.get('/api/openapi.json')
+    def api_openapi():
+        from api_documentation import build_spec
+        response = jsonify(build_spec(app, request.script_root))
+        response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.post('/account/api-tokens/reveal')
+    def reveal_account_api_token():
+        # Existing web session/CSRF protection applies. Never render the secret
+        # into HTML, the OpenAPI document, or Swagger's authorization state.
+        secret = session.pop('new_api_token', None)
+        if not secret:
+            abort(404)
+        response = jsonify(token=secret)
+        response.headers['Cache-Control'] = 'no-store'
+        return response
