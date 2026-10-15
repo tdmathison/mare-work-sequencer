@@ -9,6 +9,7 @@ from mip_search import register_search
 from navigation import register_navigation
 from performance_metrics import scorecard, PERIODS
 from zip_metadata import source_info, generated_info
+from case_sync import SyncConnection, CaseSync
 from references import register_references
 import shutil
 import os
@@ -50,7 +51,7 @@ app.config.update(SECRET_KEY=os.environ.get('MARE_SECRET_KEY') or secret.read_te
 
 def db():
     if 'db' not in g:
-        g.db = sqlite3.connect(ROOT/'workflow.sqlite3')
+        g.db = sqlite3.connect(ROOT/'workflow.sqlite3', factory=SyncConnection)
         g.db.row_factory = sqlite3.Row
         g.db.execute('PRAGMA foreign_keys=ON')
         g.db.execute('PRAGMA busy_timeout=5000')
@@ -965,8 +966,9 @@ def file(cid):
             except ValueError:
                 flash('Invalid JSON; file was not saved.')
                 return redirect(request.url)
-        p.write_text(content, encoding='utf-8')
-        mark_pending(cid, rel)
+        if p.read_text(encoding='utf-8') != content:
+            p.write_text(content, encoding='utf-8')
+            mark_pending(cid, rel)
         audit(f'Edited case {cid}: {rel}')
         flash('Saved.')
         return redirect(f'/cases/{cid}')
@@ -1296,7 +1298,12 @@ register_navigation(app)
 
 register_search(app, ROOT, db, CASE_QUERY, STAGES)
 
+register_tags(app, db, case)
+
+from backups import validate_metadata
+from import_sync import ImportSync
+case_sync = CaseSync(app, ROOT, db, backup_helpers['case_metadata'], validate_metadata)
+ImportSync(app, ROOT, db, case_sync, backup_helpers, allocate_case_number, now)
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)
-
-register_tags(app, db, case)

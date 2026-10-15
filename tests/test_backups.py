@@ -3,6 +3,7 @@ from app import app,db,run,ensure_package,package,ROOT
 from werkzeug.security import generate_password_hash
 from reporting import OUTPUT
 from docx import Document
+from sync_helpers import apply_preview, other_destination
 
 def setup_backup_case():
     with app.app_context():
@@ -21,7 +22,9 @@ def setup_backup_case():
         second=run("INSERT INTO cases(number,name,created,stage) VALUES('SOURCE-02','Empty case','2026',0)").lastrowid;ensure_package(second)
     client=app.test_client()
     with client.session_transaction() as s:s.update(uid=uid,version=1,csrf='backup-token')
-    def post(url,**data):return client.post(url,data={'csrf':'backup-token',**data})
+    def post(url,**data):
+        response=client.post(url,data={'csrf':'backup-token',**data})
+        return apply_preview(client,response,'backup-token') if url.startswith('/import-export/import') else response
     return client,cid,uid,post
 
 def test_all_case_backup_round_trip_owners_ids_tables_and_files():
@@ -39,7 +42,8 @@ def test_all_case_backup_round_trip_owners_ids_tables_and_files():
     assert not any('/backups/' in p for p in raw.namelist())
     with app.app_context():uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('importer',generate_password_hash('password-long-123'),'User')).lastrowid
     with client.session_transaction() as session:session['uid']=uid
-    response=post('/import-export/import',backup=(io.BytesIO(exported.data),'backup.zip'));assert response.location=='/',client.get('/import-export').data.decode()
+    other_destination()
+    response=post('/import-export/import',backup=(io.BytesIO(exported.data),'backup.zip'));assert '/import-export/review/' in response.location,client.get('/import-export').data.decode()
     with app.app_context():
         cases=db().execute('SELECT * FROM cases ORDER BY id').fetchall();assert len(cases)==4
         imported=cases[2];new=imported['id']
@@ -60,15 +64,15 @@ def test_all_case_backup_round_trip_owners_ids_tables_and_files():
     assert b'Saved executive summary.' in client.get(f'/cases/{new}').data
     post('/import-export/import',backup=(io.BytesIO(exported.data),'repeat.zip'))
     with app.app_context():
-        numbers=[r[0] for r in db().execute('SELECT number FROM cases')];assert len(numbers)==6 and len(set(numbers))==6
+        numbers=[r[0] for r in db().execute('SELECT number FROM cases')];assert len(numbers)==4 and len(set(numbers))==4
     # Restore into an instance with no cases; source identities are not required.
     with app.app_context():
         connection=db();connection.execute('PRAGMA foreign_keys=OFF')
-        for table in ('cases','notes','tasks','history','artifacts','readiness','report_images','figure_sequence','indicator_tables','indicator_sections','reference_tables'):connection.execute(f'DELETE FROM {table}')
+        for table in ('cases','notes','tasks','history','artifacts','readiness','report_images','figure_sequence','indicator_tables','indicator_sections','reference_tables','sync_cases','sync_dirty'):connection.execute(f'DELETE FROM {table}')
         connection.commit();connection.execute('PRAGMA foreign_keys=ON')
     import shutil
     shutil.rmtree(ROOT/'cases')
-    assert post('/import-export/import',backup=(io.BytesIO(exported.data),'new-instance.zip')).location=='/'
+    assert post('/import-export/import',backup=(io.BytesIO(exported.data),'new-instance.zip')).location.startswith('/import-export/review/')
     with app.app_context():assert db().execute('SELECT count(*) FROM cases').fetchone()[0]==2
 
 def test_invalid_backup_rejected_without_partial_import():
@@ -92,7 +96,9 @@ def test_invalid_backup_rejected_without_partial_import():
     # A late filesystem conflict rolls back database rows, numbering, and earlier moves.
     orphan=ROOT/'cases'/'3';orphan.mkdir();(orphan/'keep.txt').write_text('Existing orphan')
     with app.app_context():before=db().execute('SELECT value FROM case_sequence').fetchone()[0]
-    assert post('/import-export/import',backup=(io.BytesIO(exported),'conflict.zip')).location=='/import-export'
+    other_destination()
+    response=post('/import-export/import',backup=(io.BytesIO(exported),'conflict.zip'))
+    assert '/import-export/review/' in response.location
     assert (orphan/'keep.txt').read_text()=='Existing orphan'
     with app.app_context():
         assert db().execute('SELECT count(*) FROM cases').fetchone()[0]==2
@@ -115,7 +121,8 @@ def test_single_raw_backup_restores_stage_owner_and_python_files():
     assert any(p.endswith('/scripts/decode_py.txt') for p in names) and not any(p.endswith('.py') for p in names)
     metadata=json.loads(archive.read(next(p for p in names if p.endswith('/case-data.json'))))
     assert metadata['case']['stage']==2 and metadata['case']['assigned_user']==identity
-    assert post('/import-export/import-raw',backup=(io.BytesIO(exported.data),'single.zip')).location=='/'
+    other_destination()
+    assert post('/import-export/import-raw',backup=(io.BytesIO(exported.data),'single.zip')).location.startswith('/import-export/review/')
     with app.app_context():
         imported=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone();new=imported['id']
         assert imported['stage']==2 and imported['owner']==uid
@@ -125,7 +132,8 @@ def test_single_raw_backup_restores_stage_owner_and_python_files():
     assert post(f'/cases/{new}/notes',body='Resumed analysis').status_code==302
     # Regular RAW export now also carries the import metadata.
     raw=post(f'/cases/{cid}/archive',archive_type='raw',acknowledge='1');assert raw.status_code==200
-    assert post('/import-export/import-raw',backup=(io.BytesIO(raw.data),'raw.zip')).location=='/'
+    other_destination()
+    assert post('/import-export/import-raw',backup=(io.BytesIO(raw.data),'raw.zip')).location.startswith('/import-export/review/')
 
 
 def test_same_username_different_identifier_stays_unassigned_preserving_stage():
@@ -138,7 +146,8 @@ def test_same_username_different_identifier_stays_unassigned_preserving_stage():
         replacement=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('backup-user',generate_password_hash('password-long-123'),'User')).lastrowid
         assert db().execute('SELECT user_uuid FROM users WHERE id=?',(replacement,)).fetchone()[0]!=old_uuid
     with client.session_transaction() as session:session['uid']=replacement
-    assert post('/import-export/import-raw',backup=(io.BytesIO(exported),'single.zip')).location=='/'
+    other_destination()
+    assert post('/import-export/import-raw',backup=(io.BytesIO(exported),'single.zip')).location.startswith('/import-export/review/')
     with app.app_context():
         imported=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone();new=imported['id']
         assert imported['stage']==2 and imported['owner'] is None
@@ -153,6 +162,7 @@ def test_completed_import_can_assign_owner_without_reopening():
     client,cid,uid,post=setup_backup_case()
     with app.app_context():run('UPDATE cases SET stage=3,owner=NULL WHERE id=?',(cid,))
     exported=post(f'/cases/{cid}/backup').data
+    other_destination()
     post('/import-export/import-raw',backup=(io.BytesIO(exported),'completed.zip'))
     with app.app_context():
         imported=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone();new=imported['id']

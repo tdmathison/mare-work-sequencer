@@ -16,7 +16,7 @@ from references import load_references
 from reporting import SECTIONS, is_backup
 from mip import CATEGORIES
 from zip_metadata import copied_info, generated_info, restore_mtime
-SCHEMA = 'mare-case-backup/1'
+SCHEMA = 'mare-case-backup/2'
 MAX_TOTAL = 2*1024**3
 MAX_FILE = 256*1024**2
 MAX_METADATA = 64*1024**2
@@ -87,8 +87,10 @@ def records(meta, name, fields):
 
 
 def validate_metadata(meta):
-    if meta.get('schema') != 'mare-case-state/1':
+    if meta.get('schema') not in ('mare-case-state/1', 'mare-case-state/2'):
         raise ValueError('Unsupported case metadata version.')
+    if meta.get('schema') == 'mare-case-state/2' and (not {'notes','tasks','history','deferred','readiness','artifacts'}.issubset(meta.get('records',{})) or not {'images','figure_sequence','indicators','references','tagging','source_creator'}.issubset(meta)):
+        raise ValueError('Incomplete modern case snapshot.')
     c = meta['case']
     text(c['name'], 200)
     text(c.get('description', ''))
@@ -151,7 +153,7 @@ def validate_metadata(meta):
 def register_backups(app, ROOT, db, case, package, ensure_package, build_archive, allocate, audit, now):
     def case_metadata(cid):
         c = case(cid)
-        data = {'schema': 'mare-case-state/1', 'case': {key: c[key] for key in ('number', 'name', 'description', 'stage', 'external_system', 'external_number', 'created', 'report_path')}, 'records': {
+        data = {'schema': 'mare-case-state/2', 'case': {key: c[key] for key in ('number', 'name', 'description', 'stage', 'external_system', 'external_number', 'created', 'report_path')}, 'records': {
         }, 'indicators': load_table(db, cid), 'references': load_references(db, cid)}
         owner = db().execute('SELECT username,user_uuid FROM users WHERE id=?',
                              (c['owner'],)).fetchone()
@@ -169,6 +171,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         data['figure_sequence'] = seq[0] if seq else 0
         if tag_prototype(db()): raise ValueError('Migrate prototype tags before exporting RAW backups.')
         data['tagging'] = portable_tags(db(), cid)
+        creator = db().execute('SELECT username,user_uuid FROM users WHERE id=?', (c['creator'],)).fetchone()
+        data['source_creator'] = dict(creator) if creator else {'username': c['creator_username'] or 'Unknown', 'user_uuid': None}
         return data
 
     def case_backup(cid, email_safe=False, include_samples=False):
@@ -176,6 +180,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
             meta = case_metadata(cid)
+            meta['sync'] = app.extensions['case_sync'].export(cid)
             renamed = {}
             with zipfile.ZipFile(raw) as source:
                 manifest = read_json(source, name+'/manifest.json')
@@ -297,7 +302,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             return redirect('/import-export')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
-            index = {'schema': SCHEMA, 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
+            index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
             total = 0
             with zipfile.ZipFile(out, 'w', zipfile.ZIP_STORED) as outer:
                 for row in db().execute('SELECT id FROM cases ORDER BY id').fetchall():
@@ -345,223 +350,187 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             out.close()
             raise
 
-    @app.post('/import-export/import-raw')
-    @app.post('/import-export/import')
-    def backup_import():
-        upload = request.files.get('backup')
-        if not upload:
-            flash('Choose a MARE case backup ZIP.')
-            return redirect('/import-export')
-        created = []
-        connection = db()
-        try:
-            with tempfile.TemporaryDirectory(dir=ROOT, prefix='case-import-') as temporary:
-                temporary = Path(temporary)
-                incoming = temporary/'backup.zip'
-                upload.save(incoming)
-                plans = []
-                total = 0
-                single = request.path.endswith('/import-raw')
-                if single:
-                    raw_upload = temporary/'single.zip'
-                    incoming.rename(raw_upload)
-                    digest = hashlib.sha256()
-                    size = 0
-                    with raw_upload.open('rb') as source:
-                        while chunk := source.read(1024**2):
-                            digest.update(chunk)
-                            size += len(chunk)
-                    with zipfile.ZipFile(incoming, 'w', zipfile.ZIP_STORED) as wrapper:
-                        wrapper.write(raw_upload, 'cases/1.zip')
-                        wrapper.writestr('backup.json', json_bytes({'schema': SCHEMA, 'cases': [
-                                         {'path': 'cases/1.zip', 'sha256': digest.hexdigest(), 'size': size}]}))
-                with zipfile.ZipFile(incoming) as outer:
-                    members, _ = checked_members(outer)
-                    index = read_json(outer, 'backup.json')
-                    tag_catalog = validate_tags(index.get('tagging'))
-                    entries = index.get('cases')
-                    if index.get('schema') != SCHEMA or not isinstance(entries, list) or len(entries) > 1000:
+    def stage_upload(upload, single, temporary):
+        temporary = Path(temporary)
+        incoming = temporary/'backup.zip'
+        upload.save(incoming)
+        plans = []
+        total = 0
+        if single:
+            raw_upload = temporary/'single.zip'
+            incoming.rename(raw_upload)
+            digest = hashlib.sha256()
+            size = 0
+            with raw_upload.open('rb') as source:
+                while chunk := source.read(1024**2):
+                    digest.update(chunk)
+                    size += len(chunk)
+            with zipfile.ZipFile(incoming, 'w', zipfile.ZIP_STORED) as wrapper:
+                wrapper.write(raw_upload, 'cases/1.zip')
+                wrapper.writestr('backup.json', json_bytes({'schema': SCHEMA, 'cases': [
+                                 {'path': 'cases/1.zip', 'sha256': digest.hexdigest(), 'size': size}]}))
+        with zipfile.ZipFile(incoming) as outer:
+            members, _ = checked_members(outer)
+            index = read_json(outer, 'backup.json')
+            tag_catalog = validate_tags(index.get('tagging'))
+            entries = index.get('cases')
+            if index.get('schema') not in (SCHEMA, 'mare-case-backup/1') or not isinstance(entries, list) or len(entries) > 1000:
+                raise ValueError(
+                    'Use an archive created by Export all cases.')
+            paths = [e['path'] for e in entries]
+            if len(paths) != len(set(paths)) or set(members) != set(paths+['backup.json']):
+                raise ValueError(
+                    'Unexpected or duplicate files in backup archive.')
+            for n, entry in enumerate(entries):
+                path = entry['path']
+                if not re.fullmatch(r'cases/[0-9]+\.zip', path):
+                    raise ValueError('Invalid case package path.')
+                raw = temporary/f'{n}.zip'
+                digest = hashlib.sha256()
+                size = 0
+                with outer.open(path) as src, raw.open('wb') as dst:
+                    while chunk := src.read(1024**2):
+                        dst.write(chunk)
+                        digest.update(chunk)
+                        size += len(chunk)
+                if digest.hexdigest() != entry['sha256'] or size != entry['size']:
+                    raise ValueError('Case package checksum failed.')
+                with zipfile.ZipFile(raw) as archive:
+                    files, expanded = checked_members(archive)
+                    total += expanded
+                    if total > MAX_TOTAL:
                         raise ValueError(
-                            'Use an archive created by Export all cases.')
-                    paths = [e['path'] for e in entries]
-                    if len(paths) != len(set(paths)) or set(members) != set(paths+['backup.json']):
+                            'Backup exceeds the 2 GiB expanded limit.')
+                    manifests = [p for p in files if p.endswith(
+                        '/manifest.json') and len(safe_name(p)) == 2]
+                    if len(manifests) != 1:
                         raise ValueError(
-                            'Unexpected or duplicate files in backup archive.')
-                    for n, entry in enumerate(entries):
-                        path = entry['path']
-                        if not re.fullmatch(r'cases/[0-9]+\.zip', path):
-                            raise ValueError('Invalid case package path.')
-                        raw = temporary/f'{n}.zip'
+                            'A RAW case manifest is missing.')
+                    manifest = read_json(archive, manifests[0])
+                    prefix = manifests[0].split('/')[0]
+                    if manifest.get('schema') != 'mare-mip/2.0' or manifest.get('archive_type') != 'raw' or manifest.get('package_id') != prefix:
+                        raise ValueError(
+                            'Only RAW case packages are supported.')
+                    declared = {}
+                    actual = set()
+                    for item in manifest['files']:
+                        rel = item['path']
+                        safe_name(rel)
+                        if rel in declared:
+                            raise ValueError(
+                                'Duplicate manifest paths.')
+                        declared[rel] = item
+                    folder = temporary/f'case-{n}'/'mip'
+                    folder.mkdir(parents=True)
+                    directories = []
+                    for filename, info in files.items():
+                        parts = safe_name(filename)
+                        if parts[0] != prefix or len(parts) < 2:
+                            raise ValueError(
+                                'Unexpected RAW package root.')
+                        rel = '/'.join(parts[1:])
+                        if rel not in ('README.md', 'manifest.json', 'case-data.json') and (parts[1] not in CATEGORIES or is_backup(rel)):
+                            raise ValueError(
+                                'Unsupported RAW package content.')
+                        if parts[1] in CATEGORIES and len(parts) == 2 and not info.is_dir():
+                            raise ValueError(
+                                'Package categories must be directories.')
+                        if info.is_dir():
+                            (folder/rel).mkdir(parents=True, exist_ok=True)
+                            directories.append((folder/rel, info))
+                            continue
+                        if rel == 'manifest.json':
+                            continue
+                        actual.add(rel)
+                        if rel not in declared:
+                            raise ValueError('Unlisted package file.')
                         digest = hashlib.sha256()
                         size = 0
-                        with outer.open(path) as src, raw.open('wb') as dst:
+                        destination = folder/rel
+                        destination.parent.mkdir(
+                            parents=True, exist_ok=True)
+                        with archive.open(info) as src, destination.open('wb') as dst:
                             while chunk := src.read(1024**2):
                                 dst.write(chunk)
                                 digest.update(chunk)
                                 size += len(chunk)
-                        if digest.hexdigest() != entry['sha256'] or size != entry['size']:
-                            raise ValueError('Case package checksum failed.')
-                        with zipfile.ZipFile(raw) as archive:
-                            files, expanded = checked_members(archive)
-                            total += expanded
-                            if total > MAX_TOTAL:
-                                raise ValueError(
-                                    'Backup exceeds the 2 GiB expanded limit.')
-                            manifests = [p for p in files if p.endswith(
-                                '/manifest.json') and len(safe_name(p)) == 2]
-                            if len(manifests) != 1:
-                                raise ValueError(
-                                    'A RAW case manifest is missing.')
-                            manifest = read_json(archive, manifests[0])
-                            prefix = manifests[0].split('/')[0]
-                            if manifest.get('schema') != 'mare-mip/2.0' or manifest.get('archive_type') != 'raw' or manifest.get('package_id') != prefix:
-                                raise ValueError(
-                                    'Only RAW case packages are supported.')
-                            declared = {}
-                            actual = set()
-                            for item in manifest['files']:
-                                rel = item['path']
-                                safe_name(rel)
-                                if rel in declared:
-                                    raise ValueError(
-                                        'Duplicate manifest paths.')
-                                declared[rel] = item
-                            folder = temporary/f'case-{n}'/'mip'
-                            folder.mkdir(parents=True)
-                            directories = []
-                            for filename, info in files.items():
-                                parts = safe_name(filename)
-                                if parts[0] != prefix or len(parts) < 2:
-                                    raise ValueError(
-                                        'Unexpected RAW package root.')
-                                rel = '/'.join(parts[1:])
-                                if rel not in ('README.md', 'manifest.json', 'case-data.json') and (parts[1] not in CATEGORIES or is_backup(rel)):
-                                    raise ValueError(
-                                        'Unsupported RAW package content.')
-                                if parts[1] in CATEGORIES and len(parts) == 2 and not info.is_dir():
-                                    raise ValueError(
-                                        'Package categories must be directories.')
-                                if info.is_dir():
-                                    (folder/rel).mkdir(parents=True, exist_ok=True)
-                                    directories.append((folder/rel, info))
-                                    continue
-                                if rel == 'manifest.json':
-                                    continue
-                                actual.add(rel)
-                                if rel not in declared:
-                                    raise ValueError('Unlisted package file.')
-                                digest = hashlib.sha256()
-                                size = 0
-                                destination = folder/rel
-                                destination.parent.mkdir(
-                                    parents=True, exist_ok=True)
-                                with archive.open(info) as src, destination.open('wb') as dst:
-                                    while chunk := src.read(1024**2):
-                                        dst.write(chunk)
-                                        digest.update(chunk)
-                                        size += len(chunk)
-                                if digest.hexdigest() != declared[rel]['sha256'] or size != declared[rel]['size']:
-                                    raise ValueError(
-                                        'RAW package file checksum failed.')
-                                restore_mtime(destination, info)
-                            if actual != set(declared):
-                                raise ValueError('Missing RAW package file.')
-                            meta = read_json(archive, prefix+'/case-data.json')
-                            validated = validate_metadata(meta)
-                            for image in validated[4]:
-                                if not (folder/'reports/sections/assets'/image['name']).is_file():
-                                    raise ValueError(
-                                        'A registered report image is missing.')
-                            for artifact in validated[3]['artifacts']:
-                                safe_name(artifact['path'])
-                                if artifact['path'] not in actual:
-                                    raise ValueError(
-                                        'Artifact metadata references a missing file.')
-                            if single or meta.get('file_name_encoding') == 'python-email-v1':
-                                renames = {
-                                    rel: rel[:-7]+'.py' for rel in actual if rel.endswith('_py.txt')}
-                                if len({renames.get(rel, rel) for rel in actual}) != len(actual):
-                                    raise ValueError(
-                                        'Python filename restoration would overwrite another file.')
-                                for original, replacement in renames.items():
-                                    (folder/original).rename(folder/replacement)
-                                for artifact in validated[3]['artifacts']:
-                                    artifact['path'] = renames.get(
-                                        artifact['path'], artifact['path'])
-                            for generated in ('README.md', 'case-data.json'):
-                                (folder/generated).unlink(missing_ok=True)
-                            for category in CATEGORIES:
-                                (folder/category).mkdir(exist_ok=True)
-                            for directory, info in sorted(directories, key=lambda item: len(item[0].parts), reverse=True):
-                                restore_mtime(directory, info)
-                            plans.append((folder.parent, validated))
-                connection.execute('BEGIN IMMEDIATE')
-                restore_tags(connection, tag_catalog)
-                for folder, (c, sections, refs, rows, images, sequence, tags) in plans:
-                    number = allocate(connection)
-                    identity = c.get('assigned_user')
-                    owner = None
-                    if isinstance(identity, dict) and isinstance(identity.get('user_uuid'), str) and isinstance(identity.get('username'), str):
-                        match = connection.execute('SELECT id FROM users WHERE user_uuid=? AND username=?', (
-                            identity['user_uuid'], identity['username'])).fetchone()
-                        if match:
-                            owner = match[0]
-                    cid = connection.execute('INSERT INTO cases(number,name,description,stage,created,owner,external_system,external_number,creator,creator_username,owner_required) VALUES(?,?,?,?,?,?,?,?,?,?,1)', (
-                        number, c['name'], c.get('description', ''), c['stage'], now(), owner, c.get('external_system', ''), c.get('external_number', ''), g.user['id'], g.user['username'])).lastrowid
-                    restore_tags(connection, tags, cid)
-                    connection.execute(
-                        'UPDATE cases SET report_path=? WHERE id=?', (c.get('report_path', ''), cid))
-                    for table, values in rows.items():
-                        for record in values:
-                            if table == 'tasks':
-                                record['done'] = int(
-                                    record['state'] == 'Completed')
-                            if table == 'artifacts':
-                                record['usage'] = ''
-                            keys = list(record)
-                            sql = f'INSERT INTO {table}(case_id,'+','.join(
-                                keys)+') VALUES('+','.join('?' for _ in range(len(keys)+1))+')'
-                            connection.execute(
-                                sql, [cid]+[record[key] for key in keys])
-                    flat = [row for section in sections for row in section['rows']]
-                    connection.execute('INSERT INTO indicator_tables VALUES(?,?,?,0)', (cid, json.dumps(
-                        DEFAULT_COLUMNS), json.dumps(flat)))
-                    connection.execute(
-                        'INSERT INTO indicator_sections VALUES(?,?)', (cid, json.dumps(sections)))
-                    connection.execute(
-                        'INSERT INTO reference_tables VALUES(?,?,0)', (cid, json.dumps(refs)))
-                    for image in images:
-                        if image['section'].startswith('task-'):
-                            task = connection.execute(
-                                'SELECT id FROM tasks WHERE case_id=? AND instr(body,?)>0 ORDER BY id LIMIT 1', (cid, image['name'])).fetchone()
-                            image['section'] = f'task-{task[0]}' if task else 'task-draft'
-                        connection.execute('INSERT INTO report_images(case_id,section,name,figure) VALUES(?,?,?,?)', (
-                            cid, image['section'], image['name'], image['figure']))
-                    connection.execute(
-                        'INSERT INTO figure_sequence VALUES(?,?)', (cid, sequence))
-                    destination = ROOT/'cases'/str(cid)
-                    if destination.exists():
-                        raise ValueError(
-                            'An existing case directory conflicts with this import.')
-                    destination.parent.mkdir(exist_ok=True)
-                    folder.rename(destination)
-                    created.append(destination)
-                    connection.execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)', (
-                        g.user['username'], f'Imported case {number} from {c.get("number", "unknown")} (source stage {c["stage"]})', now()))
-                connection.commit()
-            flash(
-                f'Imported {len(plans)} cases. Cases retain their exported stage. Assign an owner where unmatched to resume work.')
-            return redirect('/')
-        except (ValueError, KeyError, TypeError, zipfile.BadZipFile, UnicodeError, RuntimeError, RecursionError, OverflowError, OSError) as exc:
-            connection.rollback()
-            for folder in created:
-                shutil.rmtree(folder)
-            flash('Import failed; no cases were added. '+str(exc))
-            return redirect('/import-export')
-        except Exception:
-            connection.rollback()
-            for folder in created:
-                shutil.rmtree(folder)
-            raise
+                        if digest.hexdigest() != declared[rel]['sha256'] or size != declared[rel]['size']:
+                            raise ValueError(
+                                'RAW package file checksum failed.')
+                        restore_mtime(destination, info)
+                    if actual != set(declared):
+                        raise ValueError('Missing RAW package file.')
+                    meta = read_json(archive, prefix+'/case-data.json')
+                    validated = validate_metadata(meta)
+                    for image in validated[4]:
+                        if not (folder/'reports/sections/assets'/image['name']).is_file():
+                            raise ValueError(
+                                'A registered report image is missing.')
+                    for artifact in validated[3]['artifacts']:
+                        safe_name(artifact['path'])
+                        if artifact['path'] not in actual:
+                            raise ValueError(
+                                'Artifact metadata references a missing file.')
+                    if (single and meta.get('schema') == 'mare-case-state/1') or meta.get('file_name_encoding') == 'python-email-v1':
+                        renames = {
+                            rel: rel[:-7]+'.py' for rel in actual if rel.endswith('_py.txt')}
+                        if len({renames.get(rel, rel) for rel in actual}) != len(actual):
+                            raise ValueError(
+                                'Python filename restoration would overwrite another file.')
+                        for original, replacement in renames.items():
+                            (folder/original).rename(folder/replacement)
+                        for artifact in validated[3]['artifacts']:
+                            artifact['path'] = renames.get(
+                                artifact['path'], artifact['path'])
+                    for generated in ('README.md', 'case-data.json'):
+                        (folder/generated).unlink(missing_ok=True)
+                    for category in CATEGORIES:
+                        (folder/category).mkdir(exist_ok=True)
+                    for directory, info in sorted(directories, key=lambda item: len(item[0].parts), reverse=True):
+                        restore_mtime(directory, info)
+                    # Store logical restored record paths; the uploaded ZIP remains unchanged.
+                    meta['records'] = validated[3]
+                    plans.append((folder.parent, validated, meta))
+        return plans, tag_catalog
 
-    return {'case_backup': case_backup, 'single': backup_single_export, 'export': backup_export, 'import': backup_import, 'database': database_backup}
+    def restore_records(connection, cid, validated):
+        c, sections, refs, rows, images, sequence, tags = validated
+        for table in ('notes','tasks','history','deferred','readiness','artifacts','indicator_tables','indicator_sections','reference_tables','report_images','figure_sequence'):
+            connection.execute(f'DELETE FROM {table} WHERE case_id=?', (cid,))
+        connection.execute('DELETE FROM case_tags WHERE case_id=?', (cid,))
+        restore_tags(connection, tags, cid)
+        for table, values in rows.items():
+            for record in values:
+                if table == 'tasks':
+                    record['done'] = int(
+                        record['state'] == 'Completed')
+                if table == 'artifacts':
+                    record['usage'] = ''
+                keys = list(record)
+                sql = f'INSERT INTO {table}(case_id,'+','.join(
+                    keys)+') VALUES('+','.join('?' for _ in range(len(keys)+1))+')'
+                connection.execute(
+                    sql, [cid]+[record[key] for key in keys])
+        flat = [row for section in sections for row in section['rows']]
+        connection.execute('INSERT INTO indicator_tables VALUES(?,?,?,0)', (cid, json.dumps(
+            DEFAULT_COLUMNS), json.dumps(flat)))
+        connection.execute(
+            'INSERT INTO indicator_sections VALUES(?,?)', (cid, json.dumps(sections)))
+        connection.execute(
+            'INSERT INTO reference_tables VALUES(?,?,0)', (cid, json.dumps(refs)))
+        for image in images:
+            if image['section'].startswith('task-'):
+                task = connection.execute(
+                    'SELECT id FROM tasks WHERE case_id=? AND instr(body,?)>0 ORDER BY id LIMIT 1', (cid, image['name'])).fetchone()
+                image['section'] = f'task-{task[0]}' if task else 'task-draft'
+            connection.execute('INSERT INTO report_images(case_id,section,name,figure) VALUES(?,?,?,?)', (
+                cid, image['section'], image['name'], image['figure']))
+        connection.execute(
+            'INSERT INTO figure_sequence VALUES(?,?)', (cid, sequence))
+
+    @app.post('/import-export/import-raw')
+    @app.post('/import-export/import')
+    def backup_import():
+        return app.extensions['case_import_sync'].preview(request.files.get('backup'), request.path.endswith('/import-raw'))
+
+    return {'case_backup': case_backup, 'case_metadata': case_metadata, 'stage_upload': stage_upload, 'restore_records': restore_records, 'single': backup_single_export, 'export': backup_export, 'import': backup_import, 'database': database_backup}

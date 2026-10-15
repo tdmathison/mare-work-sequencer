@@ -12,5 +12,6 @@ def isolated_state(monkeypatch):
         connection=db();connection.commit();connection.execute('PRAGMA foreign_keys=OFF')
         for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall():connection.execute('DELETE FROM "'+row[0]+'"')
         connection.execute('INSERT INTO case_sequence VALUES(1,0)');connection.commit();connection.execute('PRAGMA foreign_keys=ON')
-    for directory in ('cases','users','report-jobs'):shutil.rmtree(ROOT/directory,ignore_errors=True)
+    for directory in ('cases','users','report-jobs','sync-staging','sync-recovery'):shutil.rmtree(ROOT/directory,ignore_errors=True)
+    for directory in ('sync-staging','sync-recovery'):(ROOT/directory).mkdir(mode=0o700,exist_ok=True)
     yield

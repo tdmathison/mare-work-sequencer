@@ -1,3 +1,4 @@
+from sync_helpers import apply_preview, other_destination
 import io
 import pytest
 from docx import Document
@@ -78,7 +79,9 @@ def test_named_report_links_replacement_upload_and_backup_import(monkeypatch,tmp
  assert result['report_path']==rel2 and (root/rel2).read_bytes()==final.read_bytes()
  # RAW backup retains the current report pointer despite allocation of a new case number.
  backup=post(base+'/backup');assert backup.status_code==200
+ other_destination()
  restored=post('/import-export/import-raw',backup=(io.BytesIO(backup.data),'named.zip'))
+ restored=apply_preview(client,restored,'named')
  assert restored.status_code==302
  with app.app_context():
   imported=db().execute('SELECT * FROM cases WHERE id!=? ORDER BY id DESC LIMIT 1',(cid,)).fetchone()

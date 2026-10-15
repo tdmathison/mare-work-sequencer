@@ -1,11 +1,12 @@
 import os
+from contextlib import nullcontext
 import json
 import secrets
 import time
 import threading
 import shutil
 from pathlib import Path
-from flask import request, g, redirect, flash, abort, send_file
+from flask import request, g, redirect, flash, abort, send_file, has_request_context
 from indicators import load_table, report_table
 from references import load_references
 from reporting import SECTIONS, TOKENS, OUTPUT, report_filename, current_report, template_sections, fill_template, is_backup, validate_docx, md_table, convert_docx_to_pdf
@@ -132,6 +133,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         form = form or request.form
         root = ensure_package(cid)/'reports/sections'
         root.mkdir(exist_ok=True)
+        changed = False
         for key in TOKENS:
             if key not in SECTIONS:
                 continue
@@ -139,8 +141,12 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                              if key == 'key_findings' else '')
             if len(value) > 100000:
                 abort(413)
-            (root/(key+'.md')).write_text(value)
-        mark_pending(cid, 'reports/sections')
+            path = root/(key+'.md')
+            if (path.read_text() if path.exists() else '') != value:
+                path.write_text(value)
+                changed = True
+        if changed:
+            mark_pending(cid, 'reports/sections')
         return manual(cid)
 
     @app.post('/cases/<int:cid>/report-sections')
@@ -185,12 +191,13 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         import hashlib
 
         def progress(message, status='running'):
-            row = db().execute('SELECT progress FROM report_jobs WHERE id=?', (jid,)).fetchone()
-            messages = json.loads(row['progress'])
-            messages.append(message)
-            run('UPDATE report_jobs SET progress=?,status=?,updated=? WHERE id=?',
-                (json.dumps(messages), status, int(time.time()), jid))
-        with app.app_context():
+            with app.extensions['case_sync'].locked():
+                row = db().execute('SELECT progress FROM report_jobs WHERE id=?', (jid,)).fetchone()
+                messages = json.loads(row['progress'])
+                messages.append(message)
+                run('UPDATE report_jobs SET progress=?,status=?,updated=? WHERE id=?',
+                    (json.dumps(messages), status, int(time.time()), jid))
+        with (nullcontext() if has_request_context() else app.app_context()):
             try:
                 progress('Formatting saved Markdown locally.')
                 generated = {key: sections.get(key, '').strip() or 'No applicable findings recorded.' for key in (
@@ -224,6 +231,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                 if generate_pdf:
                     progress('Rendering the report as PDF.')
                     convert_docx_to_pdf(temp, pdf_temp)
+                app.extensions['case_sync'].acquire()
                 (package(cid)/'reports/indicators-of-compromise.md').unlink(missing_ok=True)
                 target = package(cid)/previous_path
                 digest = hashlib.sha256(
@@ -258,6 +266,8 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                 mark_pending(cid, output_path)
                 run('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',
                     (str(uid), f'Generated Word report for case {cid}', now()))
+                app.extensions['case_sync'].reconcile(cid)
+                db().commit()
                 complete = 'Complete. The Word report and its PDF are saved in reports. ' if generate_pdf else 'Complete. The Word report is saved in reports without a PDF. Upload a manually converted PDF to Reports/ when ready. '
                 progress(
                     complete+'Finish editing in Word, then upload the final copy before delivery.', 'completed')

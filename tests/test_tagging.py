@@ -1,3 +1,4 @@
+from sync_helpers import apply_preview, other_destination
 import hashlib
 import io
 import json
@@ -117,18 +118,20 @@ def test_raw_full_and_legacy_restore():
     raw=client.post(f'/cases/{cid}/backup',data={'csrf':'tag-test'}).data
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         meta=json.loads(archive.read(next(n for n in archive.namelist() if n.endswith('/case-data.json'))));assert meta['tagging']=={'schema_version':1,'tags':['Saved']}
-    client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(raw),'raw.zip')})
+    other_destination()
+    apply_preview(client,client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(raw),'raw.zip')}),'tag-test')
     with app.app_context():assert len(assignments(db()))==2
     bad=rewrite_metadata(raw,lambda m:m.update(tagging={'schema_version':2,'tags':[]}))
     response=client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(bad),'bad.zip')},follow_redirects=True)
     assert b'Unsupported or malformed tag metadata' in response.data
-    legacy=rewrite_metadata(raw,lambda m:m.pop('tagging'))
-    client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(legacy),'old.zip')})
+    legacy=rewrite_metadata(raw,lambda m:(m.pop('tagging'),m.pop('sync'),m.update(schema='mare-case-state/1')))
+    apply_preview(client,client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(legacy),'old.zip')}),'tag-test')
     with app.app_context():assert db().execute('SELECT count(*) FROM cases').fetchone()[0]==3
     full=client.post('/import-export/export',data={'csrf':'tag-test'}).data
     with app.app_context():
         db().execute('DELETE FROM tags');db().commit()
-    client.post('/import-export/import',data={'csrf':'tag-test','backup':(io.BytesIO(full),'full.zip')})
+    other_destination()
+    apply_preview(client,client.post('/import-export/import',data={'csrf':'tag-test','backup':(io.BytesIO(full),'full.zip')}),'tag-test')
     with app.app_context():
         assert portable(db())['tags']==['Saved','Unused']
         assert len(assignments(db()))==2

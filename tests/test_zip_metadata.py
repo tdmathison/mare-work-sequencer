@@ -1,3 +1,4 @@
+from sync_helpers import other_destination
 import hashlib
 import io
 import json
@@ -74,6 +75,7 @@ def test_source_timestamps_standard_raw_backup_and_restore():
                 ).date_time[0]
                 == time.localtime().tm_year
             )
+    other_destination()
     assert (
         post(
             "/import-export/import-raw", backup=(io.BytesIO(response.data), "raw.zip")
@@ -91,6 +93,7 @@ def test_source_timestamps_standard_raw_backup_and_restore():
             assert info.date_time[0] == time.localtime().tm_year
             assert info.compress_type == zipfile.ZIP_STORED
             assert abs(time.mktime((*info.date_time, 0, 0, -1)) - time.time()) < 60
+    other_destination()
     assert (
         post(
             "/import-export/import", backup=(io.BytesIO(full.data), "full.zip")

@@ -156,10 +156,13 @@ def test_backup_import_export_and_metrics(admin):
     bad = client.post('/api/v1/backups/import', headers=headers, data={'backup': (io.BytesIO(b'garbage'), 'x.zip')}, content_type='multipart/form-data')
     assert bad.status_code == 400 and 'error' in bad.json
     restored = client.post('/api/v1/backups/import', headers=headers, data={'backup': (io.BytesIO(everything.data), 'all.zip')}, content_type='multipart/form-data')
-    assert restored.status_code == 201, restored.json
-    assert client.get('/api/v1/cases', headers=headers).json['total'] == 2
+    assert restored.status_code == 202, restored.json
+    applied=client.post(restored.json['apply_url'],headers=headers,json={})
+    assert applied.status_code==200 and applied.json['outcomes'][0]['action']=='Unchanged'
+    assert client.get('/api/v1/cases', headers=headers).json['total'] == 1
     raw = client.post('/api/v1/backups/import-raw', headers=headers, data={'backup': (io.BytesIO(single.data), 'one.zip')}, content_type='multipart/form-data')
-    assert raw.status_code == 201, raw.json
+    assert raw.status_code == 202, raw.json
+    assert client.post(raw.json['apply_url'],headers=headers,json={}).status_code==200
     database = client.post('/api/v1/backups/database', headers=headers)
     assert database.status_code == 200 and 'data/workflow.sqlite3' in zipfile.ZipFile(io.BytesIO(database.data)).namelist()
     metrics = client.get('/api/v1/metrics', headers=headers).json

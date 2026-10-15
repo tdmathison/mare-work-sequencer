@@ -27,7 +27,7 @@ SECTION_ENDPOINTS = {
         "database_backup",
     },
     "api": {"api_page", "create_account_api_token", "revoke_account_api_token"},
-    "import_export": {"import_export_page", "backup_export", "backup_import"},
+    "import_export": {"import_export_page", "backup_export", "backup_import", "sync_import_review", "sync_import_apply", "sync_api_review", "sync_api_apply"},
 }
 ENDPOINT_SECTION = {
     endpoint: section
