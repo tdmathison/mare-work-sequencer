@@ -17,6 +17,8 @@ from case_sync import (
     digest,
     fingerprint,
     logical_snapshot,
+    equivalent_snapshot,
+    canonical_tag_snapshot,
     validate_graph,
     descends,
     synchronized_file,
@@ -171,7 +173,7 @@ class ImportSync:
                     state = self.sync.reconcile(local["id"])
                     result["local_revision"] = state["revision_uuid"]
                     combined = {**known, **nodes}
-                    if fingerprint(self.sync.snapshot(local["id"])) == content_hash:
+                    if equivalent_snapshot(self.sync.snapshot(local["id"]), incoming):
                         result.update(
                             classification="unchanged",
                             reason="Validated synchronized content matches; no content will be replaced.",
@@ -668,6 +670,11 @@ class ImportSync:
         if classification == "unchanged":
             if source:
                 self.sync.merge_graph(source["case_uuid"], nodes)
+                combined = self.sync.graph(source["case_uuid"])
+                if (fingerprint(self.sync.snapshot(cid)) != preview['fingerprint']
+                        and not descends(combined, state['revision_uuid'], source['revision_uuid'])):
+                    self.sync.new_revision(cid, fingerprint(self.sync.snapshot(cid)),
+                                           [state['revision_uuid'], source['revision_uuid']])
             outcome.update(action="Unchanged")
             return outcome
         if classification == "older":
@@ -692,6 +699,7 @@ class ImportSync:
             raise ValueError(
                 "Active report generation blocks replacement; retry after it finishes."
             )
+        canonical_hash = fingerprint(canonical_tag_snapshot(incoming))
         c = validated[0]
         owner = self.owner(c)
         revision = source["revision_uuid"] if source else None
@@ -717,6 +725,8 @@ class ImportSync:
                         ),
                         adopt=False,
                     )
+                if canonical_hash != preview['fingerprint']:
+                    revision = self.sync.new_revision(cid, canonical_hash, [revision], adopt=False)
                 key, recovery = self.recovery_snapshot(cid, revision)
                 outcome["recovery"] = key
                 destination = self.root / "cases" / str(cid)
@@ -793,6 +803,8 @@ class ImportSync:
                     self.sync.merge_graph(case_uuid, nodes)
                 else:
                     revision = self.sync.new_revision(cid, preview["fingerprint"], [])
+                if canonical_hash != preview['fingerprint']:
+                    revision = self.sync.new_revision(cid, canonical_hash, [revision], adopt=False)
                 replacement = staged
             if new:
                 key = str(uuid.uuid4())
@@ -828,7 +840,7 @@ class ImportSync:
                 destination.rename(recovery / "old-case")
             replacement.rename(destination)
             swapped = True
-            if fingerprint(self.sync.snapshot(cid)) != preview["fingerprint"]:
+            if fingerprint(self.sync.snapshot(cid)) != canonical_hash:
                 raise ValueError("Restored content fingerprint differs; rolled back.")
             outcome.update(
                 case_uuid=case_uuid,

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
 <div class="heading"><h1>Tag Manager</h1></div>
+<p class="muted">{{tag_naming_help}}</p>
+{% if invalid_tags %}<div class="notice" role="status"><strong>Invalid legacy tags retained.</strong> Rename these tags to a valid name, or explicitly merge/delete them in Tag Manager. No assignments were removed.<ul>{% for item in invalid_tags %}<li><a href="/tags/{{item.id}}">{{item.name}}</a>: {{item.error}}</li>{% endfor %}</ul></div>{% endif %}
 <div class="tag-manager-controls">
 <form method="get"><input name="q" value="{{request.args.get('q','')}}" aria-label="Search tags" placeholder="Search tags"><select name="sort" aria-label="Sort tags">{% for value,label in [('name','Name'),('most','Most used'),('least','Least used')] %}<option value="{{value}}" {% if request.args.get('sort','name')==value %}selected{% endif %}>{{label}}</option>{% endfor %}</select><button>Search</button></form>
 {% if can_tags_create %}<form method="post" action="/tags/create">{{token(csrf)}}<input name="name" maxlength="120" placeholder="New tag" aria-label="New tag" required><button>Create tag</button></form>{% endif %}

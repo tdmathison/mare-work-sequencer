@@ -43,7 +43,7 @@ def test_rendered_application_sections(role, monkeypatch):
         ).lastrowid
         ensure_package(cid)
         (package(cid) / "supporting" / "navigation.md").write_text("# Navigation")
-        tid, _ = create(db(), "Navigation tag")
+        tid, _ = create(db(), "NAVIGATION_TAG")
         db().commit()
     client = app.test_client()
     with client.session_transaction() as session:

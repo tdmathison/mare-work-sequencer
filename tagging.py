@@ -1,4 +1,6 @@
 """Simple shared tags, case assignments, and portable backup metadata."""
+import re
+import secrets
 import sqlite3
 from datetime import datetime, timezone
 from flask import abort, flash, g, redirect, render_template, request
@@ -9,14 +11,71 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec='seconds')
 
 
+NAMING_HELP = 'Tags are saved in uppercase. Use only ASCII letters, numbers, and underscores (1–120 characters).'
+INVALID_NAME = 'Tags may contain only letters, numbers, and underscores.'
+
+
 def name(value):
-    if not isinstance(value, str) or not value.strip() or len(value) > 120 or any(ord(c) < 32 for c in value):
-        raise ValueError('Tag names must contain 1–120 characters without control characters.')
-    return value.strip()
+    if not isinstance(value, str):
+        raise ValueError('Tag names must contain 1–120 characters.')
+    value = value.strip()
+    if not value or len(value) > 120:
+        raise ValueError('Tag names must contain 1–120 characters.')
+    # Validate before uppercasing: ß, dotless i and Unicode lookalikes stay invalid.
+    if not re.fullmatch(r'[A-Za-z0-9_]+', value, flags=re.ASCII):
+        raise ValueError(INVALID_NAME)
+    return value.upper()
 
 
 def normalized(value):
-    return name(value).casefold()
+    return name(value)
+
+
+def invalid_legacy(connection):
+    invalid = []
+    for row in connection.execute('SELECT id,name FROM tags ORDER BY id'):
+        try:
+            name(row['name'])
+        except ValueError as error:
+            invalid.append(dict(id=row['id'], name=row['name'], error=str(error)))
+    return invalid
+
+
+def migrate_names(connection):
+    """One atomic upgrade; keep lowest IDs and all assignments, flag invalid rows."""
+    marker = 'uppercase-ascii-tags-v1'
+    if connection.execute('SELECT 1 FROM schema_migrations WHERE name=?', (marker,)).fetchone():
+        return
+    connection.execute('SAVEPOINT uppercase_tags')
+    try:
+        groups = {}
+        for row in connection.execute('SELECT id,name FROM tags ORDER BY id').fetchall():
+            try:
+                canonical = name(row['name'])
+            except ValueError:
+                continue  # Never rewrite or discard invalid legacy records.
+            groups.setdefault(canonical, []).append(row['id'])
+        # Free old normalized keys before canonicalizing (including swapped keys).
+        temporary_prefix = 'tag-migration:'+secrets.token_hex(16)+':'
+        for ids in groups.values():
+            for tid in ids:
+                connection.execute('UPDATE tags SET normalized_name=? WHERE id=?', (temporary_prefix+str(tid), tid))
+        for canonical, ids in groups.items():
+            winner = ids[0]
+            for tid in ids[1:]:
+                connection.execute('INSERT OR IGNORE INTO case_tags SELECT case_id,?,assigned_at,assigned_by FROM case_tags WHERE tag_id=?', (winner, tid))
+                connection.execute('DELETE FROM case_tags WHERE tag_id=?', (tid,))
+                connection.execute('DELETE FROM tags WHERE id=?', (tid,))
+                connection.execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)', ('migration', f'Tag casing consolidated: source={tid}, canonical={winner} ({canonical})', now()))
+            connection.execute('UPDATE tags SET name=?,normalized_name=? WHERE id=?', (canonical, canonical, winner))
+        for tag in invalid_legacy(connection):
+            connection.execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)', ('migration', f'Invalid legacy tag retained: id={tag["id"]}; rename in Tag Manager', now()))
+        connection.execute('INSERT INTO schema_migrations VALUES(?)', (marker,))
+        connection.execute('RELEASE uppercase_tags')
+    except Exception:
+        connection.execute('ROLLBACK TO uppercase_tags')
+        connection.execute('RELEASE uppercase_tags')
+        raise
 
 
 def prototype(connection):
@@ -34,14 +93,23 @@ def initialize(connection):
     CREATE INDEX IF NOT EXISTS case_tags_tag ON case_tags(tag_id,case_id);
     ''')
     connection.execute("INSERT OR IGNORE INTO schema_migrations VALUES('simple-case-tags-v1')")
+    migrate_names(connection)
+    # Existing invalid rows remain editable; all new/renamed names are canonical.
+    for operation in ('INSERT', 'UPDATE OF name,normalized_name'):
+        suffix = 'insert' if operation == 'INSERT' else 'update'
+        connection.execute(f"""CREATE TRIGGER IF NOT EXISTS tags_canonical_{suffix}
+        BEFORE {operation} ON tags WHEN length(NEW.name) NOT BETWEEN 1 AND 120
+        OR NEW.name GLOB '*[^A-Z0-9_]*' OR instr(NEW.name,char(0))>0 OR NEW.name<>upper(NEW.name)
+        OR NEW.normalized_name<>NEW.name
+        BEGIN SELECT RAISE(ABORT, 'Tags must use canonical uppercase ASCII names.'); END""")
     connection.commit()
     return True
 
 
 def catalog(connection, search='', sort='name', limit=None):
     order = {'name': 't.normalized_name', 'most': 'uses DESC,t.normalized_name', 'least': 'uses,t.normalized_name'}.get(sort, 't.normalized_name')
-    sql = 'SELECT t.*,count(ct.case_id) AS uses FROM tags t LEFT JOIN case_tags ct ON ct.tag_id=t.id WHERE instr(t.normalized_name,?)>0 GROUP BY t.id ORDER BY '+order
-    args = [search.strip().casefold()]
+    sql = 'SELECT t.*,count(ct.case_id) AS uses FROM tags t LEFT JOIN case_tags ct ON ct.tag_id=t.id WHERE (instr(t.normalized_name,?)>0 OR instr(t.normalized_name,?)>0) GROUP BY t.id ORDER BY '+order
+    args = [search.strip().upper(), search.strip().casefold()]
     if limit is not None:
         sql += ' LIMIT ?'; args.append(limit)
     return [dict(r) for r in connection.execute(sql, args)]
@@ -68,14 +136,20 @@ def portable(connection, cid=None):
     return {'schema_version': 1, 'tags': [r['name'] for r in rows]}
 
 
-def validate_portable(data):
+def validate_portable(data, *, allow_legacy=False):
     if data is None:
         return None
     if not isinstance(data, dict) or set(data) != {'schema_version', 'tags'} or type(data['schema_version']) is not int or data['schema_version'] != 1 or not isinstance(data['tags'], list) or len(data['tags']) > 10000:
         raise ValueError('Unsupported or malformed tag metadata.')
     seen = set()
     for value in data['tags']:
-        key = normalized(value)
+        if allow_legacy:
+            # Only trusted local snapshots use this escape hatch, never imports.
+            continue
+        try:
+            key = normalized(value)
+        except ValueError as error:
+            raise ValueError(f'Invalid incoming tag {value!r}: {error}') from error
         if key in seen:
             raise ValueError('Duplicate names in tag metadata.')
         seen.add(key)
@@ -85,6 +159,7 @@ def validate_portable(data):
 def restore(connection, data, cid=None):
     if data is None:
         return
+    validate_portable(data)
     if prototype(connection):
         raise ValueError('Prototype tag tables require explicit migration before restoring tags.')
     for value in data['tags']:
@@ -119,18 +194,22 @@ def register_tags(app, db, case):
     @app.context_processor
     def context():
         if not getattr(g, 'user', None): return {}
-        return dict(can_tags_read=allowed('tags:read'), can_tags_create=allowed('tags:create'), can_tags_manage=allowed('tags:manage'), can_tags_assign=allowed('tags:assign') and allowed('cases:update'), tags_ready=not prototype(db()), case_tags=lambda cid: assignments(db(), cid))
+        return dict(can_tags_read=allowed('tags:read'), can_tags_create=allowed('tags:create'), can_tags_manage=allowed('tags:manage'), can_tags_assign=allowed('tags:assign') and allowed('cases:update'), tags_ready=not prototype(db()), tag_naming_help=NAMING_HELP, case_tags=lambda cid: assignments(db(), cid))
 
     @app.get('/tags')
     def tags_manager():
         require('tags:read')
-        return render_template('tags.html', tags=catalog(db(), request.args.get('q',''), request.args.get('sort','name')))
+        return render_template('tags.html', tags=catalog(db(), request.args.get('q',''), request.args.get('sort','name')), invalid_tags=invalid_legacy(db()))
 
     @app.get('/tags/search')
     def tags_search():
         require('tags:read')
         query = request.args.get('q','').strip()
-        exact = db().execute('SELECT id FROM tags WHERE normalized_name=?',(query.casefold(),)).fetchone()
+        try:
+            key = name(query)
+        except ValueError:
+            key = None
+        exact = db().execute('SELECT id FROM tags WHERE normalized_name=?',(key,)).fetchone()
         return {'tags': catalog(db(), query, limit=100), 'exact_id': exact[0] if exact else None}
 
     @app.get('/cases/<int:cid>/tags')
@@ -195,6 +274,7 @@ def register_tags(app, db, case):
                     destination = request.form.get('destination','')
                     target = db().execute('SELECT * FROM tags WHERE id=?',(destination,)).fetchone()
                     if not target or target['id'] == tid: raise ValueError('Choose a different destination tag.')
+                    name(target['name'])
                     if request.form.get('confirm') != '1': raise ValueError('Confirm the merge before proceeding.')
                     db().execute('INSERT OR IGNORE INTO case_tags SELECT case_id,?,assigned_at,assigned_by FROM case_tags WHERE tag_id=?',(target['id'],tid))
                     db().execute('DELETE FROM tags WHERE id=?',(tid,))

@@ -1,5 +1,7 @@
 # Latest update
 
+- Enforced uppercase ASCII tag names through shared backend validation, canonical uniqueness and SQLite write guards. Added an atomic, idempotent migration preserving tag associations, auditing case-only consolidation and retaining invalid legacy names with Tag Manager remediation. Imports reject invalid names visibly; synchronization verifies raw revision hashes before canonical comparison and retains ancestry when restoring older mixed-case tags. Added naming, concurrency, migration, API/import, synchronization and browser coverage.
+
 - Fixed Search case groups reopening after indexing refreshes: individual and bulk disclosure controls share stable case/archive state, retained through same-search polling and pagination, reset on new submissions, with stale-response guards and browser race regressions.
 
 - Added locally hosted Swagger UI 5.33.3 to the API tab with a validated OpenAPI 3.0.3 contract covering existing public operations, route/permission drift checks, authenticated specification access, same-origin session-gated execution, and no credential persistence. Kept token management with CSRF-protected one-time revelation; reused shared CodeMirror 6 for the read-only Python example and Copy code. Added isolated server/browser coverage and maintenance documentation.

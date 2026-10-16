@@ -27,9 +27,9 @@ def test_schema_uniqueness_assignment_and_case_deletion():
         before=[tuple(r) for r in db().execute('SELECT * FROM cases')]
         initialize(db());initialize(db())
         assert before==[tuple(r) for r in db().execute('SELECT * FROM cases')]
-        tid,changed=create(db(),' MAL-AsyncRat ');assert changed
-        assert create(db(),'mal-asyncrat')==(tid,False)
-        assert db().execute('SELECT name FROM tags').fetchone()[0]=='MAL-AsyncRat'
+        tid,changed=create(db(),' MAL_ASYNCRAT ');assert changed
+        assert create(db(),'mal_asyncrat')==(tid,False)
+        assert db().execute('SELECT name FROM tags').fetchone()[0]=='MAL_ASYNCRAT'
         db().commit()
     for _ in range(2): assert client.post(f'/cases/{cid}/tags/{tid}/assign',data={'csrf':'tag-test'}).status_code==302
     with app.app_context():
@@ -47,9 +47,9 @@ def test_schema_uniqueness_assignment_and_case_deletion():
 def test_search_create_exact_partial_and_permissions():
     assert app.test_client().get('/tags').status_code==302
     client,cid,_=fixture()
-    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'MAL-AsyncRat'})
-    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'MAL-Async'})
-    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'mal-asyncrat'})
+    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'MAL_ASYNCRAT'})
+    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'MAL_ASYNC'})
+    client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'mal_asyncrat'})
     rows=client.get('/tags/search?q=ASYNC').json['tags'];assert len(rows)==2
     assert len(client.get(f'/cases/{cid}/tags').json['tags'])==2
     assert b'TAGS' in client.get('/').data
@@ -73,10 +73,10 @@ def test_or_and_search_rename_merge_delete_audit():
     assert client.get(f'/?tag={one}&tag={two}&match=all').data.count(b'class="panel case-card mip-card"')==1
     assert client.get(f'/?tag={two}&q=Another').data.count(b'class="panel case-card mip-card"')==1
     assert client.get(f'/?tag={two}&q=absent').data.count(b'class="panel case-card mip-card"')==0
-    client.post(f'/tags/{one}/rename',data={'csrf':'tag-test','name':'New name'})
-    assert b'New name' in client.get(f'/cases/{cid}').data
+    client.post(f'/tags/{one}/rename',data={'csrf':'tag-test','name':'NEW_NAME'})
+    assert b'NEW_NAME' in client.get(f'/cases/{cid}').data
     client.post(f'/tags/{one}/rename',data={'csrf':'tag-test','name':'TWO'})
-    with app.app_context():assert db().execute('SELECT name FROM tags WHERE id=?',(one,)).fetchone()[0]=='New name'
+    with app.app_context():assert db().execute('SELECT name FROM tags WHERE id=?',(one,)).fetchone()[0]=='NEW_NAME'
     client.post(f'/tags/{one}/merge',data={'csrf':'tag-test','destination':two})
     with app.app_context():assert len(assignments(db(),cid))==2
     client.post(f'/tags/{one}/merge',data={'csrf':'tag-test','destination':two,'confirm':'1'})
@@ -94,7 +94,7 @@ def test_stage_locks_and_validation():
     for stage in [0,3]:
         with app.app_context():db().execute('UPDATE cases SET stage=? WHERE id=?',(stage,cid));db().commit()
         assert client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'Locked'}).status_code==409
-    for value in ['', 'x'*121, None, '\nBad']:
+    for value in ['', 'x'*121, None, 'Bad space']:
         with pytest.raises(ValueError):validate_portable({'schema_version':1,'tags':[value]})
     for value in [{'schema_version':True,'tags':[]},{'schema_version':2,'tags':[]},{'schema_version':1,'tags':['A','a']},{'schema_version':1,'tags':[],'extra':1}]:
         with pytest.raises(ValueError):validate_portable(value)
@@ -117,7 +117,7 @@ def test_raw_full_and_legacy_restore():
     client.post('/tags/create',data={'csrf':'tag-test','name':'Unused'})
     raw=client.post(f'/cases/{cid}/backup',data={'csrf':'tag-test'}).data
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
-        meta=json.loads(archive.read(next(n for n in archive.namelist() if n.endswith('/case-data.json'))));assert meta['tagging']=={'schema_version':1,'tags':['Saved']}
+        meta=json.loads(archive.read(next(n for n in archive.namelist() if n.endswith('/case-data.json'))));assert meta['tagging']=={'schema_version':1,'tags':['SAVED']}
     other_destination()
     apply_preview(client,client.post('/import-export/import-raw',data={'csrf':'tag-test','backup':(io.BytesIO(raw),'raw.zip')}),'tag-test')
     with app.app_context():assert len(assignments(db()))==2
@@ -133,7 +133,7 @@ def test_raw_full_and_legacy_restore():
     other_destination()
     apply_preview(client,client.post('/import-export/import',data={'csrf':'tag-test','backup':(io.BytesIO(full),'full.zip')}),'tag-test')
     with app.app_context():
-        assert portable(db())['tags']==['Saved','Unused']
+        assert portable(db())['tags']==['SAVED','UNUSED']
         assert len(assignments(db()))==2
 
 
@@ -158,7 +158,7 @@ def test_async_case_tags_confirmed_without_redirect_or_flash():
     response=client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'Async'},headers=headers)
     assert response.status_code==200 and not response.headers.get('Location')
     tid=response.json['tags'][0]['id']
-    assert response.json['tags'][0]['name']=='Async'
+    assert response.json['tags'][0]['name']=='ASYNC'
     response=client.post(f'/cases/{cid}/tags/{tid}/assign',data={'csrf':'tag-test'},headers=headers)
     assert len(response.json['tags'])==1
     response=client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':''},headers=headers)

@@ -86,7 +86,7 @@ def records(meta, name, fields):
     return result
 
 
-def validate_metadata(meta):
+def validate_metadata(meta, *, allow_legacy_tags=False):
     if meta.get('schema') not in ('mare-case-state/1', 'mare-case-state/2'):
         raise ValueError('Unsupported case metadata version.')
     if meta.get('schema') == 'mare-case-state/2' and (not {'notes','tasks','history','deferred','readiness','artifacts'}.issubset(meta.get('records',{})) or not {'images','figure_sequence','indicators','references','tagging','source_creator'}.issubset(meta)):
@@ -147,7 +147,7 @@ def validate_metadata(meta):
     sequence = meta.get('figure_sequence', 0)
     if not isinstance(sequence, int) or not 0 <= sequence < 9223372036854775807:
         raise ValueError('Invalid figure sequence.')
-    return c, sections, refs, clean, images, max([sequence]+[i['figure'] for i in images]), validate_tags(meta.get('tagging'))
+    return c, sections, refs, clean, images, max([sequence]+[i['figure'] for i in images]), validate_tags(meta.get('tagging'), allow_legacy=allow_legacy_tags)
 
 
 def register_backups(app, ROOT, db, case, package, ensure_package, build_archive, allocate, audit, now):

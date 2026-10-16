@@ -736,11 +736,37 @@ Manual release checklist:
 
 ## Case Tags
 
-Tags are shared, human-readable strings. Analysts choose their own conventions,
-for example `MAL-REDLINE_STEALER`, `TA-APT41`, `TECH-PERSISTENCE`, or `PHISHING`.
-MARE does not interpret prefixes. Names retain their entered spelling, with
-surrounding whitespace trimmed; Unicode case-folded names prevent duplicates.
-Names may contain 1–120 characters, without control characters.
+Tags are shared, human-readable strings, stored in uppercase. Examples are
+`MAL_REDLINE_STEALER`, `TA_APT41`, `TECH_PERSISTENCE`, and `PHISHING`.
+MARE does not interpret prefixes. Surrounding whitespace is trimmed, then the
+original input must contain 1–120 ASCII letters, digits, or underscores before
+uppercasing. `Apt_29` becomes `APT_29`; spaces, hyphens, dots, and non-ASCII letters
+are rejected with “Tags may contain only letters, numbers, and underscores.”
+Invalid characters are never silently replaced or removed. Backend validation in
+`tagging.name()` is authoritative for creation, rename, restore and synchronization.
+The unique canonical key and SQLite write triggers prevent concurrent duplicates;
+creating an existing name reuses its tag, while conflicting renames are rejected.
+Existing JSON Workbench routes use these same helpers; there is no separate public
+REST tag API or bulk-creation bypass.
+
+On the next application startup, the transactional, idempotent
+`uppercase-ascii-tags-v1` migration uppercases valid existing names and consolidates
+case-only duplicates into the lowest existing numeric ID. All case associations
+are preserved without duplicates; an existing canonical association retains its
+assignment metadata. Audit records identify consolidated IDs. The current portable
+tag format has no tag UUIDs or synchronization identity mappings; case UUIDs and
+historical revision definitions remain intact. Keep your normal pre-upgrade
+installation backup before starting the upgraded application.
+
+Invalid legacy names remain unchanged, including their IDs and associations.
+**Tag Manager** lists them with remediation links: an authorized manager can rename
+them to a valid name, or explicitly merge into a valid destination (with confirmation).
+No automatic replacement of spaces/hyphens is performed. Local snapshots and backups
+retain unresolved legacy names so the application and backups remain usable, but
+imports of those names fail visibly in import review. Remediate them before sharing
+new backups. The older prototype-table conversion still requires the explicit
+backed-up command below; invalid prototype names abort that conversion safely and
+must be remediated before retrying.
 
 ### Workbench and board
 
@@ -826,24 +852,31 @@ manual inspection, not used by the new interface.
 Individual RAW backups include optional `tagging` in `case-data.json`:
 
 ```json
-{"schema_version": 1, "tags": ["MAL-REDLINE_STEALER", "TA-APT41"]}
+{"schema_version": 1, "tags": ["MAL_REDLINE_STEALER", "TA_APT41"]}
 ```
 
 Export All also includes the entire shared catalog in `backup.json`, preserving
 unused definitions. Import validates versions, structure, types, lengths, and
 duplicate names before restoring any case. Existing normalized names are reused
-without overwriting display spelling; missing names are created. Relationships
+with uppercase spelling; missing valid names are created. Incoming invalid tag names
+are reported with their value and reason in the import review; nothing is silently dropped. Relationships
 are restored against newly allocated IDs. Older archives without tag metadata
 continue importing; malformed metadata rejects the import with rollback. The
 portable format contains no database IDs or attribution: imported assignments get
 the import time and unknown actor. Existing owner/user mapping remains unchanged.
+Incoming revision hashes are verified against the exact archived names first.
+Only then are tag names compared canonically, avoiding conflicts/repeated updates
+for otherwise identical snapshots differing only in tag case. A new case restored
+from older mixed-case metadata receives a canonical descendant revision; original
+revision UUIDs, definitions and ancestry are retained, and subsequent identical
+imports remain unchanged.
 Standard MIP deliverables do not include internal tag backup metadata. Older
 prototype tag metadata requires explicit conversion rather than a silent import.
 
 ### Verification
 
 ```sh
-.venv/bin/python -m pytest -q tests/test_tagging.py tests/test_backups.py tests/test_case_deletion.py tests/test_archive_modes.py tests/test_api.py
+.venv/bin/python -m pytest -q tests/test_tag_names.py tests/test_tagging.py tests/test_backups.py tests/test_case_deletion.py tests/test_archive_modes.py tests/test_api.py
 MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/tags.cjs
 ```
 

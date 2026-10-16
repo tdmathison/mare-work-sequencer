@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from flask import g, has_request_context, request
 from mip import CATEGORIES
+from tagging import name as tag_name
 from reporting import is_backup, SECTIONS
 
 MAX_REVISIONS = 10000
@@ -120,6 +121,20 @@ def logical_snapshot(validated, folder):
         "tags": sorted((tags or {}).get("tags", [])),
         "files": files,
     }
+
+
+def canonical_tag_snapshot(snapshot):
+    snapshot = copy.deepcopy(snapshot)
+    snapshot['tags'] = sorted({tag_name(value) for value in snapshot['tags']})
+    return snapshot
+
+
+def equivalent_snapshot(left, right):
+    """Compare canonical tag semantics only AFTER authenticating raw revisions."""
+    try:
+        return canonical_tag_snapshot(left) == canonical_tag_snapshot(right)
+    except ValueError:
+        return left == right  # Keep unremediated local legacy names unchanged.
 
 
 def fingerprint(snapshot):
@@ -398,7 +413,7 @@ class CaseSync:
 
     def snapshot(self, cid):
         return logical_snapshot(
-            self.validate(self.metadata(cid)), self.root / "cases" / str(cid) / "mip"
+            self.validate(self.metadata(cid), allow_legacy_tags=True), self.root / "cases" / str(cid) / "mip"
         )
 
     def graph(self, case_uuid):
