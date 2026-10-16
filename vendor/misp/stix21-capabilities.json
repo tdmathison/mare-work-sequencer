@@ -1,0 +1,424 @@
+{
+  "converter": "misp-stix",
+  "version": "2026.10.12",
+  "native_detection_patterns": {
+    "md5": [
+      "file:hashes.MD5"
+    ],
+    "sha1": [
+      "file:hashes.SHA-1"
+    ],
+    "sha256": [
+      "file:hashes.SHA-256"
+    ],
+    "filename": [
+      "file:name"
+    ],
+    "filename|md5": [
+      "file:name",
+      "file:hashes.MD5"
+    ],
+    "filename|sha1": [
+      "file:name",
+      "file:hashes.SHA-1"
+    ],
+    "filename|sha256": [
+      "file:name",
+      "file:hashes.SHA-256"
+    ],
+    "ip-src": [
+      "network-traffic:src_ref.type",
+      "network-traffic:src_ref.value"
+    ],
+    "ip-dst": [
+      "network-traffic:dst_ref.type",
+      "network-traffic:dst_ref.value"
+    ],
+    "hostname": [
+      "domain-name:value"
+    ],
+    "domain": [
+      "domain-name:value"
+    ],
+    "domain|ip": [
+      "domain-name:value",
+      "domain-name:resolves_to_refs[*].value"
+    ],
+    "email": [
+      "email-addr:value"
+    ],
+    "email-src": [
+      "email-message:from_ref.value"
+    ],
+    "email-dst": [
+      "email-message:to_refs[*].value"
+    ],
+    "email-subject": [
+      "email-message:subject"
+    ],
+    "email-attachment": [
+      "email-message:body_multipart[*].body_raw_ref.name"
+    ],
+    "email-body": [
+      "email-message:body"
+    ],
+    "url": [
+      "url:value"
+    ],
+    "http-method": [
+      "network-traffic:extensions.http-request-ext.request_method"
+    ],
+    "user-agent": [
+      "network-traffic:extensions.http-request-ext.request_header.User-Agent"
+    ],
+    "regkey": [
+      "windows-registry-key:key"
+    ],
+    "regkey|value": [
+      "windows-registry-key:key",
+      "windows-registry-key:values.data"
+    ],
+    "link": [
+      "url:value"
+    ],
+    "mutex": [
+      "mutex:name"
+    ],
+    "uri": [
+      "url:value"
+    ],
+    "authentihash": [
+      "file:hashes.AUTHENTIHASH"
+    ],
+    "vhash": [
+      "file:hashes.VHASH"
+    ],
+    "ssdeep": [
+      "file:hashes.SSDEEP"
+    ],
+    "imphash": [
+      "file:hashes.IMPHASH"
+    ],
+    "telfhash": [
+      "file:hashes.TELFHASH"
+    ],
+    "pehash": [
+      "file:hashes.PEHASH"
+    ],
+    "impfuzzy": [
+      "file:hashes.IMPFUZZY"
+    ],
+    "sha224": [
+      "file:hashes.SHA-224"
+    ],
+    "sha384": [
+      "file:hashes.SHA-384"
+    ],
+    "sha512": [
+      "file:hashes.SHA-512"
+    ],
+    "sha512/224": [
+      "file:hashes.SHA-224"
+    ],
+    "sha512/256": [
+      "file:hashes.SHA-256"
+    ],
+    "sha3-224": [
+      "file:hashes.SHA3-224"
+    ],
+    "sha3-256": [
+      "file:hashes.SHA3-256"
+    ],
+    "sha3-384": [
+      "file:hashes.SHA3-384"
+    ],
+    "sha3-512": [
+      "file:hashes.SHA3-512"
+    ],
+    "tlsh": [
+      "file:hashes.TLSH"
+    ],
+    "cdhash": [
+      "file:hashes.CDHASH"
+    ],
+    "filename|authentihash": [
+      "file:name",
+      "file:hashes.AUTHENTIHASH"
+    ],
+    "filename|vhash": [
+      "file:name",
+      "file:hashes.VHASH"
+    ],
+    "filename|ssdeep": [
+      "file:name",
+      "file:hashes.SSDEEP"
+    ],
+    "filename|imphash": [
+      "file:name",
+      "file:hashes.IMPHASH"
+    ],
+    "filename|pehash": [
+      "file:name",
+      "file:hashes.PEHASH"
+    ],
+    "filename|sha224": [
+      "file:name",
+      "file:hashes.SHA-224"
+    ],
+    "filename|sha384": [
+      "file:name",
+      "file:hashes.SHA-384"
+    ],
+    "filename|sha512": [
+      "file:name",
+      "file:hashes.SHA-512"
+    ],
+    "filename|sha512/224": [
+      "file:name",
+      "file:hashes.SHA-224"
+    ],
+    "filename|sha512/256": [
+      "file:name",
+      "file:hashes.SHA-256"
+    ],
+    "filename|sha3-224": [
+      "file:name",
+      "file:hashes.SHA3-224"
+    ],
+    "filename|sha3-256": [
+      "file:name",
+      "file:hashes.SHA3-256"
+    ],
+    "filename|sha3-384": [
+      "file:name",
+      "file:hashes.SHA3-384"
+    ],
+    "filename|sha3-512": [
+      "file:name",
+      "file:hashes.SHA3-512"
+    ],
+    "filename|tlsh": [
+      "file:name",
+      "file:hashes.TLSH"
+    ],
+    "x509-fingerprint-sha1": [
+      "x509-certificate:hashes.SHA-1"
+    ],
+    "x509-fingerprint-md5": [
+      "x509-certificate:hashes.MD5"
+    ],
+    "x509-fingerprint-sha256": [
+      "x509-certificate:hashes.SHA-256"
+    ],
+    "mac-address": [
+      "mac-addr:value"
+    ],
+    "email-header": [
+      "email-message:received_lines"
+    ],
+    "email-reply-to": [
+      "email-message:additional_header_fields.reply_to"
+    ],
+    "email-x-mailer": [
+      "email-message:additional_header_fields.x_mailer"
+    ],
+    "email-message-id": [
+      "email-message:message_id"
+    ],
+    "github-username": [
+      "user-account:account_type",
+      "user-account:account_login"
+    ]
+  },
+  "contextual_only_limitations": {
+    "numeric_patterns": {
+      "types": [
+        "hostname|port",
+        "ip-dst|port",
+        "ip-src|port",
+        "port",
+        "size-in-bytes"
+      ],
+      "reason": "Pinned converter quotes numeric STIX operands; use the lossless official contextual representation."
+    },
+    "other_types": "Native object/observation or rule output does not have a verified faithful scalar STIX-pattern round trip; use official contextual attributes."
+  },
+  "native_descriptive_objects": {
+    "campaign-name": "campaign",
+    "vulnerability": "vulnerability"
+  },
+  "previously_unconverted_types": [
+    "AS",
+    "aba-rtn",
+    "anonymised",
+    "attachment",
+    "authentihash",
+    "azure-application-id",
+    "bank-account-nr",
+    "bic",
+    "bin",
+    "boolean",
+    "bro",
+    "btc",
+    "campaign-id",
+    "campaign-name",
+    "cc-number",
+    "cdhash",
+    "community-id",
+    "cookie",
+    "cortex",
+    "counter",
+    "country-of-residence",
+    "cpe",
+    "dash",
+    "date-of-birth",
+    "datetime",
+    "dkim",
+    "dkim-signature",
+    "dns-soa-email",
+    "dom-hash",
+    "domain|ip",
+    "email",
+    "email-body",
+    "email-dst-display-name",
+    "email-header",
+    "email-message-id",
+    "email-mime-boundary",
+    "email-reply-to",
+    "email-src-display-name",
+    "email-thread-index",
+    "email-x-mailer",
+    "eppn",
+    "favicon-mmh3",
+    "filename-pattern",
+    "filename|authentihash",
+    "filename|impfuzzy",
+    "filename|imphash",
+    "filename|pehash",
+    "filename|sha224",
+    "filename|sha3-224",
+    "filename|sha3-256",
+    "filename|sha3-384",
+    "filename|sha3-512",
+    "filename|sha384",
+    "filename|sha512",
+    "filename|sha512/224",
+    "filename|sha512/256",
+    "filename|ssdeep",
+    "filename|tlsh",
+    "filename|vhash",
+    "first-name",
+    "float",
+    "frequent-flyer-number",
+    "full-name",
+    "gender",
+    "gene",
+    "git-commit-id",
+    "github-organisation",
+    "github-repository",
+    "github-username",
+    "hassh-md5",
+    "hasshserver-md5",
+    "hex",
+    "hostname|port",
+    "http-method",
+    "iban",
+    "identity-card-number",
+    "impfuzzy",
+    "imphash",
+    "integer",
+    "ip-dst|port",
+    "ip-src|port",
+    "issue-date-of-the-visa",
+    "ja3-fingerprint-md5",
+    "jabber-id",
+    "jarm-fingerprint",
+    "kusto-query",
+    "last-name",
+    "link",
+    "mac-eui-64",
+    "malware-sample",
+    "malware-type",
+    "middle-name",
+    "mime-type",
+    "named pipe",
+    "nationality",
+    "onion-address",
+    "passenger-name-record-locator-number",
+    "passport-country",
+    "passport-expiration",
+    "passport-number",
+    "pattern-in-file",
+    "pattern-in-memory",
+    "pattern-in-traffic",
+    "payment-details",
+    "pdb",
+    "pehash",
+    "pgp-private-key",
+    "pgp-public-key",
+    "phone-number",
+    "place-of-birth",
+    "place-port-of-clearance",
+    "place-port-of-onward-foreign-destination",
+    "place-port-of-original-embarkation",
+    "port",
+    "primary-residence",
+    "process-state",
+    "prtn",
+    "redress-number",
+    "sha224",
+    "sha3-224",
+    "sha3-256",
+    "sha3-384",
+    "sha3-512",
+    "sha384",
+    "sha512/224",
+    "sha512/256",
+    "sigma",
+    "size-in-bytes",
+    "snort",
+    "special-service-request",
+    "ssdeep",
+    "ssh-fingerprint",
+    "stix2-pattern",
+    "suricata",
+    "target-email",
+    "target-external",
+    "target-location",
+    "target-machine",
+    "target-org",
+    "target-user",
+    "telfhash",
+    "threat-actor",
+    "tlsh",
+    "travel-details",
+    "twitter-id",
+    "uri",
+    "user-agent",
+    "uuid",
+    "vhash",
+    "visa-number",
+    "vulnerability",
+    "weakness",
+    "whois-creation-date",
+    "whois-registrant-email",
+    "whois-registrant-name",
+    "whois-registrant-org",
+    "whois-registrant-phone",
+    "whois-registrar",
+    "windows-scheduled-task",
+    "windows-service-displayname",
+    "windows-service-name",
+    "x509-fingerprint-md5",
+    "xmr",
+    "yara",
+    "zeek"
+  ],
+  "previous_gap_reason": "The initial storage catalog only enabled a handpicked mapping subset and had no official-converter fallback for these 165 types.",
+  "validation_adapter_notes": {
+    "edge-extension-id": "Known official catalog type missing from pinned PyMISP validation switch; catalog-backed MISP model plus official contextual writer/importer verified.",
+    "filename|impfuzzy": "Pinned validator does not dispatch this composite; validate its filename separator and impfuzzy component explicitly.",
+    "mac-eui-64": "Pinned validator regex expects an extra colon; validate eight standard hexadecimal octets locally."
+  },
+  "native_descriptive_limit": "Pinned MISP importer sets native Campaign/Vulnerability to_ids=true regardless of a false label; non-detection descriptors use contextual objects."
+}

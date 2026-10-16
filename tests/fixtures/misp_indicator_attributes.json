@@ -1,0 +1,965 @@
+{
+  "catalog": "PyMISP 2.5.34.4",
+  "rows": [
+    [
+      "md5",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description md5"
+    ],
+    [
+      "sha1",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha1"
+    ],
+    [
+      "sha256",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha256"
+    ],
+    [
+      "filename",
+      "sample.exe",
+      "Description filename"
+    ],
+    [
+      "pdb",
+      "Example",
+      "Description pdb"
+    ],
+    [
+      "filename|md5",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|md5"
+    ],
+    [
+      "filename|sha1",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha1"
+    ],
+    [
+      "filename|sha256",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha256"
+    ],
+    [
+      "ip-src",
+      "192[.]0[.]2[.]1",
+      "Description ip-src"
+    ],
+    [
+      "ip-dst",
+      "2001:db8::1",
+      "Description ip-dst"
+    ],
+    [
+      "hostname",
+      "host.example",
+      "Description hostname"
+    ],
+    [
+      "domain",
+      "evil.example",
+      "Description domain"
+    ],
+    [
+      "domain|ip",
+      "evil.example|192.0.2.1",
+      "Description domain|ip"
+    ],
+    [
+      "email",
+      "analyst@evil.example",
+      "Description email"
+    ],
+    [
+      "email-src",
+      "analyst@evil.example",
+      "Description email-src"
+    ],
+    [
+      "eppn",
+      "analyst@evil.example",
+      "Description eppn"
+    ],
+    [
+      "email-dst",
+      "recipient@evil.example",
+      "Description email-dst"
+    ],
+    [
+      "email-subject",
+      "Example",
+      "Description email-subject"
+    ],
+    [
+      "email-attachment",
+      "Example",
+      "Description email-attachment"
+    ],
+    [
+      "email-body",
+      "Example",
+      "Description email-body"
+    ],
+    [
+      "float",
+      "1.25",
+      "Description float"
+    ],
+    [
+      "git-commit-id",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description git-commit-id"
+    ],
+    [
+      "url",
+      "hxxps://evil[.]example/Case",
+      "Description url"
+    ],
+    [
+      "http-method",
+      "GET",
+      "Description http-method"
+    ],
+    [
+      "user-agent",
+      "Example",
+      "Description user-agent"
+    ],
+    [
+      "ja3-fingerprint-md5",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description ja3-fingerprint-md5"
+    ],
+    [
+      "jarm-fingerprint",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description jarm-fingerprint"
+    ],
+    [
+      "favicon-mmh3",
+      "Example",
+      "Description favicon-mmh3"
+    ],
+    [
+      "hassh-md5",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description hassh-md5"
+    ],
+    [
+      "hasshserver-md5",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description hasshserver-md5"
+    ],
+    [
+      "regkey",
+      "HKLM\\Software\\Example",
+      "Description regkey"
+    ],
+    [
+      "regkey|value",
+      "HKLM\\Software\\Example|Literal",
+      "Description regkey|value"
+    ],
+    [
+      "AS",
+      "64500",
+      "Description AS"
+    ],
+    [
+      "snort",
+      "Example",
+      "Description snort"
+    ],
+    [
+      "suricata",
+      "Example",
+      "Description suricata"
+    ],
+    [
+      "bro",
+      "Example",
+      "Description bro"
+    ],
+    [
+      "zeek",
+      "Example",
+      "Description zeek"
+    ],
+    [
+      "community-id",
+      "Example",
+      "Description community-id"
+    ],
+    [
+      "dom-hash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description dom-hash"
+    ],
+    [
+      "pattern-in-file",
+      "Example",
+      "Description pattern-in-file"
+    ],
+    [
+      "pattern-in-traffic",
+      "Example",
+      "Description pattern-in-traffic"
+    ],
+    [
+      "pattern-in-memory",
+      "Example",
+      "Description pattern-in-memory"
+    ],
+    [
+      "filename-pattern",
+      "Example",
+      "Description filename-pattern"
+    ],
+    [
+      "pgp-public-key",
+      "Example",
+      "Description pgp-public-key"
+    ],
+    [
+      "pgp-private-key",
+      "Example",
+      "Description pgp-private-key"
+    ],
+    [
+      "ssh-fingerprint",
+      "aa:bb:cc:dd:ee:ff:aa:bb:cc:dd:ee:ff:aa:bb:cc:dd",
+      "Description ssh-fingerprint"
+    ],
+    [
+      "yara",
+      "Example",
+      "Description yara"
+    ],
+    [
+      "stix2-pattern",
+      "Example",
+      "Description stix2-pattern"
+    ],
+    [
+      "sigma",
+      "Example",
+      "Description sigma"
+    ],
+    [
+      "gene",
+      "Example",
+      "Description gene"
+    ],
+    [
+      "kusto-query",
+      "Example",
+      "Description kusto-query"
+    ],
+    [
+      "mime-type",
+      "Example",
+      "Description mime-type"
+    ],
+    [
+      "identity-card-number",
+      "Example",
+      "Description identity-card-number"
+    ],
+    [
+      "cookie",
+      "Example",
+      "Description cookie"
+    ],
+    [
+      "vulnerability",
+      "CVE-2024-1234",
+      "Description vulnerability"
+    ],
+    [
+      "cpe",
+      "Example",
+      "Description cpe"
+    ],
+    [
+      "weakness",
+      "CWE-79",
+      "Description weakness"
+    ],
+    [
+      "link",
+      "https://reference.example",
+      "Description link"
+    ],
+    [
+      "comment",
+      "Analyst comment",
+      "Description comment"
+    ],
+    [
+      "text",
+      "Unicode 🦀\nhttps://example.com",
+      "Description text"
+    ],
+    [
+      "hex",
+      "aabbcc",
+      "Description hex"
+    ],
+    [
+      "other",
+      "Unknown artifact",
+      "Description other"
+    ],
+    [
+      "named pipe",
+      "Example",
+      "Description named pipe"
+    ],
+    [
+      "mutex",
+      "Example",
+      "Description mutex"
+    ],
+    [
+      "process-state",
+      "Example",
+      "Description process-state"
+    ],
+    [
+      "target-user",
+      "Example",
+      "Description target-user"
+    ],
+    [
+      "target-email",
+      "analyst@evil.example",
+      "Description target-email"
+    ],
+    [
+      "target-machine",
+      "Example",
+      "Description target-machine"
+    ],
+    [
+      "target-org",
+      "Example",
+      "Description target-org"
+    ],
+    [
+      "target-location",
+      "Example",
+      "Description target-location"
+    ],
+    [
+      "target-external",
+      "Example",
+      "Description target-external"
+    ],
+    [
+      "btc",
+      "Example",
+      "Description btc"
+    ],
+    [
+      "dash",
+      "Example",
+      "Description dash"
+    ],
+    [
+      "xmr",
+      "Example",
+      "Description xmr"
+    ],
+    [
+      "iban",
+      "Example",
+      "Description iban"
+    ],
+    [
+      "bic",
+      "Example",
+      "Description bic"
+    ],
+    [
+      "bank-account-nr",
+      "12345678",
+      "Description bank-account-nr"
+    ],
+    [
+      "aba-rtn",
+      "111000025",
+      "Description aba-rtn"
+    ],
+    [
+      "bin",
+      "411111",
+      "Description bin"
+    ],
+    [
+      "cc-number",
+      "4111111111111111",
+      "Description cc-number"
+    ],
+    [
+      "prtn",
+      "12345678",
+      "Description prtn"
+    ],
+    [
+      "phone-number",
+      "+12025550123",
+      "Description phone-number"
+    ],
+    [
+      "threat-actor",
+      "Example",
+      "Description threat-actor"
+    ],
+    [
+      "campaign-name",
+      "Example",
+      "Description campaign-name"
+    ],
+    [
+      "campaign-id",
+      "Example",
+      "Description campaign-id"
+    ],
+    [
+      "malware-type",
+      "Example",
+      "Description malware-type"
+    ],
+    [
+      "uri",
+      "https://evil.example/Case",
+      "Description uri"
+    ],
+    [
+      "authentihash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description authentihash"
+    ],
+    [
+      "vhash",
+      "abc123",
+      "Description vhash"
+    ],
+    [
+      "ssdeep",
+      "3:abc:abc",
+      "Description ssdeep"
+    ],
+    [
+      "imphash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description imphash"
+    ],
+    [
+      "telfhash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description telfhash"
+    ],
+    [
+      "pehash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description pehash"
+    ],
+    [
+      "impfuzzy",
+      "3:abc:abc",
+      "Description impfuzzy"
+    ],
+    [
+      "sha224",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha224"
+    ],
+    [
+      "sha384",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha384"
+    ],
+    [
+      "sha512",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha512"
+    ],
+    [
+      "sha512/224",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha512/224"
+    ],
+    [
+      "sha512/256",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha512/256"
+    ],
+    [
+      "sha3-224",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha3-224"
+    ],
+    [
+      "sha3-256",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha3-256"
+    ],
+    [
+      "sha3-384",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha3-384"
+    ],
+    [
+      "sha3-512",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description sha3-512"
+    ],
+    [
+      "tlsh",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description tlsh"
+    ],
+    [
+      "cdhash",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description cdhash"
+    ],
+    [
+      "filename|authentihash",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|authentihash"
+    ],
+    [
+      "filename|vhash",
+      "sample.exe|abc123",
+      "Description filename|vhash"
+    ],
+    [
+      "filename|ssdeep",
+      "sample.exe|3:abc:abc",
+      "Description filename|ssdeep"
+    ],
+    [
+      "filename|imphash",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|imphash"
+    ],
+    [
+      "filename|impfuzzy",
+      "sample.exe|3:abc:abc",
+      "Description filename|impfuzzy"
+    ],
+    [
+      "filename|pehash",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|pehash"
+    ],
+    [
+      "filename|sha224",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha224"
+    ],
+    [
+      "filename|sha384",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha384"
+    ],
+    [
+      "filename|sha512",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha512"
+    ],
+    [
+      "filename|sha512/224",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha512/224"
+    ],
+    [
+      "filename|sha512/256",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha512/256"
+    ],
+    [
+      "filename|sha3-224",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha3-224"
+    ],
+    [
+      "filename|sha3-256",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha3-256"
+    ],
+    [
+      "filename|sha3-384",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha3-384"
+    ],
+    [
+      "filename|sha3-512",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|sha3-512"
+    ],
+    [
+      "filename|tlsh",
+      "sample.exe|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description filename|tlsh"
+    ],
+    [
+      "windows-scheduled-task",
+      "Example",
+      "Description windows-scheduled-task"
+    ],
+    [
+      "windows-service-name",
+      "Example",
+      "Description windows-service-name"
+    ],
+    [
+      "windows-service-displayname",
+      "Example",
+      "Description windows-service-displayname"
+    ],
+    [
+      "whois-registrant-email",
+      "analyst@evil.example",
+      "Description whois-registrant-email"
+    ],
+    [
+      "whois-registrant-phone",
+      "+12025550123",
+      "Description whois-registrant-phone"
+    ],
+    [
+      "whois-registrant-name",
+      "Example",
+      "Description whois-registrant-name"
+    ],
+    [
+      "whois-registrant-org",
+      "Example",
+      "Description whois-registrant-org"
+    ],
+    [
+      "whois-registrar",
+      "Example",
+      "Description whois-registrar"
+    ],
+    [
+      "whois-creation-date",
+      "Example",
+      "Description whois-creation-date"
+    ],
+    [
+      "x509-fingerprint-sha1",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description x509-fingerprint-sha1"
+    ],
+    [
+      "x509-fingerprint-md5",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description x509-fingerprint-md5"
+    ],
+    [
+      "x509-fingerprint-sha256",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description x509-fingerprint-sha256"
+    ],
+    [
+      "dns-soa-email",
+      "analyst@evil.example",
+      "Description dns-soa-email"
+    ],
+    [
+      "size-in-bytes",
+      "12",
+      "Description size-in-bytes"
+    ],
+    [
+      "counter",
+      "12",
+      "Description counter"
+    ],
+    [
+      "integer",
+      "12",
+      "Description integer"
+    ],
+    [
+      "datetime",
+      "2026-01-01T00:00:00Z",
+      "Description datetime"
+    ],
+    [
+      "port",
+      "443",
+      "Description port"
+    ],
+    [
+      "ip-dst|port",
+      "2001:db8::1|443",
+      "Description ip-dst|port"
+    ],
+    [
+      "ip-src|port",
+      "192.0.2.1|443",
+      "Description ip-src|port"
+    ],
+    [
+      "hostname|port",
+      "host.example|443",
+      "Description hostname|port"
+    ],
+    [
+      "mac-address",
+      "aa:bb:cc:dd:ee:ff",
+      "Description mac-address"
+    ],
+    [
+      "mac-eui-64",
+      "00:11:22:ff:fe:33:44:55",
+      "Description mac-eui-64"
+    ],
+    [
+      "email-dst-display-name",
+      "Example",
+      "Description email-dst-display-name"
+    ],
+    [
+      "email-src-display-name",
+      "Example",
+      "Description email-src-display-name"
+    ],
+    [
+      "email-header",
+      "Example",
+      "Description email-header"
+    ],
+    [
+      "email-reply-to",
+      "analyst@evil.example",
+      "Description email-reply-to"
+    ],
+    [
+      "email-x-mailer",
+      "Example",
+      "Description email-x-mailer"
+    ],
+    [
+      "email-mime-boundary",
+      "Example",
+      "Description email-mime-boundary"
+    ],
+    [
+      "email-thread-index",
+      "Example",
+      "Description email-thread-index"
+    ],
+    [
+      "email-message-id",
+      "Example",
+      "Description email-message-id"
+    ],
+    [
+      "github-username",
+      "Example",
+      "Description github-username"
+    ],
+    [
+      "github-repository",
+      "Example",
+      "Description github-repository"
+    ],
+    [
+      "github-organisation",
+      "Example",
+      "Description github-organisation"
+    ],
+    [
+      "jabber-id",
+      "analyst@evil.example",
+      "Description jabber-id"
+    ],
+    [
+      "twitter-id",
+      "Example",
+      "Description twitter-id"
+    ],
+    [
+      "dkim",
+      "Example",
+      "Description dkim"
+    ],
+    [
+      "dkim-signature",
+      "Example",
+      "Description dkim-signature"
+    ],
+    [
+      "first-name",
+      "Example",
+      "Description first-name"
+    ],
+    [
+      "middle-name",
+      "Example",
+      "Description middle-name"
+    ],
+    [
+      "last-name",
+      "Example",
+      "Description last-name"
+    ],
+    [
+      "full-name",
+      "Example",
+      "Description full-name"
+    ],
+    [
+      "date-of-birth",
+      "Example",
+      "Description date-of-birth"
+    ],
+    [
+      "place-of-birth",
+      "Example",
+      "Description place-of-birth"
+    ],
+    [
+      "gender",
+      "Example",
+      "Description gender"
+    ],
+    [
+      "passport-number",
+      "Example",
+      "Description passport-number"
+    ],
+    [
+      "passport-country",
+      "Example",
+      "Description passport-country"
+    ],
+    [
+      "passport-expiration",
+      "Example",
+      "Description passport-expiration"
+    ],
+    [
+      "redress-number",
+      "Example",
+      "Description redress-number"
+    ],
+    [
+      "nationality",
+      "Example",
+      "Description nationality"
+    ],
+    [
+      "visa-number",
+      "Example",
+      "Description visa-number"
+    ],
+    [
+      "issue-date-of-the-visa",
+      "Example",
+      "Description issue-date-of-the-visa"
+    ],
+    [
+      "primary-residence",
+      "Example",
+      "Description primary-residence"
+    ],
+    [
+      "country-of-residence",
+      "Example",
+      "Description country-of-residence"
+    ],
+    [
+      "special-service-request",
+      "Example",
+      "Description special-service-request"
+    ],
+    [
+      "frequent-flyer-number",
+      "Example",
+      "Description frequent-flyer-number"
+    ],
+    [
+      "travel-details",
+      "Example",
+      "Description travel-details"
+    ],
+    [
+      "payment-details",
+      "Example",
+      "Description payment-details"
+    ],
+    [
+      "place-port-of-original-embarkation",
+      "Example",
+      "Description place-port-of-original-embarkation"
+    ],
+    [
+      "place-port-of-clearance",
+      "Example",
+      "Description place-port-of-clearance"
+    ],
+    [
+      "place-port-of-onward-foreign-destination",
+      "Example",
+      "Description place-port-of-onward-foreign-destination"
+    ],
+    [
+      "passenger-name-record-locator-number",
+      "Example",
+      "Description passenger-name-record-locator-number"
+    ],
+    [
+      "mobile-application-id",
+      "com.Example.app",
+      "Description mobile-application-id"
+    ],
+    [
+      "azure-application-id",
+      "Example",
+      "Description azure-application-id"
+    ],
+    [
+      "chrome-extension-id",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "Description chrome-extension-id"
+    ],
+    [
+      "edge-extension-id",
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "Description edge-extension-id"
+    ],
+    [
+      "cortex",
+      "{\"result\":\"test\"}",
+      "Description cortex"
+    ],
+    [
+      "boolean",
+      "1",
+      "Description boolean"
+    ],
+    [
+      "uuid",
+      "00000000-0000-4000-8000-000000000001",
+      "Description uuid"
+    ],
+    [
+      "anonymised",
+      "Example",
+      "Description anonymised"
+    ],
+    [
+      "onion-address",
+      "abcdefghijklmnop.onion",
+      "Description onion-address"
+    ]
+  ]
+}

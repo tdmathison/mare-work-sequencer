@@ -1348,28 +1348,62 @@ conversion. Type help is available beside the field and through `aria-describedb
 
 The source/version/file SHA-256 and BSD-2-Clause license live in `vendor/misp`.
 See [catalog maintenance](vendor/misp/README.md) for an offline wheel-based update
-procedure. Flask only reads the bundled JSON; no runtime internet or PyMISP
-installation is needed. On an explicitly connected maintenance machine:
+procedure. Flask reads the catalog locally; runtime conversion now uses pinned PyMISP/misp-stix Python dependencies and never requires runtime internet. On an explicitly connected maintenance machine:
 
 ```sh
 python3 -m pip download --no-deps --only-binary=:all: pymisp==2.5.34.4 -d /tmp/mare-misp-catalog
 python3 scripts/update_indicator_catalog.py /tmp/mare-misp-catalog/pymisp-2.5.34.4-py3-none-any.whl --expected-version 2.5.34.4
 ```
 
-The central catalog exposes `export` capability and `help` for every type:
+The central catalog exposes `export` capability, help and default detection intent.
+UI rows show **Native STIX mapping**, **MISP-compatible representation**, or
+**Requires correction/additional data**. Fallback notices are informational in
+`stix.notices`; they do not populate `stix.issues` or block download.
 
-- **native**: the validated patterns in the mapping table, including the retained
-  MARE `software:name` extension; no invented observations or additional properties.
-- **contextual**: `text`, `comment`, `other`, `mobile-application-id`,
-  `chrome-extension-id`, `edge-extension-id`. These use the official converter's
-  `x-misp-attribute` schema with `x_misp_type`, literal `x_misp_value`, description
-  in `x_misp_comment`, category and explicit `x_misp_to_ids=false`. Labels also
-  state `misp:to_ids="False"`. No fake detection pattern or generic Note is created.
-- **unsupported**: every remaining selectable type is still saved literally, with
-  an actionable export message. Attachment/malware-sample need binary content;
-  traffic tuples, richer structured attributes, rule languages and other entries
-  need additional data or a verified mapping. Selection alone does not establish
-  semantic validity or claim STIX/MISP conversion compatibility.
+- **71 native-capable choices**: 68 official detection-pattern mappings, two
+  official descriptive mappings (Campaign/Vulnerability), and the retained MARE
+  `software:name` extension. The complete tested profile is in
+  [stix21-capabilities.json](vendor/misp/stix21-capabilities.json). New native-capable
+  types default to non-detection contextual export unless detection intent is
+  explicitly supplied by import/API; legacy native rows keep their previous intent.
+- **122 contextual choices**: all remaining non-binary catalog entries use the
+  official converter's `x-misp-attribute` representation, including ports,
+  contextual prose, application IDs, rule text and attributes without a faithful
+  scalar native round trip. Native-capable rows also use this representation when
+  required to retain non-detection intent. Types and values are never silently
+  substituted. Fallback alone is not a validation error.
+- **2 binary-required choices**: `attachment` needs the actual attachment bytes;
+  `malware-sample` needs sample/archive bytes and associated metadata. A filename
+  or hash alone is not enough. Their rows and CSV remain saved, but complete STIX
+  export is withheld with a precise correction message until the needed content
+  can be represented. This three-column editor does not accept binary attachments.
+
+The former gap comprised 165 types for which the initial implementation had no
+fallback; the exact list and upstream constraints are retained in the profile.
+There is no remaining blanket “mapping unavailable” restriction for valid scalar
+MISP attributes. Validation uses type-aware MARE normalization and PyMISP's
+attribute validator. Invalid hashes, IPs/CIDRs, ports, composites, timestamps and
+other typed values still require correction; their saved draft data is retained.
+A catalog entry is not a promise that every possible string is valid for its type.
+
+Runtime conversion uses proper MISP event/attribute models through pinned
+`misp-stix==2026.10.12` and `pymisp==2.5.34.4`. The isolated adapter in
+`misp_indicator_export.py` calls the upstream custom writer for fallback; it does
+not invent a new object format. The protected fallback/model hooks are version
+coupled and covered by actual importer tests. Internal model organization/event
+objects and synthesized observations are not published. Native patterns use
+validated/refanged components and upstream property syntax; source values remain
+unchanged. No observation timestamps, vendor information or extra sample content
+are invented.
+
+`row_meta.to_ids` optionally records explicit detection intent. It survives API
+saves, native/custom imports, RAW backup and synchronization. Contextual/default
+new types use `false`; legacy native types retain their previous detection behavior.
+`text`, `comment`, `other` never become fake detection patterns, even if an incoming
+attribute explicitly carries detection intent: their custom representation retains
+the flag instead. Imports do not default arbitrary content to IDS-enabled. Source
+row UUID/creation time, original-type provenance, section identity and descriptions
+remain stable. A capability/converter upgrade alone does not revise saved metadata.
 
 All official types can be saved through manual edit, autosave, CSV, API, RAW backup
 and synchronization. `text`/`comment`/`other` preserve punctuation, Unicode,
@@ -1395,7 +1429,7 @@ silently losing their structured content.
 CSV serialization is type-aware: only recognized network **value cells** are
 defanged. It preserves column order, quoting, section metadata, descriptions,
 filenames, hashes, mutexes, registry data, software names and dotted packages.
-Explicit CSV-only network mappings (such as `domain|ip`, IP/hostname-plus-port, generic email and `uri`) transform only network components; ports remain literal. This does not imply STIX support. Generic legacy IP/email drafts retain defanged CSV delivery without inventing a
+Explicit CSV-only network mappings (such as `domain|ip`, IP/hostname-plus-port, generic email and `uri`) transform only network components; ports remain literal. These types use the verified MISP-compatible export when a native pattern would not preserve semantics. Generic legacy IP/email drafts retain defanged CSV delivery without inventing a
 source/destination role. STIX uses the same component validation pipeline with
 refanged values, escaping pattern literals afterwards. Supported `[.]`, `[@]`,
 `[:]`, `hxxp`/`hxxps` combinations (including `hxxps[:]//`) round-trip; URL paths
@@ -1414,7 +1448,7 @@ defanged display text. Direction is never invented. `valid_from` records the loc
 row's creation/validity time, not an inferred first-seen observation.
 
 Rows have stable `row_meta` identities/creation/modification timestamps alongside
-section JSON, and sections retain `stix_meta` for their Grouping. This adds no new
+section JSON, and sections retain `stix_meta` for their Grouping. The internal row ID keeps its `indicator--` prefix for compatibility; exported native/custom object prefixes use the same stable UUID. This adds no new
 indicator tables and leaves the three-column layout unchanged. Unchanged saves
 retain object IDs/timestamps and table/case revisions. Actual row or section edits
 update the corresponding object's modification timestamp. RAW backups preserve
@@ -1423,7 +1457,7 @@ avoiding a regeneration/revision loop. Incoming standalone STIX IDs are not reus
 as new local row IDs. Existing stored legacy rows are reviewed without blocking
 case loading and normalize through the ordinary next save/autosave.
 
-If any nonblank row needs correction **or lacks a faithful export mapping**, the saved data and CSV remain intact, **STIX is
+If any nonblank row needs correction **or requires missing binary content / encounters a converter failure**, the saved data and CSV remain intact, **STIX is
 unavailable** for the entire table (no supposedly complete partial export), precise section/row reasons are returned, a completion-review item appears,
 and the previous STIX file is removed. Partially filled rows are errors; completely
 blank placeholders are ignored. An empty table produces an empty Bundle, without
@@ -1513,35 +1547,56 @@ attribute format, preserving the canonical attribute type and literal identifier
 The official [object mappings](https://misp.github.io/misp-stix/documentation/misp_objects_to_stix21.html)
 do not imply that a scalar package name recreates an Android object template.
 
-All six contextual types were tested with **misp-stix 2026.10.12 internal mode**
-and custom STIX content enabled (`stix2.parse(..., allow_custom=True)`). Canonical
-types, Unicode/internal line breaks, descriptions, section event title and
-`to_ids=false` survive conversion. PyMISP **trims leading/trailing whitespace**
-(and boundary NULs) when materializing MISP attributes: exact boundary whitespace
-remains in MARE/CSV/STIX JSON, but is not promised after MISP conversion. The
-escaped provenance label is available as a MISP tag. A MISP instance, its direct
-upload UI and preservation of full section descriptions were not tested. External
-mode is not verified for these custom attributes; explicitly use internal mode.
+The mandatory coverage fixture contains **all 192 non-binary MISP types** and
+was converted back through the actual official internal importer: all types,
+normalized machine values, descriptions, UUIDs, section event titles and detection
+flags survive, with no missing attributes or converter errors. A second fixture
+verifies all **68 native detection patterns** with explicit detection intent, and
+separate tests verify the two native descriptive mappings. This proves attribute
+round trips for representative values, not successful rule execution or full
+structured MISP object-template support.
 
-Reproduce offline conversion after installing the optional converter into a
-separate environment (it is not an application dependency):
+Known pinned-converter limitations and adapter handling:
 
-```sh
-python3 -m venv /tmp/mare-misp-check
-/tmp/mare-misp-check/bin/pip install misp-stix==2026.10.12
-MARE_MISP_PYTHON=/tmp/mare-misp-check/bin/python .venv/bin/python -m pytest -q tests/test_indicator_stix.py
-```
+- Five numeric/composite patterns (`port`, `size-in-bytes`, IP-source/destination
+  plus port, hostname plus port) quote numeric operands upstream. MARE uses the
+  faithful contextual representation instead of publishing misleading native patterns.
+- The internal importer sets native Campaign/Vulnerability attributes to IDS-enabled
+  even with a false label. Default/non-detection rows therefore use contextual
+  objects; native descriptive objects are used only for explicit true intent.
+- PyMISP's validator lacks `edge-extension-id` and `filename|impfuzzy` dispatch and
+  has a MAC EUI-64 colon-regex defect. The adapter uses the catalog-backed model,
+  validates the composite/EUI-64 scalar shape locally and uses the official
+  contextual writer/importer. These paths have actual round-trip coverage.
+- PyMISP trims boundary whitespace/NULs on MISP import and serializes a `datetime`
+  UTC `Z` as `+00:00`. Exact literal content remains in MARE/CSV/STIX JSON; boundary
+  whitespace after MISP import is not promised. Application identifiers and ordinary
+  prose are not defanged/refanged. Escaped original-type provenance becomes a MISP tag.
+- The retained `software` extension is not a canonical MISP attribute. Its native
+  pattern converts to a MISP software object in external mode; explicit non-detection
+  software-name export lacks a verified scalar MISP representation and is reported
+  precisely. Use an appropriate canonical MISP type when attribute round trips matter.
 
-The fixture/probe in `tests/verify_indicator_misp.py` uses the official parser and
-compares the original native attribute mappings, contextual types/values/descriptions/non-detection flags and software object names. For ordinary checks:
+A MISP instance/direct upload UI, complete section-description retention in every
+MISP UI, and external-mode preservation of custom attributes are not verified.
+Use internal conversion with custom STIX content enabled; no false tool-provenance
+label is added to force auto-detection.
+
+Install runtime requirements during deployment, never Flask startup:
 
 ```sh
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pytest -q tests/test_indicator_catalog.py tests/test_indicator_stix.py tests/test_indicators.py tests/test_case_sync.py tests/test_backups.py tests/test_api_documentation.py
+.venv/bin/python -m pytest -q tests/test_indicator_export_coverage.py tests/test_indicator_catalog.py tests/test_indicator_stix.py tests/test_indicators.py tests/test_case_sync.py tests/test_backups.py tests/test_api_documentation.py
 MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/indicator-stix.cjs
 ```
 
-Runtime conversion uses pinned `stix2==3.0.2` and `stix2-patterns==2.1.2` locally.
+`tests/verify_indicator_misp.py` calls the real official importer offline. The
+mandatory complete-catalog tests use the installed pinned runtime converter;
+`MARE_MISP_PYTHON=/path/to/another/python` optionally enables the additional legacy
+probe tests against a separate converter environment. Updates must review both
+converter pins and the capability profile and rerun all round-trip tests.
+
+Runtime conversion uses pinned `stix2==3.0.2` and `stix2-patterns==2.1.2` with the pinned MISP adapter locally. Its upstream dependencies include legacy STIX/CybOX libraries; they are package dependencies, not a separate backend or runtime service.
 The browser test covers keyboard editing, format tabs, selected-section targeting,
 preview correction, additive CSV/STIX imports, round-trip deduplication, stale
 preview reset, saved/draft downloads and narrow layout without external requests.

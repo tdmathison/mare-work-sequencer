@@ -131,6 +131,17 @@ let log='',browser;server.stderr.on('data',data=>log+=data);
  assert.equal(contextualSaved.sections[1].rows.at(-1)[1],contextualPreviewData.rows[0].row[1]);
  assert.equal(contextualSaved.sections[1].row_meta.at(-1).original_type,'Mystery-artifact');
  assert.ok(contextualSaved.stix.available);await checkDisclosure();
+ // A valid former mapping gap is informational, never a correction error.
+ await sections.nth(1).getByRole('button',{name:'Import',exact:true}).click();
+ await page.locator('#indicator-csv-text').fill('type,value,description\nport,443,Traffic port\n');
+ await page.locator('#preview-indicator-import').click();await page.locator('#indicator-import-status').filter({hasText:'1 supported rows ready'}).waitFor();
+ await page.locator('#confirm-indicator-import').click();await page.waitForFunction(()=>!document.querySelector('#indicator-import-dialog').open);
+ const portRow=sections.nth(1).locator('tbody tr').last();
+ assert.equal(await portRow.locator('.indicator-correction').count(),0);
+ assert.equal(await portRow.locator('.indicator-export-info').textContent(),'MISP-compatible representation');
+ assert.ok(await sections.first().locator('.indicator-export-info').filter({hasText:'Native STIX mapping'}).count());
+ const complete=await(await page.request.get(base+'/cases/1/indicators/stix')).json();
+ assert.ok(complete.objects.some(item=>item.type==='x-misp-attribute'&&item.x_misp_type==='port'&&item.x_misp_value==='443'&&item.x_misp_to_ids===false));
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
  console.log('PASS: canonical selector and keyboard editing, CSV/STIX tabs/target, correction preview, additive imports, STIX save/download/roundtrip, duplicates, stale previews, invalid drafts and narrow dialog; no external requests or browser errors.');
 })().catch(error=>{console.error(error);console.error(log);process.exitCode=1;}).finally(async()=>{await browser?.close();server.kill();await new Promise(resolve=>server.once('exit',resolve));fs.rmSync(temporary,{recursive:true,force:true});});

@@ -108,8 +108,9 @@ def validate_sections(sections, *, allow_new_meta=False):
                     raise ValueError('Saved indicator row identities cannot be null.')
                 if not isinstance(meta,dict):raise ValueError('Malformed indicator row identity metadata.')
                 if 'original_type' in meta and (not isinstance(meta['original_type'],str) or len(meta['original_type'])>4000):raise ValueError('Original type provenance is limited to 4,000 characters.')
-                if allow_new_meta and set(meta)=={'original_type'}:continue
-                if set(meta)-{'original_type'}!={'id','created','modified','digest'}:raise ValueError('Malformed indicator row identity metadata.')
+                if 'to_ids' in meta and not isinstance(meta['to_ids'],bool):raise ValueError('Detection intent to_ids must be a boolean.')
+                if allow_new_meta and set(meta)<= {'original_type','to_ids'}:continue
+                if set(meta)-{'original_type','to_ids'}!={'id','created','modified','digest'}:raise ValueError('Malformed indicator row identity metadata.')
                 try:
                     if not meta['id'].startswith('indicator--'):raise ValueError()
                     uuid.UUID(meta['id'][11:])
@@ -199,7 +200,7 @@ def indicator_csv(table):
 
 def describe_table(table):
     result=copy.deepcopy(table)
-    result['stix']=inspect_sections(result['sections'])
+    result['stix']=build_bundle(result['sections'])[1]
     result['types']=CATALOG
     return result
 
@@ -361,7 +362,7 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
 
     app.extensions['indicator_save']=save
 
-    def append_rows(cid, current, rows, originals=None):
+    def append_rows(cid, current, rows, originals=None, intents=None):
         sections = current['sections']
         target = request.form.get('section_id', sections[0]['id'])
         section = next((s for s in sections if s['id'] == target), None)
@@ -369,9 +370,9 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             raise ValueError('Choose an existing indicator section.')
         original_count=len(section['rows'])
         section['rows'] = section['rows']+rows
-        if originals or 'row_meta' in section:
+        if originals or intents or 'row_meta' in section:
             section.setdefault('row_meta',[None]*original_count)
-            section['row_meta'] += [{'original_type':value} if value is not None else None for value in (originals or [None]*len(rows))]
+            section['row_meta'] += [({**({'original_type':value} if value is not None else {}),**({'to_ids':intent} if intent is not None else {})} or None) for value,intent in zip(originals or [None]*len(rows),intents or [None]*len(rows))]
         return save(cid, current['columns'], [], int(request.form['revision']), sections)
 
     @app.get('/cases/<int:cid>/indicators')
@@ -407,13 +408,13 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             upload=request.files.get(kind)
             raw=upload.read(4*1024*1024+1) if upload else request.form.get(kind,'').encode()
             if len(raw)>4*1024*1024:raise ValueError('Imports are limited to 4 MiB.')
-            rows,skipped,originals=import_document(raw,with_provenance=True) if kind=='stix' else (parse_csv(raw,upload is not None),[],None)
+            rows,skipped,originals,intents=import_document(raw,with_provenance=True,with_intent=True) if kind=='stix' else (parse_csv(raw,upload is not None),[],None,None)
             validate_table(DEFAULT_COLUMNS,rows)
             existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
             preview=[]
             for index,row in enumerate(rows):
                 result=analyze(row);duplicate=bool(result.get('key') and json.dumps(result['key']) in existing)
-                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None})
+                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None,'to_ids':intents[index] if intents else None})
             return {'section_id':target['id'],'section':target['title'],'rows':preview,'skipped':skipped,'revision':current['revision']}
         except (ValueError,TypeError,KeyError,UnicodeError,csv.Error,RecursionError) as exc:return {'error':str(exc)},400
 
@@ -429,13 +430,15 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
                 existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
                 originals=json.loads(request.form.get('accepted_original_types','null')) or [None]*len(rows)
                 if not isinstance(originals,list) or len(originals)!=len(rows) or any(value is not None and (not isinstance(value,str) or len(value)>4000) for value in originals):raise ValueError('Invalid original type provenance.')
-                accepted=[];accepted_originals=[];skipped=0
-                for row,original in zip(rows,originals):
+                intents=json.loads(request.form.get('accepted_intents','null')) or [None]*len(rows)
+                if not isinstance(intents,list) or len(intents)!=len(rows) or any(value is not None and not isinstance(value,bool) for value in intents):raise ValueError('Invalid detection intent.')
+                accepted=[];accepted_originals=[];accepted_intents=[];skipped=0
+                for row,original,intent in zip(rows,originals,intents):
                     result=analyze(row);key=json.dumps(result['key']) if result.get('key') else None
                     if request.form.get('skip_duplicates','1')=='1' and key in existing:skipped+=1;continue
-                    accepted.append(row);accepted_originals.append(original)
+                    accepted.append(row);accepted_originals.append(original);accepted_intents.append(intent)
                     if key:existing.add(key)
-                result=append_rows(cid,current,accepted,accepted_originals);result.update(added=len(accepted),skipped_duplicates=skipped);return result
+                result=append_rows(cid,current,accepted,accepted_originals,accepted_intents);result.update(added=len(accepted),skipped_duplicates=skipped);return result
             upload = request.files.get('csv')
             raw = upload.read(
                 4*1024*1024+1) if upload else request.form.get('csv', '').encode()

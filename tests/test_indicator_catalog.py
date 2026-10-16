@@ -108,7 +108,7 @@ def test_legacy_android_alias_migrates_on_save_preserving_identity_and_provenanc
     assert import_document(raw,with_provenance=True)[2]==['android-package']
 
 
-@pytest.mark.parametrize('kind',['attachment','malware-sample','yara','stix2-pattern','ip-src|port'])
+@pytest.mark.parametrize('kind',['attachment','malware-sample'])
 def test_missing_binary_or_unverified_mapping_keeps_data_but_blocks_whole_stix(kind):
     client,cid,post=setup();base=f'/cases/{cid}/indicators'
     good=post(base,revision=0,rows=json.dumps([['domain','example.com','']])).json
@@ -187,7 +187,7 @@ def test_catalog_update_reads_only_the_pinned_local_wheel(tmp_path):
 def test_custom_import_rejects_lost_detection_or_binary_semantics():
     sections=reconcile_rows([dict(id='default',title='Context',description='',rows=[['text','literal','']])],[])
     raw,_=build_bundle(sections);obj=json.loads(raw)['objects'][0]
-    for change in ({'x_misp_to_ids':True},{'x_misp_type':'domain'},{'x_misp_data':'ZmFrZQ=='}):
+    for change in ({'x_misp_to_ids':'invalid'},{'x_misp_data':'ZmFrZQ=='}):
         data={**obj,**change};rows,skipped=import_document(json.dumps(data).encode())
         assert not rows and skipped[0]['reason']
     del obj['created']
@@ -207,4 +207,4 @@ def test_additional_network_csv_components_do_not_claim_stix_support(kind,value,
     original=[kind,value,'Literal https://description.example']
     assert csv_row(original)==[kind,expected,original[2]]
     assert original[1]==value
-    assert analyze(original)['storage_valid'] and analyze(original).get('error')
+    assert not analyze(original).get('error') and analyze(original)['export']=='contextual'

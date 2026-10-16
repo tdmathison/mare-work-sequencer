@@ -12,3 +12,5 @@ pypdf>=6,<7
 
 stix2==3.0.2
 stix2-patterns==2.1.2
+misp-stix==2026.10.12
+pymisp==2.5.34.4

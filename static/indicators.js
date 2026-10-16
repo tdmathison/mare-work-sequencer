@@ -76,13 +76,15 @@
   function typeInfo(value){return state.types.find(item=>item.name.toLowerCase()===value.trim().toLowerCase())||state.types.find(item=>[item.label,...item.aliases].some(alias=>alias.toLowerCase()===value.trim().toLowerCase()));}
   function showValidation(){
     const issues=new Map((state.stix?.issues||[]).map(issue=>[issue.section_id+':'+issue.row,issue]));
+    const notices=new Map((state.stix?.notices||[]).map(item=>[item.section_id+':'+item.row,item]));
     for(const section of state.sections){
       const body=container.querySelector('[data-section="'+section.id+'"] tbody');
       if(!body)continue;
       [...body.rows].forEach((row,index)=>{
-        row.querySelectorAll('.indicator-correction').forEach(node=>node.remove());row.classList.remove('indicator-needs-correction');
+        row.querySelectorAll('.indicator-correction,.indicator-export-info').forEach(node=>node.remove());row.classList.remove('indicator-needs-correction');
         const issue=issues.get(section.id+':'+(index+1));
-        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent=(issue.storage_valid?'Saved; STIX unavailable: ':'Needs correction: ')+issue.reason;row.cells[0].append(reason);}
+        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent='Requires correction/additional data: '+issue.reason;row.cells[0].append(reason);}
+        else if(section.rows[index].some(value=>value.trim())){const info=document.createElement('small');info.className='indicator-export-info';info.textContent=notices.get(section.id+':'+(index+1))?.message||'Native STIX mapping';row.cells[0].append(info);}
       });
     }
   }
@@ -466,7 +468,7 @@
         item.row.forEach((value,index)=>{const field=document.createElement(index===0?"input":"textarea");field.value=value;field.setAttribute("aria-label",["Type","Value","Description"][index]);if(index===0){field.classList.add("indicator-type-input");field.setAttribute("list","indicator-type-options");}field.addEventListener("input",()=>{item.row[index]=field.value;});line.append(field);});
         const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":"Ready";line.append(reason);
         if(item.unknown){
-          for(const kind of ["text","other"]){const button=document.createElement("button");button.type="button";button.textContent="Use "+kind;button.addEventListener("click",()=>{item.original_type=item.original_type??item.row[0];item.row[0]=kind;line.querySelector('input[list]').value=kind;reason.textContent="Contextual "+kind+"; original type retained: "+item.original_type;});line.append(button);}
+          for(const kind of ["text","other"]){const button=document.createElement("button");button.type="button";button.textContent="Use "+kind;button.addEventListener("click",()=>{item.original_type=item.original_type??item.row[0];item.row[0]=kind;item.to_ids=false;line.querySelector('input[list]').value=kind;reason.textContent="Contextual "+kind+"; original type retained: "+item.original_type;});line.append(button);}
         }
         host.append(line);
       }
@@ -480,6 +482,7 @@
     const accepted=importPreview.rows.filter(item=>item.accept.checked);
     form.set("accepted_rows",JSON.stringify(accepted.map(item=>item.row)));
     form.set("accepted_original_types",JSON.stringify(accepted.map(item=>item.original_type??null)));
+    form.set("accepted_intents",JSON.stringify(accepted.map(item=>item.to_ids??null)));
     try{
       const result=await request("/import",form);state=result;dirty=false;autosaveTimer.reset();render();
       status.textContent=`Added ${result.added} rows; skipped ${result.skipped_duplicates} duplicates. ${result.stix.available?'CSV/STIX saved.':'Draft/CSV saved; correct flagged rows for STIX.'}`;

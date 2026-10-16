@@ -8,7 +8,7 @@ from stix2 import parse
 from stix2.v21 import Indicator, Bundle, IPv4Address, DomainName, NetworkTraffic
 from app import app, db, package
 from indicators import load_table
-from indicator_types import CATALOG,analyze
+from indicator_types import CATALOG,analyze,EXTRA_HASHES
 from indicator_stix import import_document,from_pattern,MAX_BYTES,MAX_OBJECTS,MAX_PATTERN
 from test_indicators import setup
 from test_case_sync import head,preview,apply
@@ -20,6 +20,10 @@ VALUES={'software':"Example's \\ App",'mobile-application-id':'com.Example.appli
         'email-subject':"Test ' subject",'email-attachment':'file.exe','mutex':"test\\' OR 'injection",
         'regkey':r'HKLM\Software\Test','regkey|value':r'HKLM\Software\Test|value',
         'x509-fingerprint-sha1':'a'*40,'x509-fingerprint-sha256':'b'*64}
+for name,(algorithm,length) in EXTRA_HASHES.items():
+    VALUES[name]='a'*length
+    VALUES['filename|'+name]='file.exe|'+'a'*length
+VALUES['x509-fingerprint-md5']='a'*32
 for algorithm in ('md5','sha1','sha256'):VALUES['filename|'+algorithm]='file.exe|'+VALUES[algorithm]
 
 
@@ -27,7 +31,7 @@ def stix_file(pattern,**kwargs):
     return Indicator(pattern=pattern,pattern_type='stix',pattern_version='2.1',description='Original description',**kwargs).serialize().encode()
 
 
-@pytest.mark.parametrize('item',[item for item in CATALOG if item['export']=='native'],ids=lambda item:item['name'])
+@pytest.mark.parametrize('item',[item for item in CATALOG if item['export']=='native' and item['paths']],ids=lambda item:item['name'])
 def test_catalog_patterns_and_round_trip(item):
     kind=item['name'];row=[kind,VALUES[kind],'original description']
     result=analyze(row);assert not result.get('error'),result
@@ -182,6 +186,7 @@ def test_official_misp_attribute_conversion_when_available(tmp_path):
     if not python:pytest.skip('Set MARE_MISP_PYTHON to an isolated official misp-stix environment')
     rows=[[kind,VALUES[kind],'Description '+kind] for kind in VALUES if kind not in ('software','mobile-application-id')]
     sections=reconcile_rows([dict(id='default',title='MISP compatibility fixture',description='Section context',rows=rows)],[])
+    for meta in sections[0]['row_meta']:meta['to_ids']=True
     raw,_=build_bundle(sections);path=tmp_path/'misp-test.json';path.write_text(raw)
     result=subprocess.run([python,'tests/verify_indicator_misp.py',str(path)],capture_output=True,text=True,check=True)
     converted=json.loads(result.stdout)
