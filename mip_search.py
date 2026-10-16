@@ -666,7 +666,7 @@ class SearchIndex:
                             skip(cid, rel, "Indexing file/time limit reached")
                             continue
                         # Generated mirrors are represented by database rows, not duplicated.
-                        if rel in ("iocs/indicators.csv", "supporting/references.csv"):
+                        if rel in ("iocs/indicators.csv", "iocs/indicators.stix.json", "supporting/references.csv"):
                             file_doc(path, rel, cid, filename_only="mirror")
                             continue
                         if path.suffix.lower() == ".zip":

@@ -187,7 +187,7 @@ Add Task opens a workspace-sized dialog with a large description editor. Cancel 
 
 ## Indicator sections
 
-Indicators start in a Default section; existing indicator rows are preserved there on upgrade. Add new section opens a Title/Description form. Each section has its own editable type/value/description table, Add row, and Import CSV. Save table at the top saves every section together. Imports append to the selected section and save all sections, saving any pending edits first.
+Indicators start in a Default section; existing indicator rows are preserved there on upgrade. Add new section opens a Title/Description form. Each section has its own editable type/value/description table, Add row, and Import (CSV/STIX). Save table at the top saves every section together. Imports append to the selected section and save all sections, saving any pending edits first.
 
 The generated Word report lists every indicator section beneath Indicators of Compromise, with a subsection heading, description, and table. Empty sections retain their headings and descriptions with an empty table. Delivery indicator values are defanged. `iocs/indicators.csv` contains the type/value/description columns plus section and section_description metadata on each exported row, so grouping accompanies the indicators in the package. Import still matches only type/value/description columns; extra fields are ignored.
 
@@ -1288,3 +1288,172 @@ For manual release verification, also test User/custom-role permissions, revoked
 and expired tokens, logout in another tab, HTTPS behind the deployed proxy (with
 any configured path prefix/CSP), large upload limits, and native keyboard
 selection/copy. No real cases should be used for destructive verification.
+
+
+## Canonical indicator types, STIX export, and unified import
+
+Indicators retain three columns (`type`, `value`, `description`) and all existing
+sections and Word-report behavior. Type is now a native searchable combobox using
+the backend catalog in `indicator_types.py`. Search by canonical name, friendly
+label, or an explicit alias. Use arrows/Enter to choose a suggestion and Tab to
+continue editing. Common aliases such as `SHA256`, `SHA-256`, `SHA1`, `MD5`,
+`domain-name`, `URI`, and `registry-key` normalize when a valid row is saved.
+Unknown, ambiguous, invalid and unfinished rows remain saved drafts; their
+original text is retained and **Needs correction** explains the problem. A generic
+`IP`/`IPv4`/`IPv6` never establishes source or destination direction.
+
+The mappings follow the [OASIS STIX 2.1 standard](https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html)
+and the official MISP [attribute-to-STIX mapping](https://misp.github.io/misp-stix/documentation/misp_attributes_to_stix21.html)
+and [STIX-to-attribute mapping](https://misp.github.io/misp-stix/documentation/stix21_to_misp_attributes.html).
+STIX object types and MISP attribute types are distinct. Canonical names are
+recorded in `misp:type` labels, never in `indicator_types`.
+
+| Canonical types | STIX pattern properties |
+| --- | --- |
+| `domain`, `hostname` | `domain-name:value` (label distinguishes hostname) |
+| `url` | `url:value` |
+| `ip-src`, `ip-dst` | `network-traffic:src_ref` / `dst_ref`, with explicit address type and value; IPv4 and IPv6 supported |
+| `mac-address` | `mac-addr:value` |
+| `filename` | `file:name` |
+| `md5`, `sha1`, `sha256`, `sha512` | `file:hashes` with MD5, SHA-1, SHA-256, SHA-512 keys |
+| `filename\|md5`, `filename\|sha1`, `filename\|sha256` | Same-file name AND hash constraints |
+| `email-src`, `email-dst` | `email-message:from_ref.value` / `to_refs[*].value` |
+| `email-subject` | `email-message:subject` |
+| `email-attachment` | `email-message:body_multipart[*].body_raw_ref.name` |
+| `mutex` | `mutex:name` |
+| `regkey`, `regkey\|value` | Registry key; key AND `values[*].data` for key/data composites |
+| `x509-fingerprint-sha1`, `x509-fingerprint-sha256` | `x509-certificate:hashes` |
+
+Validation checks hash lengths/hex digits, IP addresses, DNS/IDNA names, supported
+absolute HTTP/HTTPS/FTP URLs, colon-separated MAC addresses, email addresses and
+explicit Windows registry hive paths. Composites require exactly one `|` separator;
+ambiguous delimiters require correction. Filenames, mutexes, subjects and registry
+data are literal strings; quotes/backslashes are escaped using STIX grammar.
+No URLs are visited or names resolved.
+
+### Saving, identity and outputs
+
+The top actions are **Add new section | Download STIX | Save table**. Manual save
+and autosave use the same backend flow as REST indicator PUTs. Valid aliases are
+canonicalized, and CSV is refreshed at `iocs/indicators.csv` with existing defanging
+and section columns. Valid tables also produce `iocs/indicators.stix.json`, a STIX
+2.1 Bundle of Indicators and standard Grouping objects for section titles,
+descriptions and membership. Patterns use validated/refanged network values, not
+defanged display text. Direction is never invented. `valid_from` records the local
+row's creation/validity time, not an inferred first-seen observation.
+
+Rows have stable `row_meta` identities/creation/modification timestamps alongside
+section JSON, and sections retain `stix_meta` for their Grouping. This adds no new
+indicator tables and leaves the three-column layout unchanged. Unchanged saves
+retain object IDs/timestamps and table/case revisions. Actual row or section edits
+update the corresponding object's modification timestamp. RAW backups preserve
+metadata; synchronized STIX is a derived artifact excluded from content hashes,
+avoiding a regeneration/revision loop. Incoming standalone STIX IDs are not reused
+as new local row IDs. Existing stored legacy rows are reviewed without blocking
+case loading and normalize through the ordinary next save/autosave.
+
+If any nonblank row needs correction, the draft and CSV still save, **STIX is
+unavailable**, section/row reasons are returned, a completion-review item appears,
+and the previous STIX file is removed. Partially filled rows are errors; completely
+blank placeholders are ignored. An empty table produces an empty Bundle, without
+invented Indicator objects. Downloads validate the file against current saved
+metadata, including downloads through generic case-asset routes. Generated STIX is
+read-only in the general file editor. Archive generation refreshes valid derived STIX or excludes it when invalid, and RAW
+restores regenerate/remove this derived file from validated table metadata.
+
+Output publication uses staged files and atomic replacements with a case-local
+recovery journal outside the MIP directory. Transaction failure restores prior files; startup
+recovers an interrupted publication according to committed section data. A failed
+generation never exposes partial JSON. Download STIX first saves current edits,
+then downloads the matching attachment (`application/stix+json`); its GET never
+mutates data. Completed/read-only cases can download a valid saved file without
+reopening. Import/save does not mark readiness complete or change workflow stage.
+
+### Unified CSV/STIX import
+
+Each section's **Import** dialog defaults to **CSV**, preserving file upload and
+pasted CSV (with or without headers). Files require case-insensitive `type`,
+`value`, `description` headers; extra columns remain ignored. **STIX** accepts
+`.json` and `.stix` files, validates their content, and accepts STIX 2.1 Bundles or
+standalone supported objects. The displayed destination section remains selected
+when switching tabs. Opening another upload or changing format clears the preview
+and disables Apply until it has been validated again.
+
+Choose **Preview import** before **Append accepted rows**. Preview distinguishes
+ready rows, correctable rows, unsupported/skipped objects and exact destination
+duplicates. Correct type/value/description using the same catalog, or deselect a
+row. Correctable unresolved rows can be retained as flagged drafts. Imports append
+to the chosen section, preserving its title, description and existing row order.
+By default duplicates are skipped using canonical type and normalized matching
+value (refanging, IP compression, hash/MAC case, DNS/URL host normalization).
+Descriptions are not part of the duplicate key. The result reports actual added
+and skipped counts; reimporting an unchanged application export into the same
+section does not duplicate its rows.
+
+Supported STIX Indicator patterns are one string equality or exactly one approved
+composite from the catalog (including same-file filename/hash, registry key/data,
+and directional traffic address type/value). Arbitrary AND/OR expressions are not
+flattened. Negations, ranges, regex/LIKE/set predicates, observation combinations,
+temporal qualifiers and numeric list positions are skipped with review reasons.
+Revoked, expired/windowed or marked Indicators also need explicit review. YARA,
+Sigma and other non-STIX patterns never become ordinary IOC values.
+
+Supported observable facts include domain-name, URL, MAC, IP/email addresses,
+file name/hash, mutex, registry key/data, certificate hashes and single supported
+network/email references. Generic IP/email observables remain correctable rather
+than inventing direction. References resolve only to objects in the uploaded
+file. Missing references, multi-endpoint traffic tuples/ports, multiple simultaneous
+hash constraints, unrepresentable registry values or MIME/email combinations are
+listed explicitly as skipped. Context-only objects (including Groupings) do not
+invent independent rows. This is a bounded IOC projection, not a complete STIX
+event/model importer.
+
+Limits: 4 MiB per CSV/STIX upload, 2,000 STIX objects, 256 KiB per object, 4,096
+characters per pattern, a 64-bracket/parenthesis complexity budget, and a five-second
+processing budget checked between bounded objects. Table limits remain 10,000
+rows/100 sections and 4,000 characters per cell. Split large bundles if they exceed
+these limits, including very large application exports. No external references,
+TAXII servers, MISP services, credentials, or executable pattern engines are used.
+All UI mutations retain session authentication, CSRF, stage/owner restrictions,
+revision conflict checks and synchronization recovery. The preview/download routes
+are internal UI routes; the existing public `/api/v1/cases/{case_id}/indicators`
+contract documents draft status, canonical normalization and identity metadata.
+
+### Verified MISP conversion and limitations
+
+All 23 types, normalized values and row descriptions were tested using the
+official **misp-stix 2026.10.12**, in its **attribute-labelled/internal** conversion
+mode. Section Grouping titles become event titles. Grouping descriptions are
+standard STIX context; their complete preservation in every MISP UI is not claimed.
+
+The converter's default external mode did **not** preserve all distinctions in this
+verification: hostname became domain, directional IPs produced converter errors,
+and email-attachment fell back to a STIX-pattern object. MARE deliberately does
+not add a false MISP tool-provenance label to force auto-detection. For reliable
+attribute conversion, select the converter's explicit `--classification internal`
+option, or use its `InternalSTIX2toMISPParser`, then manually import the resulting
+MISP JSON. Direct STIX upload through MISP interfaces that cannot select this mode
+is not verified as preserving every type. No MISP instance/publishing was tested.
+
+Reproduce offline conversion after installing the optional converter into a
+separate environment (it is not an application dependency):
+
+```sh
+python3 -m venv /tmp/mare-misp-check
+/tmp/mare-misp-check/bin/pip install misp-stix==2026.10.12
+MARE_MISP_PYTHON=/tmp/mare-misp-check/bin/python .venv/bin/python -m pytest -q tests/test_indicator_stix.py
+```
+
+The fixture/probe in `tests/verify_indicator_misp.py` uses the official parser and
+compares every canonical type/value/description. For ordinary checks:
+
+```sh
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pytest -q tests/test_indicator_stix.py tests/test_indicators.py tests/test_case_sync.py tests/test_backups.py tests/test_api_documentation.py
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/indicator-stix.cjs
+```
+
+Runtime conversion uses pinned `stix2==3.0.2` and `stix2-patterns==2.1.2` locally.
+The browser test covers keyboard editing, format tabs, selected-section targeting,
+preview correction, additive CSV/STIX imports, round-trip deduplication, stale
+preview reset, saved/draft downloads and narrow layout without external requests.

@@ -31,6 +31,7 @@ def test_all_case_backup_round_trip_owners_ids_tables_and_files():
     client,cid,uid,post=setup_backup_case()
     sections=[{'id':'default','title':'Findings','description':'Primary analysis','rows':[['domain','evil.example.com','C2']]},{'id':'other','title':'Hashes','description':'Payloads','rows':[['sha256','b'*64,'File']]}]
     assert post(f'/cases/{cid}/indicators',sections=json.dumps(sections),revision='0').status_code==200
+    sections=client.get(f'/cases/{cid}/indicators').json['sections']
     assert post(f'/cases/{cid}/references',rows=json.dumps([['https://example.com/research','Background']]),revision='0').status_code==200
     assert b'IMPORT &amp; EXPORT' in client.get('/').data
     exported=post('/import-export/export');assert exported.status_code==200

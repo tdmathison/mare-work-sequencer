@@ -11,7 +11,7 @@
       <p class="muted">
         Group indicators by topic. Edit section changes its title and
         description. The initial section cannot be deleted. Save table saves
-        every section to iocs/indicators.csv. The Word report includes each
+        every section to iocs/indicators.csv and a validated STIX 2.1 bundle when all rows are valid. STIX contains machine-readable, refanged values. The Word report includes each
         section’s title, description, and table. Delivery copies are defanged.
       </p>
     </div>
@@ -27,7 +27,7 @@
   >
     <div class="report-actions">
       <button type="button" id="add-indicator-section">Add new section</button
-      ><button type="button" id="save-indicators">Save table</button
+      ><button type="button" id="download-indicator-stix">Download STIX</button><button type="button" id="save-indicators">Save table</button
       ><span
         class="autosave-countdown"
         id="save-indicators-countdown"
@@ -36,6 +36,7 @@
     </div>
     <div id="indicator-sections"></div>
   </fieldset>
+  {% if c.workspace_locked %}<a class="button-secondary" href="/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
   <p id="indicator-status" role="status" aria-live="polite">
     Loading indicators…
   </p>
@@ -63,25 +64,29 @@
     </div>
   </form>
 </dialog>
-<dialog id="indicator-import-dialog">
-  <h2>Append indicators from CSV</h2>
+<dialog id="indicator-import-dialog" aria-labelledby="indicator-import-heading">
+  <h2 id="indicator-import-heading">Import indicators</h2>
   <p id="indicator-import-target"></p>
-  <label
-    >CSV file<input
-      type="file"
-      id="indicator-csv-file"
-      accept=".csv,text/csv" /></label
-  ><label
-    >Or paste CSV<textarea
-      id="indicator-csv-text"
-      rows="8"
-      placeholder="domain,example.com,Observed C2"
-    ></textarea>
-  </label>
-  <p id="indicator-import-status" role="status"></p>
+  <div class="indicator-import-tabs" role="tablist" aria-label="Import format">
+    <button type="button" role="tab" id="indicator-csv-tab" aria-selected="true" aria-controls="indicator-csv-panel" data-indicator-format="csv">CSV</button>
+    <button type="button" role="tab" id="indicator-stix-tab" aria-selected="false" aria-controls="indicator-stix-panel" tabindex="-1" data-indicator-format="stix">STIX</button>
+  </div>
+  <div id="indicator-csv-panel" role="tabpanel" aria-labelledby="indicator-csv-tab">
+    <label>CSV file<input type="file" id="indicator-csv-file" accept=".csv,text/csv"></label>
+    <label>Or paste CSV<textarea id="indicator-csv-text" rows="8" placeholder="domain,example.com,Observed C2"></textarea></label>
+  </div>
+  <div id="indicator-stix-panel" role="tabpanel" aria-labelledby="indicator-stix-tab" hidden>
+    <label>STIX 2.1 JSON file<input type="file" id="indicator-stix-file" accept=".json,.stix,application/json,application/stix+json"></label>
+    <p class="muted">Uploaded-document references only; no external requests. Complex patterns remain skipped with review reasons. Incoming IDs are not adopted as local row identities.</p>
+  </div>
+  <label class="indicator-duplicates"><input type="checkbox" id="indicator-skip-duplicates" checked> Skip exact duplicates (canonical type + normalized value) in the destination section</label>
+  <p id="indicator-import-status" role="status" aria-live="polite"></p>
+  <div id="indicator-import-preview"></div>
   <div class="dialog-actions">
-    <button type="button" id="confirm-indicator-import">Append rows</button
-    ><button type="button" data-close-indicator-dialog>Cancel</button>
+    <button type="button" id="preview-indicator-import">Preview import</button>
+    <button type="button" id="confirm-indicator-import" disabled>Append accepted rows</button>
+    <button type="button" data-close-indicator-dialog>Cancel</button>
   </div>
 </dialog>
+<datalist id="indicator-type-options"></datalist>
 <script defer src="{{url_for('static',filename='indicators.js')}}"></script>

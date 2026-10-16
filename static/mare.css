@@ -995,3 +995,16 @@ footer {
 @media(max-width:1100px) { .performance-scorecards { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(max-width:900px) { .performance-columns { grid-template-columns: minmax(0,1fr); } .performance-side { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; } }
 @media(max-width:600px) { .performance-header { align-items: stretch; flex-direction: column; } .performance-period { width: 100%; } .performance-period select { min-width: 0; flex: 1; } .performance-scorecards, .performance-side { grid-template-columns: minmax(0,1fr); } .performance-dashboard .panel { padding: 18px; } }
+/* Indicator type selection and unified local import preview. */
+#indicator-workspace td[data-column="0"] input{width:100%;min-width:150px;margin:0;padding:6px;font:inherit}
+.indicator-needs-correction td{border-color:var(--accent-dim)}
+.indicator-correction{display:block;color:var(--accent);font-size:12px;margin-top:5px;white-space:normal}
+#indicator-import-dialog{width:min(1050px,94vw);max-height:90vh;overflow:auto}
+.indicator-import-tabs{display:flex;gap:8px;margin:12px 0}
+.indicator-import-tabs [aria-selected="false"]{background:var(--panel);color:var(--text);border:1px solid var(--line)}
+#indicator-import-dialog [hidden]{display:none!important}
+.indicator-preview-row{display:grid;grid-template-columns:22px minmax(120px,1fr) minmax(150px,2fr) minmax(150px,2fr);gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.indicator-preview-row small{grid-column:2/-1;color:var(--accent)}
+.indicator-preview-row input{margin:0;padding:6px;min-width:0}
+.indicator-preview-row input[type="checkbox"],.indicator-duplicates input{width:auto;display:inline-block}
+@media(max-width:650px){.indicator-preview-row{grid-template-columns:22px minmax(0,1fr)}.indicator-preview-row input:not([type="checkbox"]),.indicator-preview-row small{grid-column:2}}

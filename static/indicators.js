@@ -64,10 +64,26 @@
     dirty = false,
     busy = false,
     importTarget = null,
-    editTarget = null;
+    editTarget = null, importFormat = "csv", importPreview = null, previewGeneration = 0;
   function changed() {
     dirty = true;
     status.textContent = "Unsaved changes";
+    updateDownloadState();
+  }
+  function updateDownloadState(){
+    document.getElementById("download-indicator-stix").disabled=locked||busy||Boolean(state&&!dirty&&!state.stix.available);
+  }
+  function showValidation(){
+    const issues=new Map((state.stix?.issues||[]).map(issue=>[issue.section_id+':'+issue.row,issue]));
+    for(const section of state.sections){
+      const body=container.querySelector('[data-section="'+section.id+'"] tbody');
+      if(!body)continue;
+      [...body.rows].forEach((row,index)=>{
+        row.querySelectorAll('.indicator-correction').forEach(node=>node.remove());row.classList.remove('indicator-needs-correction');
+        const issue=issues.get(section.id+':'+(index+1));
+        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent='Needs correction: '+issue.reason;row.cells[0].append(reason);}
+      });
+    }
   }
   function editable() {
     root.querySelector("fieldset").disabled = locked || busy;
@@ -75,14 +91,14 @@
       .querySelectorAll("td[data-column]")
       .forEach(
         (cell) =>
-          (cell.contentEditable = locked || busy ? "false" : "plaintext-only"),
+          (cell.contentEditable = locked || busy || cell.dataset.column==='0' ? "false" : "plaintext-only"),
       );
+    container.querySelectorAll('td[data-column="0"] input').forEach(input=>input.disabled=locked||busy);
+    updateDownloadState();
   }
-  function focusCell(section, row, column) {
-    container
-      .querySelector('[data-section="' + section.id + '"] tbody')
-      ?.rows[row]?.querySelector('td[data-column="' + column + '"]')
-      ?.focus();
+  function focusCell(section,row,column){
+    const cell=container.querySelector('[data-section="'+section.id+'"] tbody')?.rows[row]?.querySelector('td[data-column="'+column+'"]');
+    (cell?.querySelector("input")||cell)?.focus();
   }
   function button(text, action) {
     const node = document.createElement("button");
@@ -121,6 +137,7 @@
       const add = button("Add row", () => {
         if (locked || busy) return;
         section.rows.push(["", "", ""]);
+        if(section.row_meta)section.row_meta.push(null);
         changed();
         render();
         focusCell(section, section.rows.length - 1, 0);
@@ -128,7 +145,7 @@
       actions.append(
         add,
         button(
-          "Import CSV",
+          "Import",
           run(async () => {
             if (dirty) await save();
             importTarget = section.id;
@@ -136,7 +153,8 @@
               "Section: " + section.title;
             document.getElementById("indicator-csv-file").value = "";
             document.getElementById("indicator-csv-text").value = "";
-            document.getElementById("indicator-import-status").textContent = "";
+            document.getElementById("indicator-stix-file").value = "";
+            selectImportFormat("csv");
             document.getElementById("indicator-import-dialog").showModal();
           }),
         ),
@@ -214,7 +232,15 @@
           );
           cell.setAttribute("role", "textbox");
           cell.setAttribute("aria-multiline", "true");
+          if(column===0){
+            cell.contentEditable="false";
+            const input=document.createElement("input");input.type="text";input.value=value;input.setAttribute("list","indicator-type-options");input.setAttribute("aria-label",cell.getAttribute("aria-label"));input.setAttribute("role","combobox");input.setAttribute("aria-autocomplete","list");input.disabled=locked||busy;
+            input.addEventListener("input",()=>{row[0]=input.value;changed();});
+            input.addEventListener("keydown",event=>{if(event.key==="Enter")event.stopPropagation();});
+            cell.replaceChildren(input);
+          }
           cell.addEventListener("input", () => {
+            if(column===0)return;
             section.rows[index][column] = cell.innerText.replace(/\r/g, "");
             changed();
           });
@@ -229,6 +255,7 @@
               }
               if (next >= section.rows.length * 3) {
                 section.rows.push(["", "", ""]);
+        if(section.row_meta)section.row_meta.push(null);
                 changed();
                 render();
               }
@@ -237,6 +264,7 @@
               event.preventDefault();
               if (index === section.rows.length - 1) {
                 section.rows.push(["", "", ""]);
+        if(section.row_meta)section.row_meta.push(null);
                 changed();
                 render();
               }
@@ -244,6 +272,7 @@
             }
           });
           cell.addEventListener("paste", (event) => {
+            if(column===0)return;
             event.preventDefault();
             if (locked || busy) return;
             const selection = window.getSelection();
@@ -259,6 +288,7 @@
             range.collapse(true);
             selection.removeAllRanges();
             selection.addRange(range);
+            if(column===0)return;
             section.rows[index][column] = cell.innerText.replace(/\r/g, "");
             changed();
           });
@@ -267,6 +297,7 @@
           remove = button("Delete", () => {
             if (locked || busy) return;
             section.rows.splice(index, 1);
+            section.row_meta?.splice(index,1);
             changed();
             render();
           });
@@ -281,7 +312,7 @@
       article.append(heading, description, actions, wrap);
       container.append(article);
     }
-    editable();
+    editable();showValidation();
   }
   async function request(path, data) {
     const response = await fetch(
@@ -307,7 +338,7 @@
     state = await request("", form);
     dirty = false;
     autosaveTimer.reset();
-    status.textContent = "All sections saved to iocs/indicators.csv";
+    status.textContent = state.stix.available ? "All sections saved to CSV and STIX (refanged machine-readable values)." : "Draft and CSV saved. STIX unavailable: correct flagged rows.";
     render();
     await refreshPackage();
   }
@@ -386,42 +417,76 @@
       if (!busy) node.closest("dialog").close();
     }),
   );
-  document.getElementById("confirm-indicator-import").addEventListener(
-    "click",
-    run(async () => {
-      const dialog = document.getElementById("indicator-import-dialog"),
-        message = document.getElementById("indicator-import-status"),
-        form = data(),
-        file = document.getElementById("indicator-csv-file").files[0],
-        text = document.getElementById("indicator-csv-text").value;
-      if (file && text.trim())
-        throw Error("Choose a CSV file or pasted CSV, not both.");
-      form.set("section_id", importTarget);
-      if (file) form.set("csv", file);
-      else form.set("csv", text);
-      message.textContent = "Importing…";
-      try {
-        const result = await request("/import", form);
-        state = result;
-        dirty = false;
-        autosaveTimer.reset();
-        render();
-        status.textContent =
-          "Added " +
-          result.added +
-          " indicators to the selected section and saved all sections to iocs/indicators.csv.";
-        dialog.close();
-        message.textContent = "";
-        await refreshPackage();
-      } catch (e) {
-        message.textContent = e.message;
-        throw e;
+  function clearPreview(){
+    previewGeneration++;importPreview=null;
+    document.getElementById("indicator-import-preview").replaceChildren();
+    document.getElementById("indicator-import-status").textContent="";
+    document.getElementById("confirm-indicator-import").disabled=true;
+  }
+  function selectImportFormat(format){
+    importFormat=format;clearPreview();
+    document.querySelectorAll("[data-indicator-format]").forEach(tab=>{
+      const active=tab.dataset.indicatorFormat===format;tab.setAttribute("aria-selected",String(active));tab.tabIndex=active?0:-1;
+      document.getElementById(tab.getAttribute("aria-controls")).hidden=!active;
+    });
+  }
+  const tabs=[...document.querySelectorAll("[data-indicator-format]")];
+  tabs.forEach(tab=>{
+    tab.addEventListener("click",()=>selectImportFormat(tab.dataset.indicatorFormat));
+    tab.addEventListener("keydown",event=>{
+      if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
+      event.preventDefault();const next=event.key==="Home"?tabs[0]:event.key==="End"?tabs[1]:tabs[1-tabs.indexOf(tab)];selectImportFormat(next.dataset.indicatorFormat);next.focus();
+    });
+  });
+  ["indicator-csv-file","indicator-csv-text","indicator-stix-file"].forEach(id=>document.getElementById(id).addEventListener("input",clearPreview));
+  document.getElementById("indicator-import-dialog").addEventListener("close",clearPreview);
+  document.getElementById("preview-indicator-import").addEventListener("click",run(async()=>{
+    clearPreview();const generation=previewGeneration,form=data(),message=document.getElementById("indicator-import-status");
+    form.set("section_id",importTarget);form.set("format",importFormat);
+    try{
+    if(importFormat==="csv"){
+      const file=document.getElementById("indicator-csv-file").files[0],text=document.getElementById("indicator-csv-text").value;
+      if(file&&text.trim())throw Error("Choose a CSV file or pasted CSV, not both.");form.set("csv",file||text);
+    }else{
+      const file=document.getElementById("indicator-stix-file").files[0];if(!file)throw Error("Choose a STIX JSON file.");form.set("stix",file);
+    }
+    message.textContent="Validating import…";
+      const preview=await request("/import/preview",form);
+      if(generation!==previewGeneration)return;
+      importPreview=preview;const host=document.getElementById("indicator-import-preview");
+      const ready=preview.rows.filter(item=>!item.reason&&!item.duplicate).length;
+      message.textContent=`${ready} supported rows ready · ${preview.rows.filter(item=>item.reason).length} need correction · ${preview.skipped.length} unsupported/skipped · ${preview.rows.filter(item=>item.duplicate).length} exact destination duplicates · ${preview.rows.filter(item=>item.normalized).length} normalized aliases.`;
+      for(const item of preview.rows){
+        const line=document.createElement("div");line.className="indicator-preview-row";
+        const accept=document.createElement("input");accept.type="checkbox";accept.checked=true;accept.setAttribute("aria-label","Accept this row");item.accept=accept;
+        line.append(accept);
+        item.row.forEach((value,index)=>{const field=document.createElement("input");field.value=value;field.setAttribute("aria-label",["Type","Value","Description"][index]);if(index===0)field.setAttribute("list","indicator-type-options");field.addEventListener("input",()=>{item.row[index]=field.value;});line.append(field);});
+        const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":"Ready";line.append(reason);host.append(line);
       }
-    }),
-  );
+      for(const skipped of preview.skipped){const item=document.createElement("p");item.textContent=`Skipped ${skipped.type} ${skipped.id}: ${skipped.reason}`;host.append(item);}
+      document.getElementById("confirm-indicator-import").disabled=!preview.rows.length;
+    }catch(error){message.textContent=error.message;throw error;}
+  }));
+  document.getElementById("confirm-indicator-import").addEventListener("click",run(async()=>{
+    if(!importPreview||importPreview.section_id!==importTarget)throw Error("Preview this upload before applying it.");
+    const form=data();form.set("revision",importPreview.revision);form.set("section_id",importTarget);form.set("skip_duplicates",document.getElementById("indicator-skip-duplicates").checked?"1":"0");
+    form.set("accepted_rows",JSON.stringify(importPreview.rows.filter(item=>item.accept.checked).map(item=>item.row)));
+    try{
+      const result=await request("/import",form);state=result;dirty=false;autosaveTimer.reset();render();
+      status.textContent=`Added ${result.added} rows; skipped ${result.skipped_duplicates} duplicates. ${result.stix.available?'CSV/STIX saved.':'Draft/CSV saved; correct flagged rows for STIX.'}`;
+      document.getElementById("indicator-import-dialog").close();await refreshPackage();
+    }catch(error){document.getElementById("indicator-import-status").textContent=error.message;throw error;}
+  }));
+  document.getElementById("download-indicator-stix").addEventListener("click",run(async()=>{
+    await save();if(!state.stix.available)throw Error("STIX unavailable: correct the flagged section/row errors, then save again.");
+    const response=await fetch(`/cases/${cid}/indicators/stix`);if(!response.ok){const error=await response.json();throw Error(error.error);}
+    const url=URL.createObjectURL(await response.blob()),link=document.createElement("a");link.href=url;link.download="indicators.stix.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }));
   request("")
     .then((result) => {
       state = result;
+      const options=document.getElementById("indicator-type-options");
+      for(const item of state.types){for(const alias of new Set([item.name,item.label,...item.aliases])){const option=document.createElement("option");option.value=alias;option.label=item.name+" — "+item.label;options.append(option);}}
       render();
       status.textContent = locked
         ? "Read-only. Reopen the case to edit indicators."
@@ -451,14 +516,30 @@
       try {
         const result = await request("", form);
         state.revision = result.revision;
-        dirty = JSON.stringify(state.sections) !== snapshot;
+        const newerChanges=JSON.stringify(state.sections)!==snapshot,submitted=JSON.parse(snapshot);
+        // Keep section/row objects referenced by live cell event handlers. Even
+        // concurrent edits need the IDs allocated by the completed save.
+        for(const section of state.sections){
+          const saved=result.sections.find(item=>item.id===section.id),before=submitted.find(item=>item.id===section.id);
+          if(!saved||!before)continue;
+          section.row_meta=saved.row_meta;section.stix_meta=saved.stix_meta;
+          section.rows.forEach((row,index)=>{
+            if(JSON.stringify(row)!==JSON.stringify(before.rows[index]))return;
+            row[0]=saved.rows[index][0];
+            const input=container.querySelector('[data-section="'+section.id+'"] tbody')?.rows[index]?.querySelector('td[data-column="0"] input');
+            if(input&&input.value!==row[0])input.value=row[0];
+          });
+        }
+        state.stix=newerChanges?{...state.stix,available:false}:result.stix;
+        dirty = newerChanges;
+        if(!newerChanges)showValidation();
         status.textContent =
           "Autosaved to iocs/indicators.csv at " +
           new Date().toLocaleTimeString() +
-          (dirty ? " — newer changes pending" : "");
+          (dirty ? " — newer changes pending" : result.stix.available ? " — STIX current" : " — STIX unavailable; correct flagged rows");
         await refreshPackage();
       } finally {
-        busy = false;
+        busy = false;updateDownloadState();
       }
     },
     onError: (error) => {

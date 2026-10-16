@@ -43,7 +43,7 @@ def test_fixed_table_csv_append_and_locks():
     imported=post(base+'/import',csv=(io.BytesIO(b'Extra,DESCRIPTION, VaLuE ,TYPE\nIgnored,Payload,'+b'a'*64+b',SHA256\n'),'iocs.csv'),revision='2')
     assert imported.status_code==200 and len(imported.json['rows'])==3
     assert imported.json['rows'][1][2]=='C2, observed'
-    assert imported.json['rows'][2]==['SHA256','a'*64,'Payload']
+    assert imported.json['rows'][2]==['sha256','a'*64,'Payload']
     pasted=post(base+'/import',csv='Description,Type,Value\nDNS,domain,next.example.com\n',revision='3')
     assert pasted.status_code==200 and pasted.json['rows'][-1]==['domain','next.example.com','DNS']
     for text in ['Value,Type\nx,y','type,value,description\nx,y','type,value,value,description\nx,y,z,q']:
@@ -98,10 +98,10 @@ def test_indicator_sections_save_import_revision_and_existing_rows():
     client,cid,post=setup();base=f'/cases/{cid}/indicators'
     post(base,rows=json.dumps([['domain','old.example.com','Previous entry']]),revision='0')
     initial=client.get(base).json
-    assert initial['sections']==[{'id':'default','title':indicators.DEFAULT_SECTION_TITLE,'description':indicators.DEFAULT_SECTION_DESCRIPTION,'rows':initial['rows']}]
+    assert [{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in initial['sections']]==[{'id':'default','title':indicators.DEFAULT_SECTION_TITLE,'description':indicators.DEFAULT_SECTION_DESCRIPTION,'rows':initial['rows']}]
     sections=initial['sections']+[{'id':'payload','title':'Payload hashes','description':'Files recovered from the sandbox.','rows':[['sha256','a'*64,'Payload']]}]
     saved=post(base,sections=json.dumps(sections),revision='1');assert saved.status_code==200
-    assert saved.json['sections']==sections and len(saved.json['rows'])==2
+    assert [{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in saved.json['sections']]==[{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in sections] and len(saved.json['rows'])==2
     assert post(base,sections=json.dumps(sections),revision='1').status_code==409
     assert post(base,rows='[]',revision='2').status_code==409 # Old clients cannot flatten away grouping.
     imported=post(base+'/import',section_id='payload',csv=(io.BytesIO(b'Description,VALUE,Type\nC2,192.0.2.1,ipv4\n'),'iocs.csv'),revision='2')
@@ -159,12 +159,12 @@ def test_section_edit_delete_and_protected_default():
     sections[0]['title']='Analyst-selected indicators';sections[0]['description']='Confirmed findings.'
     sections[1]['title']='Updated infrastructure';sections[1]['description']='Revised findings.'
     result=post(base,sections=json.dumps(sections),revision='1')
-    assert result.status_code==200 and result.json['sections']==sections
+    assert result.status_code==200 and [{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in result.json['sections']]==[{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in sections]
     rejected=post(base,sections=json.dumps(sections[1:]),revision='2')
     assert rejected.status_code==409 and 'cannot be deleted' in rejected.json['error']
-    assert client.get(base).json['sections']==sections
+    assert [{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in client.get(base).json['sections']]==[{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in sections]
     saved=post(base,sections=json.dumps(sections[:1]),revision='2')
-    assert saved.status_code==200 and saved.json['sections']==sections[:1]
+    assert saved.status_code==200 and [{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in saved.json['sections']]==[{k:v for k,v in section.items() if k not in ('row_meta','stix_meta')} for section in sections][:1]
     assert saved.json['rows']==[]
     assert '192[.]0[.]2[.]1' not in (package(cid)/'iocs/indicators.csv').read_text()
     with app.app_context():

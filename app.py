@@ -321,6 +321,12 @@ def completion_items(cid):
         elif r['status'] == 'Pending':
             items.append({'message': r['label']+': Pending. Review its content and mark it Populated, or choose Not applicable with a reason.',
                          'action': 'Review '+r['label'], 'target': 'readiness-'+r['category'], 'tab': 'package'})
+    from indicator_types import inspect_sections
+    from indicators import load_table as indicator_table
+    indicator_issues=inspect_sections(indicator_table(db,cid)['sections'])['issues']
+    if indicator_issues:
+        items.append({'message':f'Indicator STIX unavailable: {len(indicator_issues)} rows need correction.',
+                      'action':'Correct indicators','target':'indicator-workspace','tab':'indicators'})
     report = root/'reports/malware-analysis-report.md'
     word = root/current_report(c, root)
     if not (word.is_file() and word.stat().st_size > 0) and (not report.exists() or not report.read_text(errors='replace').strip() or report.read_text(errors='replace').strip() == REPORT_TEMPLATE.strip()):
@@ -954,8 +960,12 @@ def file(cid):
     p = safe_path(cid, rel)
     if not p.is_file():
         abort(404)
+    generated_stix=p==(package(cid)/'iocs/indicators.stix.json').resolve()
+    if generated_stix:
+        from indicators import stix_file_is_current
+        if not stix_file_is_current(db,cid,p):abort(409,description='STIX is stale or unavailable. Save/correct the Indicators table first.')
     editable = p.suffix.lower() in ('.md', '.txt', '.json', '.csv', '.yml', '.yaml',
-                                    '.yar', '.sigma', '.py', '.sh', '.ps1') and p.stat().st_size < 1024*1024
+                                    '.yar', '.sigma', '.py', '.sh', '.ps1') and p.stat().st_size < 1024*1024 and not generated_stix
     if request.method == 'POST':
         if not editable:
             abort(400)
@@ -1080,6 +1090,9 @@ def build_archive(cid, archive_type, include_samples=False):
     title = re.sub(r'^\d{8}:\s*', '', c['name'])
     name = title_date(c['name'])+'-MIP-'+slugify(title)+('-RAW' if archive_type ==
                                                          'raw' else '')+('-MAL' if include_samples else '')
+    from indicators import load_table as load_indicators, refresh_stix_output
+    # Explicit archive generation refreshes derived STIX; download GETs stay pure.
+    refresh_stix_output(root/'iocs',load_indicators(db,cid)['sections'])
     statuses = readiness(cid)
     metadata = [{k: a[k] for k in a.keys() if k != 'usage'} for a in db().execute(
         'SELECT * FROM artifacts WHERE case_id=?', (cid,))]

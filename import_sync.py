@@ -840,6 +840,8 @@ class ImportSync:
                 destination.rename(recovery / "old-case")
             replacement.rename(destination)
             swapped = True
+            from indicators import refresh_stix_output
+            refresh_stix_output(destination/'mip/iocs',validated[1])
             if fingerprint(self.sync.snapshot(cid)) != canonical_hash:
                 raise ValueError("Restored content fingerprint differs; rolled back.")
             outcome.update(

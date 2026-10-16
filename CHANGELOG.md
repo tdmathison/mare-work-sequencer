@@ -1,5 +1,7 @@
 # Latest update
 
+- Added a shared canonical indicator catalog/searchable type selector, alias/value validation with preserved invalid drafts, stable row/section STIX identities, and local STIX 2.1 export beside CSV. Unified each section’s Import dialog with CSV/STIX tabs, correction previews, bounded local-only pattern/observable extraction, duplicate-safe additive application and explicit skipped-item reasons. Added save-before-download, stale-output guards/recovery, RAW/sync integration and OpenAPI updates. Verified all 23 mappings with official MISP attribute-labelled conversion; documented external-mode limitations and added server/browser regressions.
+
 - Enforced uppercase ASCII tag names through shared backend validation, canonical uniqueness and SQLite write guards. Added an atomic, idempotent migration preserving tag associations, auditing case-only consolidation and retaining invalid legacy names with Tag Manager remediation. Imports reject invalid names visibly; synchronization verifies raw revision hashes before canonical comparison and retains ancestry when restoring older mixed-case tags. Added naming, concurrency, migration, API/import, synchronization and browser coverage.
 
 - Fixed Search case groups reopening after indexing refreshes: individual and bulk disclosure controls share stable case/archive state, retained through same-search polling and pagination, reset on new submissions, with stale-response guards and browser race regressions.

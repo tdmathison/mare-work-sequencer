@@ -4,8 +4,17 @@ import io
 import json
 import re
 import ipaddress
-from flask import request, abort
+import copy
+import os
+import tempfile
+import uuid
+import hashlib
+import shutil
+from datetime import datetime
+from flask import request, abort, g, send_file, after_this_request
 from reporting import refang, defang, defang_in_text
+from indicator_types import CATALOG, analyze, inspect_sections
+from indicator_stix import reconcile_rows, build_bundle, import_document
 DEFAULT_COLUMNS = ['type', 'value', 'description']
 DEFAULT_SECTION_TITLE = 'Indicators extracted during analysis'
 DEFAULT_SECTION_DESCRIPTION = 'The following table contains indicators extracted during analysis of the malicious artifact.'
@@ -73,7 +82,7 @@ def migrate_fixed_columns(connection):
         return migrated
 
 
-def validate_sections(sections):
+def validate_sections(sections, *, allow_new_meta=False):
     if not isinstance(sections, list) or not 1 <= len(sections) <= 100:
         raise ValueError('Use between 1 and 100 indicator sections.')
     ids = set()
@@ -92,6 +101,29 @@ def validate_sections(sections):
             raise ValueError(
                 'Section descriptions are limited to 4,000 characters.')
         validate_table(DEFAULT_COLUMNS, section.get('rows'))
+        metadata=section.get('row_meta')
+        if metadata is not None:
+            if not isinstance(metadata,list) or len(metadata)!=len(section['rows']):raise ValueError('Row identity metadata must match the rows.')
+            for meta in metadata:
+                if meta is None:
+                    if allow_new_meta:continue
+                    raise ValueError('Saved indicator row identities cannot be null.')
+                if not isinstance(meta,dict) or set(meta)!={'id','created','modified','digest'}:raise ValueError('Malformed indicator row identity metadata.')
+                try:
+                    if not meta['id'].startswith('indicator--'):raise ValueError()
+                    uuid.UUID(meta['id'][11:])
+                    created=datetime.fromisoformat(meta['created'].replace('Z','+00:00'))
+                    modified=datetime.fromisoformat(meta['modified'].replace('Z','+00:00'))
+                    if created.tzinfo is None or modified.tzinfo is None or modified<created or not re.fullmatch('[a-f0-9]{64}',meta['digest']):raise ValueError()
+                except (ValueError,TypeError,KeyError,AttributeError):raise ValueError('Invalid indicator row identity or timestamp.')
+        group=section.get('stix_meta')
+        if group is not None:
+            try:
+                if not isinstance(group,dict) or set(group)!={'id','created','modified','digest'} or not group['id'].startswith('grouping--'):raise ValueError()
+                uuid.UUID(group['id'][10:])
+                created=datetime.fromisoformat(group['created'].replace('Z','+00:00'));modified=datetime.fromisoformat(group['modified'].replace('Z','+00:00'))
+                if created.tzinfo is None or modified.tzinfo is None or modified<created or not re.fullmatch('[a-f0-9]{64}',group['digest']):raise ValueError()
+            except (ValueError,TypeError,KeyError,AttributeError):raise ValueError('Invalid indicator section STIX identity metadata.')
         ids.add(sid)
         total += len(section['rows'])
     if 'default' not in ids:
@@ -99,7 +131,10 @@ def validate_sections(sections):
     if total > 10000:
         raise ValueError(
             'All sections together can contain at most 10,000 indicators.')
-    return [{'id': s['id'], 'title': s['title'].strip(), 'description': s['description'], 'rows': s['rows']} for s in sections]
+    identities=[meta['id'] for s in sections for meta in s.get('row_meta',[]) if meta]
+    identities += [s['stix_meta']['id'] for s in sections if s.get('stix_meta')]
+    if len(identities)!=len(set(identities)):raise ValueError('Indicator row identities must be unique within the case.')
+    return [{'id': s['id'], 'title': s['title'].strip(), 'description': s['description'], 'rows': s['rows'], **({'row_meta':s['row_meta']} if 'row_meta' in s else {}), **({'stix_meta':s['stix_meta']} if s.get('stix_meta') else {})} for s in sections]
 
 
 def load_table(db, cid):
@@ -168,6 +203,93 @@ def indicator_csv(table):
     return buffer.getvalue()
 
 
+def describe_table(table):
+    result=copy.deepcopy(table)
+    result['stix']=inspect_sections(result['sections'])
+    result['types']=CATALOG
+    return result
+
+
+def recover_output(root, table, rollback=False):
+    directory=root.parent.parent/'.indicator-output-recovery'
+    marker=directory/'manifest.json'
+    if not marker.is_file():
+        if directory.is_dir():shutil.rmtree(directory)  # Publication never began.
+        return
+    manifest=json.loads(marker.read_text())
+    digest=hashlib.sha256(json.dumps(table['sections'],sort_keys=True).encode()).hexdigest()
+    if rollback or digest!=manifest['sections']:
+        for filename,existed in manifest['old'].items():
+            if filename not in ('indicators.csv','indicators.stix.json'):raise ValueError('Invalid indicator recovery filename.')
+            if existed:os.replace(directory/filename,root/filename)
+            else:(root/filename).unlink(missing_ok=True)
+    shutil.rmtree(directory)
+
+
+def journal_outputs(root, table):
+    directory=root.parent.parent/'.indicator-output-recovery'
+    directory.mkdir(mode=0o700)
+    old={}
+    for filename in ('indicators.csv','indicators.stix.json'):
+        path=root/filename;old[filename]=path.is_file()
+        if old[filename]:shutil.copy2(path,directory/filename)
+    manifest={'sections':hashlib.sha256(json.dumps(table['sections'],sort_keys=True).encode()).hexdigest(),'old':old}
+    for filename,existed in old.items():
+        if existed:
+            with (directory/filename).open('rb') as backup:os.fsync(backup.fileno())
+    from case_sync import durable_json
+    durable_json(directory/'manifest.json',manifest)
+
+
+
+def stix_file_is_current(db, cid, path):
+    expected,report=build_bundle(load_table(db,cid)['sections'])
+    if expected is None or not path.is_file():return False
+    try:return path.read_text(encoding='utf-8')==expected
+    except (UnicodeError,OSError):return False
+
+
+def refresh_stix_output(root, sections):
+    bundle,report=build_bundle(sections)
+    path=root/'indicators.stix.json'
+    if bundle is None:
+        path.unlink(missing_ok=True)
+    else:
+        try:current=path.read_text(encoding='utf-8') if path.is_file() else None
+        except (UnicodeError,OSError):current=None
+        if current==bundle:return report
+        root.mkdir(parents=True,exist_ok=True)
+        fd,temporary=tempfile.mkstemp(prefix='.indicator-',suffix='.pending',dir=root.parent.parent)
+        try:
+            with os.fdopen(fd,'w',encoding='utf-8') as output:
+                output.write(bundle);output.flush();os.fsync(output.fileno())
+            os.replace(temporary,path)
+        finally:
+            if os.path.exists(temporary):os.unlink(temporary)
+    return report
+
+
+def publish_outputs(root, table):
+    """Stage complete files, replace atomically; remove stale STIX first."""
+    bundle,report=build_bundle(table['sections'])
+    root.mkdir(parents=True,exist_ok=True)
+    staged=[]
+    try:
+        for filename,content in [('indicators.csv',indicator_csv(table)),('indicators.stix.json',bundle)]:
+            if content is None:continue
+            recovery=root.parent.parent/'.indicator-output-recovery'
+            fd,path=tempfile.mkstemp(prefix='.indicator-',suffix='.pending',dir=recovery if recovery.is_dir() else root.parent.parent)
+            with os.fdopen(fd,'w',encoding='utf-8',newline='') as output:
+                output.write(content);output.flush();os.fsync(output.fileno())
+            staged.append((path,root/filename))
+        (root/'indicators.stix.json').unlink(missing_ok=True)
+        for source,target in staged:os.replace(source,target)
+    finally:
+        for source,target in staged:
+            if os.path.exists(source):os.unlink(source)
+    return report
+
+
 def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pending, audit):
     with app.app_context():
         db().execute('CREATE TABLE IF NOT EXISTS indicator_tables(case_id INTEGER PRIMARY KEY REFERENCES cases(id),columns TEXT NOT NULL,rows TEXT NOT NULL,revision INTEGER NOT NULL)')
@@ -181,6 +303,31 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             (ensure_package(cid)/'iocs/indicators.csv').write_text(indicator_csv(table))
             mark_pending(cid, 'iocs/indicators.csv')
             mark_pending(cid, 'reports/sections')
+
+    for directory in (ROOT/'cases').glob('*/.indicator-output-recovery'):
+        try:cid=int(directory.parent.name)
+        except ValueError:continue
+        with app.app_context():recover_output(package(cid)/'iocs',load_table(db,cid))
+
+    @app.after_request
+    def finish_indicator_outputs(response):
+        for cid in getattr(g,'indicator_outputs',[]):
+            recover_output(package(cid)/'iocs',load_table(db,cid),rollback=response.status_code>=400)
+        return response
+
+    def queue_outputs(cid,table):
+        @after_this_request
+        def publish(response):
+            if response.status_code<400:
+                root=ensure_package(cid)/'iocs'
+                recover_output(root,load_table(db,cid))
+                journal_outputs(root,table)
+                g.indicator_outputs=getattr(g,'indicator_outputs',[])+[cid]
+                try:publish_outputs(root,table)
+                except Exception:
+                    recover_output(root,table,rollback=True)
+                    raise
+            return response
 
     def save(cid, columns, rows, revision, sections=None):
         validate_table(columns, rows)
@@ -199,10 +346,12 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
                 if len(current['sections']) != 1:
                     raise ValueError(
                         'Save all sections together to preserve their grouping.')
-                sections = [{**current['sections'][0], 'rows': rows}]
-            sections = validate_sections(sections)
-            if request.form.get('automatic') == '1' and sections == current['sections']:
-                return current
+                sections = [{**{key:value for key,value in current['sections'][0].items() if key!='row_meta'}, 'rows': rows}]
+            sections = reconcile_rows(validate_sections(sections, allow_new_meta=True), current['sections'])
+            if sections == current['sections']:
+                result=describe_table(current)
+                queue_outputs(cid,current)
+                return result
             rows = [row for section in sections for row in section['rows']]
             connection.execute('INSERT OR REPLACE INTO indicator_tables VALUES(?,?,?,?)',
                                (cid, json.dumps(columns), json.dumps(rows), revision+1))
@@ -210,11 +359,13 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
                 'INSERT OR REPLACE INTO indicator_sections VALUES(?,?)', (cid, json.dumps(sections)))
         table = load_table(db, cid)
         root = ensure_package(cid)/'iocs'
-        (root/'indicators.csv').write_text(indicator_csv(table))
+        queue_outputs(cid,table)
         mark_pending(cid, 'iocs/indicators.csv')
         mark_pending(cid, 'reports/sections')
         audit(f'Updated indicators for case {cid}')
-        return table
+        return describe_table(table)
+
+    app.extensions['indicator_save']=save
 
     def append_rows(cid, current, rows):
         sections = current['sections']
@@ -223,10 +374,11 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
         if section is None:
             raise ValueError('Choose an existing indicator section.')
         section['rows'] = section['rows']+rows
+        if 'row_meta' in section:section['row_meta'] += [None]*len(rows)
         return save(cid, current['columns'], [], int(request.form['revision']), sections)
 
     @app.get('/cases/<int:cid>/indicators')
-    def indicators_data(cid): case(cid); return load_table(db, cid)
+    def indicators_data(cid): case(cid); return describe_table(load_table(db, cid))
 
     @app.post('/cases/<int:cid>/indicators')
     def indicators_save(cid):
@@ -236,11 +388,55 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
         except (ValueError, KeyError, TypeError) as exc:
             return {'error': str(exc)}, 409
 
+    @app.get('/cases/<int:cid>/indicators/stix')
+    def indicators_stix_download(cid):
+        case(cid)
+        table=load_table(db,cid)
+        expected,report=build_bundle(table['sections'])
+        path=package(cid)/'iocs/indicators.stix.json'
+        if not stix_file_is_current(db,cid,path):
+            return {'error':'STIX is unavailable. Save current edits and correct all flagged rows first.','stix':report},409
+        return send_file(path,mimetype='application/stix+json',as_attachment=True,download_name='indicators.stix.json')
+
+    @app.post('/cases/<int:cid>/indicators/import/preview')
+    def indicators_import_preview(cid):
+        case(cid)
+        try:
+            current=load_table(db,cid)
+            target=next((s for s in current['sections'] if s['id']==request.form.get('section_id')),None)
+            if target is None:raise ValueError('Choose an existing indicator section.')
+            kind=request.form.get('format','csv')
+            if kind not in ('csv','stix'):raise ValueError('Choose CSV or STIX.')
+            upload=request.files.get(kind)
+            raw=upload.read(4*1024*1024+1) if upload else request.form.get(kind,'').encode()
+            if len(raw)>4*1024*1024:raise ValueError('Imports are limited to 4 MiB.')
+            rows,skipped=import_document(raw) if kind=='stix' else (parse_csv(raw,upload is not None),[])
+            validate_table(DEFAULT_COLUMNS,rows)
+            existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
+            preview=[]
+            for row in rows:
+                result=analyze(row);duplicate=bool(result.get('key') and json.dumps(result['key']) in existing)
+                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized'))})
+            return {'section_id':target['id'],'section':target['title'],'rows':preview,'skipped':skipped,'revision':current['revision']}
+        except (ValueError,TypeError,KeyError,UnicodeError,csv.Error,RecursionError) as exc:return {'error':str(exc)},400
+
     @app.post('/cases/<int:cid>/indicators/import')
     def indicators_import(cid):
         case(cid)
         try:
             current = load_table(db, cid)
+            if 'accepted_rows' in request.form:
+                rows=json.loads(request.form['accepted_rows']);validate_table(DEFAULT_COLUMNS,rows)
+                target=next((s for s in current['sections'] if s['id']==request.form.get('section_id')),None)
+                if target is None:raise ValueError('Choose an existing indicator section.')
+                existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
+                accepted=[];skipped=0
+                for row in rows:
+                    result=analyze(row);key=json.dumps(result['key']) if result.get('key') else None
+                    if request.form.get('skip_duplicates','1')=='1' and key in existing:skipped+=1;continue
+                    accepted.append(row)
+                    if key:existing.add(key)
+                result=append_rows(cid,current,accepted);result.update(added=len(accepted),skipped_duplicates=skipped);return result
             upload = request.files.get('csv')
             raw = upload.read(
                 4*1024*1024+1) if upload else request.form.get('csv', '').encode()

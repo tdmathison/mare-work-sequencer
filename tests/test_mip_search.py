@@ -640,6 +640,7 @@ def test_indicator_reference_task_updates_and_csv_mirrors(search_client):
     refresh(index)
     assert results(client, "old.evil.example", kind="indicators")["artifacts"] == 1
     assert results(client, "iocs/indicators.csv", kind="filenames")["artifacts"] == 1
+    assert results(client, "iocs/indicators.stix.json", kind="filenames")["artifacts"] == 1
     assert (
         results(client, "supporting/references.csv", kind="filenames")["artifacts"] == 1
     )

@@ -56,6 +56,7 @@ def synchronized_file(rel):
     return (
         rel.split("/")[0] in CATEGORIES
         and not is_backup(rel)
+        and rel != 'iocs/indicators.stix.json'
         and not rel.startswith("samples/")
         and rel != "reports/reverse-engineering-notes.md"
     )

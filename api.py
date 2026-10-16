@@ -16,7 +16,7 @@ from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
 from authorization import PERMISSIONS, has_permission, role_records
-from indicators import DEFAULT_COLUMNS, indicator_csv, load_table, validate_sections, validate_table
+from indicators import describe_table, DEFAULT_COLUMNS, indicator_csv, load_table, validate_sections, validate_table
 from mip import CATEGORIES, dated_title
 from references import COLUMNS as REFERENCE_COLUMNS, load_references
 from reporting import SECTIONS, TOKENS, current_report, is_backup
@@ -690,6 +690,9 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         path = safe_path(case_id, relative_path)
         if not path.is_file():
             abort(404)
+        if path==(package(case_id)/'iocs/indicators.stix.json').resolve():
+            from indicators import stix_file_is_current
+            if not stix_file_is_current(db,case_id,path):abort(409,description='STIX is stale or unavailable. Save/correct the Indicators table first.')
         return send_file(path, as_attachment=True, download_name=path.name)
 
     @api.route('/cases/<int:case_id>/indicators', methods=['GET', 'PUT'])
@@ -697,7 +700,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     def case_indicators(case_id):
         case(case_id)
         if request.method == 'GET':
-            return load_table(db, case_id)
+            return describe_table(load_table(db, case_id))
         editable_case(case_id)
         value = body()
         current = load_table(db, case_id)
@@ -713,27 +716,16 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
                 if len(current['sections']) != 1:
                     raise ValueError(
                         'Send all sections together to preserve their grouping.')
-                sections = [{**current['sections'][0], 'rows': rows}]
-            sections = validate_sections(sections)
+                sections = [{**{key:value for key,value in current['sections'][0].items() if key!='row_meta'}, 'rows': rows}]
+            sections = validate_sections(sections, allow_new_meta=True)
             if revision != current['revision']:
                 return jsonify(error='Indicators changed in another session; reload before saving.'), 409
         except (ValueError, KeyError, TypeError) as error:
             return jsonify(error=str(error)), 400
-        with db():
-            db().execute('BEGIN IMMEDIATE')
-            if revision != load_table(db, case_id)['revision']:
-                return jsonify(error='Indicators changed in another session; reload before saving.'), 409
-            rows = [row for section in sections for row in section['rows']]
-            db().execute('INSERT OR REPLACE INTO indicator_tables VALUES(?,?,?,?)',
-                         (case_id, json.dumps(DEFAULT_COLUMNS), json.dumps(rows), revision+1))
-            db().execute('INSERT OR REPLACE INTO indicator_sections VALUES(?,?)',
-                         (case_id, json.dumps(sections)))
-        result = load_table(db, case_id)
-        (ensure_package(case_id)/'iocs/indicators.csv').write_text(indicator_csv(result))
-        mark_pending(case_id, 'iocs/indicators.csv')
-        mark_pending(case_id, 'reports/sections')
-        audit(f'Updated indicators for case {case_id}')
-        return result
+        try:
+            return app.extensions['indicator_save'](case_id, columns, [], revision, sections)
+        except (ValueError, TypeError) as error:
+            return jsonify(error=str(error)),409
 
     @api.route('/cases/<int:case_id>/references', methods=['GET', 'PUT'])
     @require({'GET': 'references:read', 'PUT': 'references:write'})
