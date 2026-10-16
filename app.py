@@ -325,7 +325,7 @@ def completion_items(cid):
     from indicators import load_table as indicator_table
     indicator_issues=inspect_sections(indicator_table(db,cid)['sections'])['issues']
     if indicator_issues:
-        items.append({'message':f'Indicator STIX unavailable: {len(indicator_issues)} rows need correction.',
+        items.append({'message':f'Indicator STIX unavailable: {len(indicator_issues)} rows need correction or a supported export mapping.',
                       'action':'Correct indicators','target':'indicator-workspace','tab':'indicators'})
     report = root/'reports/malware-analysis-report.md'
     word = root/current_report(c, root)

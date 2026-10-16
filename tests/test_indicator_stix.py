@@ -14,7 +14,7 @@ from test_indicators import setup
 from test_case_sync import head,preview,apply
 from test_backups import setup_backup_case
 
-VALUES={'domain':'evil[.]example.com','hostname':'host.example.com','url':'hxxps://evil[.]example.com/a',
+VALUES={'software':"Example's \\ App",'mobile-application-id':'com.Example.application','domain':'evil[.]example.com','hostname':'host.example.com','url':'hxxps://evil[.]example.com/a',
         'ip-src':'2001:db8::1','ip-dst':'192.0.2.1','mac-address':'aa:bb:cc:dd:ee:ff','filename':"sample's\\path.exe",
         'md5':'a'*32,'sha1':'b'*40,'sha256':'c'*64,'sha512':'d'*128,'email-src':'sender@example.com','email-dst':'to@example.com',
         'email-subject':"Test ' subject",'email-attachment':'file.exe','mutex':"test\\' OR 'injection",
@@ -27,7 +27,7 @@ def stix_file(pattern,**kwargs):
     return Indicator(pattern=pattern,pattern_type='stix',pattern_version='2.1',description='Original description',**kwargs).serialize().encode()
 
 
-@pytest.mark.parametrize('item',CATALOG,ids=lambda item:item['name'])
+@pytest.mark.parametrize('item',[item for item in CATALOG if item['export']=='native'],ids=lambda item:item['name'])
 def test_catalog_patterns_and_round_trip(item):
     kind=item['name'];row=[kind,VALUES[kind],'original description']
     result=analyze(row);assert not result.get('error'),result
@@ -180,7 +180,7 @@ def test_official_misp_attribute_conversion_when_available(tmp_path):
     from indicator_stix import reconcile_rows,build_bundle
     python=os.environ.get('MARE_MISP_PYTHON')
     if not python:pytest.skip('Set MARE_MISP_PYTHON to an isolated official misp-stix environment')
-    rows=[[kind,VALUES[kind],'Description '+kind] for kind in VALUES]
+    rows=[[kind,VALUES[kind],'Description '+kind] for kind in VALUES if kind not in ('software','mobile-application-id')]
     sections=reconcile_rows([dict(id='default',title='MISP compatibility fixture',description='Section context',rows=rows)],[])
     raw,_=build_bundle(sections);path=tmp_path/'misp-test.json';path.write_text(raw)
     result=subprocess.run([python,'tests/verify_indicator_misp.py',str(path)],capture_output=True,text=True,check=True)
@@ -297,3 +297,120 @@ def test_standard_and_raw_include_current_csv_and_stix():
                 content=archive.read(name+'/iocs/indicators.stix.json')
                 bundle=parse(content,version='2.1')
                 assert next(obj for obj in bundle.objects if obj.type=='indicator').id==saved['sections'][0]['row_meta'][0]['id']
+
+
+@pytest.mark.parametrize('alias,kind', [('application','software'),('Software name','software'),('Android','mobile-application-id'),('package-name','mobile-application-id'),('application-id','mobile-application-id'),('bundle identifier','mobile-application-id')])
+def test_software_aliases(alias,kind):
+    assert analyze([alias,VALUES[kind],''])['row'][0]==kind
+
+
+def test_software_context_and_roundtrip():
+    from stix2.v21 import Software
+    from indicator_stix import reconcile_rows,build_bundle
+    sections=reconcile_rows([dict(id='default',title='Software',description='',rows=[['software','com.example.app','Generic name'],['mobile-application-id','com.example.app','Package']])],[])
+    raw,_=build_bundle(sections)
+    rows,skipped=import_document(raw.encode())
+    assert rows==sections[0]['rows']
+    assert all(item['type']=='grouping' for item in skipped)
+    assert from_pattern("[software:name = 'com.example.app']")[0]=='software'
+    assert import_document(Software(name='com.example.app').serialize().encode())[0]==[['software','com.example.app','']]
+    android=Software(name='com.example.app',x_mare_indicator_type='mobile-application-id',allow_custom=True)
+    assert import_document(android.serialize().encode())[0]==[['mobile-application-id','com.example.app','']]
+    assert analyze(['mobile-application-id','com.example.app',''])['key'][1]==['com.example.app']
+    assert analyze(['mobile-application-id','com[.]example[.]app',''])['key'][1]==['com[.]example[.]app']
+
+
+@pytest.mark.parametrize('kind,value,expected',[
+    ('domain','evil[.]example[.]com','evil.example.com'),
+    ('hostname','host[.]example','host.example'),
+    ('ip-dst','192[.]0[.]2[.]1','192.0.2.1'),
+    ('ip-src','2001[:]db8[:][:]1','2001:db8::1'),
+    ('url','hxxps://evil[.]example[.]com/CaseSensitive','https://evil.example.com/CaseSensitive'),
+    ('url','https[:]//evil[.]example[.]com/a','https://evil.example.com/a'),
+    ('url','hxxps[:]//192[.]0[.]2[.]1/Case','https://192.0.2.1/Case'),
+    ('url','https://[2001:db8::1]/Case','https://[2001:db8::1]/Case'),
+    ('email-src','analyst[@]evil[.]example','analyst@evil.example'),
+    ('email-dst','Analyst[@]evil[.]example','Analyst@evil.example'),
+])
+def test_network_csv_and_stix_share_pipeline(kind,value,expected):
+    from indicator_types import csv_row
+    row=[kind,value,'Literal https://description.example, analyst@example.com']
+    original=copy.deepcopy(row)
+    checked=analyze(row);assert checked.get('pattern'),checked
+    assert checked['key'][1][-1]==expected
+    exported=csv_row(row)
+    assert exported[1]!=expected
+    assert analyze(exported)['key']==checked['key']
+    assert exported[2]==row[2] and row==original
+    assert analyze(from_pattern(checked['pattern'],'',kind))['key']==checked['key']
+
+
+@pytest.mark.parametrize('kind', ['software','mobile-application-id','filename','mutex','regkey','regkey|value','filename|sha256','sha256'])
+def test_csv_leaves_non_network_values_and_other_cells_untouched(kind):
+    from indicator_types import csv_row
+    value=VALUES[kind]
+    if kind=='filename':value="com.example's\\sample.exe"
+    row=[kind,value,'Keep evil.example and https://example.com exactly']
+    assert csv_row(row)==row
+    assert not analyze(row).get('error')
+
+
+def test_network_serializers_across_save_download_and_packages():
+    import zipfile
+    from app import build_archive
+    client,cid,post=setup();base=f'/cases/{cid}/indicators'
+    rows=[['url','hxxps[:]//evil[.]example/Case','Description'],['mobile-application-id','com.example.app','Package']]
+    saved=post(base,revision=0,rows=json.dumps(rows)).json
+    assert saved['rows']==rows
+    ids=copy.deepcopy(saved['sections'][0]['row_meta'])
+    assert 'com.example.app' in (package(cid)/'iocs/indicators.csv').read_text()
+    assert 'hxxps[:]' in (package(cid)/'iocs/indicators.csv').read_text()
+    for autosave in ('0','1'):
+        unchanged=post(base,revision=saved['revision'],sections=json.dumps(saved['sections']),automatic=autosave).json
+        assert unchanged['revision']==saved['revision'] and unchanged['sections'][0]['row_meta']==ids
+    downloaded=client.get(base+'/stix');assert downloaded.status_code==200
+    indicators=[obj for obj in json.loads(downloaded.data)['objects'] if obj['type']=='indicator']
+    assert indicators[0]['pattern']=="[url:value = 'https://evil.example/Case']"
+    contextual=[obj for obj in json.loads(downloaded.data)['objects'] if obj['type']=='x-misp-attribute']
+    assert contextual[0]['x_misp_type']=='mobile-application-id' and contextual[0]['x_misp_value']=='com.example.app'
+    for kind in ('standard','raw'):
+        with app.app_context(): archive,name=build_archive(cid,kind)
+        with archive,zipfile.ZipFile(archive) as zipped:
+            names=zipped.namelist()
+            stix=next(name for name in names if name.endswith('iocs/indicators.stix.json'))
+            assert json.loads(zipped.read(stix))==json.loads(downloaded.data)
+
+
+def test_official_misp_software_conversion_when_available(tmp_path):
+    import os,subprocess
+    from indicator_stix import reconcile_rows,build_bundle
+    python=os.environ.get('MARE_MISP_PYTHON')
+    if not python:pytest.skip('Set MARE_MISP_PYTHON to an isolated official misp-stix environment')
+    sections=reconcile_rows([dict(id='default',title='Software',description='',rows=[['software','Example App','']])],[])
+    raw,_=build_bundle(sections);path=tmp_path/'software.json';path.write_text(raw)
+    result=json.loads(subprocess.run([python,'tests/verify_indicator_misp.py',str(path),'--external'],capture_output=True,text=True,check=True).stdout)
+    assert not result['errors'] and not result['warnings']
+    assert [obj['name'] for obj in result['objects']]==['software']
+    assert [obj['Attribute'][0]['value'] for obj in result['objects']]==['Example App']
+
+
+def test_software_csv_aliases_and_import_regeneration():
+    client,cid,post=setup();base=f'/cases/{cid}/indicators'
+    imported=post(base+'/import',revision=0,csv='type,value,description\napplication,Example App,Name\npackage-name,com.example.app,Package\n')
+    assert imported.status_code==200
+    assert imported.json['rows']==[['software','Example App','Name'],['mobile-application-id','com.example.app','Package']]
+    csv=(package(cid)/'iocs/indicators.csv').read_text()
+    assert 'com.example.app' in csv and 'com[.]example' not in csv
+    raw=(package(cid)/'iocs/indicators.stix.json').read_bytes()
+    rows,skipped=import_document(raw)
+    assert rows==imported.json['rows']
+    assert all(item['type']=='grouping' for item in skipped)
+
+
+def test_structured_software_and_android_context_require_review():
+    from stix2.v21 import Software
+    rows,skipped=import_document(Software(name='Example',version='1.0').serialize().encode())
+    assert not rows and 'Structured software' in skipped[0]['reason']
+    obj=json.loads(stix_file("[software:name = 'com.example.app']"))
+    obj['labels']=['misp:name="android-app"']
+    assert import_document(json.dumps(obj).encode())[0]==[['mobile-application-id','com.example.app','Original description']]

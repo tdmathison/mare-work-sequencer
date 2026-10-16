@@ -189,7 +189,7 @@ Add Task opens a workspace-sized dialog with a large description editor. Cancel 
 
 Indicators start in a Default section; existing indicator rows are preserved there on upgrade. Add new section opens a Title/Description form. Each section has its own editable type/value/description table, Add row, and Import (CSV/STIX). Save table at the top saves every section together. Imports append to the selected section and save all sections, saving any pending edits first.
 
-The generated Word report lists every indicator section beneath Indicators of Compromise, with a subsection heading, description, and table. Empty sections retain their headings and descriptions with an empty table. Delivery indicator values are defanged. `iocs/indicators.csv` contains the type/value/description columns plus section and section_description metadata on each exported row, so grouping accompanies the indicators in the package. Import still matches only type/value/description columns; extra fields are ignored.
+The generated Word report lists every indicator section beneath Indicators of Compromise, with a subsection heading, description, and table. Empty sections retain their headings and descriptions with an empty table. Delivery network indicator values are defanged; non-network values and descriptions remain literal. `iocs/indicators.csv` contains the type/value/description columns plus section and section_description metadata on each exported row, so grouping accompanies the indicators in the package. Import still matches only type/value/description columns; extra fields are ignored.
 
 Destructive commands appears only at the bottom of Workbench.
 
@@ -1297,7 +1297,7 @@ sections and Word-report behavior. Type is now a native searchable combobox usin
 the backend catalog in `indicator_types.py`. Search by canonical name, friendly
 label, or an explicit alias. Use arrows/Enter to choose a suggestion and Tab to
 continue editing. Common aliases such as `SHA256`, `SHA-256`, `SHA1`, `MD5`,
-`domain-name`, `URI`, and `registry-key` normalize when a valid row is saved.
+`domain-name` and `registry-key` normalize when a valid row is saved. Exact official names take precedence over old aliases: `URI` now selects the distinct MISP `uri` type, not `url`.
 Unknown, ambiguous, invalid and unfinished rows remain saved drafts; their
 original text is retained and **Needs correction** explains the problem. A generic
 `IP`/`IPv4`/`IPv6` never establishes source or destination direction.
@@ -1306,12 +1306,15 @@ The mappings follow the [OASIS STIX 2.1 standard](https://docs.oasis-open.org/ct
 and the official MISP [attribute-to-STIX mapping](https://misp.github.io/misp-stix/documentation/misp_attributes_to_stix21.html)
 and [STIX-to-attribute mapping](https://misp.github.io/misp-stix/documentation/stix21_to_misp_attributes.html).
 STIX object types and MISP attribute types are distinct. Canonical names are
-recorded in `misp:type` labels, never in `indicator_types`.
+recorded in `misp:type` labels for MISP attributes and `mare:type` for the retained software-name extension, never in `indicator_types`.
 
 | Canonical types | STIX pattern properties |
 | --- | --- |
 | `domain`, `hostname` | `domain-name:value` (label distinguishes hostname) |
 | `url` | `url:value` |
+| `software` | `software:name` (human-readable software/application name) |
+| `mobile-application-id` | Non-detection MISP `x-misp-attribute` contextual representation (literal identifier) |
+| `text`, `comment`, `other`, `chrome-extension-id`, `edge-extension-id` | Non-detection MISP `x-misp-attribute` contextual representation (literal values) |
 | `ip-src`, `ip-dst` | `network-traffic:src_ref` / `dst_ref`, with explicit address type and value; IPv4 and IPv6 supported |
 | `mac-address` | `mac-addr:value` |
 | `filename` | `file:name` |
@@ -1331,13 +1334,81 @@ ambiguous delimiters require correction. Filenames, mutexes, subjects and regist
 data are literal strings; quotes/backslashes are escaped using STIX grammar.
 No URLs are visited or names resolved.
 
+### Complete storage catalog versus export capabilities
+
+The searchable selector loads **all 194 official MISP attribute types** from the
+locally bundled **PyMISP 2.5.34.4** `describeTypes.json`, plus MARE's retained
+`software` extension (195 unique choices). It does not list every STIX SDO/SCO or
+MISP object template. Exact canonical names are preserved, including `AS` and
+`named pipe`; tag uppercase rules do not apply. One option per canonical type
+shows a category, friendly label and compatibility/search aliases, without alias
+duplicates. Searching `text`, `free text`, `unknown`, `miscellaneous` or `catch all`
+finds contextual choices. `unknown` is a search term, **not** an automatic import
+conversion. Type help is available beside the field and through `aria-describedby`.
+
+The source/version/file SHA-256 and BSD-2-Clause license live in `vendor/misp`.
+See [catalog maintenance](vendor/misp/README.md) for an offline wheel-based update
+procedure. Flask only reads the bundled JSON; no runtime internet or PyMISP
+installation is needed. On an explicitly connected maintenance machine:
+
+```sh
+python3 -m pip download --no-deps --only-binary=:all: pymisp==2.5.34.4 -d /tmp/mare-misp-catalog
+python3 scripts/update_indicator_catalog.py /tmp/mare-misp-catalog/pymisp-2.5.34.4-py3-none-any.whl --expected-version 2.5.34.4
+```
+
+The central catalog exposes `export` capability and `help` for every type:
+
+- **native**: the validated patterns in the mapping table, including the retained
+  MARE `software:name` extension; no invented observations or additional properties.
+- **contextual**: `text`, `comment`, `other`, `mobile-application-id`,
+  `chrome-extension-id`, `edge-extension-id`. These use the official converter's
+  `x-misp-attribute` schema with `x_misp_type`, literal `x_misp_value`, description
+  in `x_misp_comment`, category and explicit `x_misp_to_ids=false`. Labels also
+  state `misp:to_ids="False"`. No fake detection pattern or generic Note is created.
+- **unsupported**: every remaining selectable type is still saved literally, with
+  an actionable export message. Attachment/malware-sample need binary content;
+  traffic tuples, richer structured attributes, rule languages and other entries
+  need additional data or a verified mapping. Selection alone does not establish
+  semantic validity or claim STIX/MISP conversion compatibility.
+
+All official types can be saved through manual edit, autosave, CSV, API, RAW backup
+and synchronization. `text`/`comment`/`other` preserve punctuation, Unicode,
+whitespace and line breaks within the existing 4,000-character cell limit. They
+are not validated, defanged or refanged as network indicators. Unknown names
+remain flagged drafts; the import preview offers explicit **Use text**/**Use other**
+choices without changing value/description. The original type is retained in
+`row_meta.original_type`, RAW/sync metadata and an escaped `mare:original-type`
+label on contextual exports. Nothing is silently converted to a catch-all.
+
+`mobile-application-id` is the canonical MISP identifier type. Existing MARE
+`android-package`/Android/package aliases normalize on the next ordinary
+save/autosave, retaining exact values, row UUID/creation time and original-type
+provenance. Normalization advances the revision once; subsequent unchanged saves
+are stable. Existing RAW snapshots are validated unchanged before normalization,
+so their revision/hash integrity is preserved. Identifiers remain literal, including
+dots and case, in CSV and STIX. A generic `software:name`/Software SCO imports as
+`software`; reverse-DNS appearance never supplies Android semantics. Legacy
+explicit package-labelled patterns and Software SCOs remain importable. Software
+SCOs with CPE/SWID/vendor/version/language/extensions require review rather than
+silently losing their structured content.
+
+CSV serialization is type-aware: only recognized network **value cells** are
+defanged. It preserves column order, quoting, section metadata, descriptions,
+filenames, hashes, mutexes, registry data, software names and dotted packages.
+Explicit CSV-only network mappings (such as `domain|ip`, IP/hostname-plus-port, generic email and `uri`) transform only network components; ports remain literal. This does not imply STIX support. Generic legacy IP/email drafts retain defanged CSV delivery without inventing a
+source/destination role. STIX uses the same component validation pipeline with
+refanged values, escaping pattern literals afterwards. Supported `[.]`, `[@]`,
+`[:]`, `hxxp`/`hxxps` combinations (including `hxxps[:]//`) round-trip; URL paths
+retain case. Exports never mutate stored values, resolve DNS or fetch URLs.
+All manual/autosave/download/package/import-regeneration paths use these helpers.
+
 ### Saving, identity and outputs
 
 The top actions are **Add new section | Download STIX | Save table**. Manual save
 and autosave use the same backend flow as REST indicator PUTs. Valid aliases are
 canonicalized, and CSV is refreshed at `iocs/indicators.csv` with existing defanging
 and section columns. Valid tables also produce `iocs/indicators.stix.json`, a STIX
-2.1 Bundle of Indicators and standard Grouping objects for section titles,
+2.1 Bundle of native Indicators, supported contextual attributes and standard Grouping objects for section titles,
 descriptions and membership. Patterns use validated/refanged network values, not
 defanged display text. Direction is never invented. `valid_from` records the local
 row's creation/validity time, not an inferred first-seen observation.
@@ -1352,8 +1423,8 @@ avoiding a regeneration/revision loop. Incoming standalone STIX IDs are not reus
 as new local row IDs. Existing stored legacy rows are reviewed without blocking
 case loading and normalize through the ordinary next save/autosave.
 
-If any nonblank row needs correction, the draft and CSV still save, **STIX is
-unavailable**, section/row reasons are returned, a completion-review item appears,
+If any nonblank row needs correction **or lacks a faithful export mapping**, the saved data and CSV remain intact, **STIX is
+unavailable** for the entire table (no supposedly complete partial export), precise section/row reasons are returned, a completion-review item appears,
 and the previous STIX file is removed. Partially filled rows are errors; completely
 blank placeholders are ignored. An empty table produces an empty Bundle, without
 invented Indicator objects. Downloads validate the file against current saved
@@ -1421,7 +1492,7 @@ contract documents draft status, canonical normalization and identity metadata.
 
 ### Verified MISP conversion and limitations
 
-All 23 types, normalized values and row descriptions were tested using the
+The original 23 attribute types, normalized values and row descriptions were tested using the
 official **misp-stix 2026.10.12**, in its **attribute-labelled/internal** conversion
 mode. Section Grouping titles become event titles. Grouping descriptions are
 standard STIX context; their complete preservation in every MISP UI is not claimed.
@@ -1435,6 +1506,23 @@ option, or use its `InternalSTIX2toMISPParser`, then manually import the resulti
 MISP JSON. Direct STIX upload through MISP interfaces that cannot select this mode
 is not verified as preserving every type. No MISP instance/publishing was tested.
 
+Generic `software:name` patterns were separately verified with the official
+external parser: they become MISP **software** objects, not `android-app` objects.
+New `mobile-application-id` exports instead use the converter's contextual custom
+attribute format, preserving the canonical attribute type and literal identifier.
+The official [object mappings](https://misp.github.io/misp-stix/documentation/misp_objects_to_stix21.html)
+do not imply that a scalar package name recreates an Android object template.
+
+All six contextual types were tested with **misp-stix 2026.10.12 internal mode**
+and custom STIX content enabled (`stix2.parse(..., allow_custom=True)`). Canonical
+types, Unicode/internal line breaks, descriptions, section event title and
+`to_ids=false` survive conversion. PyMISP **trims leading/trailing whitespace**
+(and boundary NULs) when materializing MISP attributes: exact boundary whitespace
+remains in MARE/CSV/STIX JSON, but is not promised after MISP conversion. The
+escaped provenance label is available as a MISP tag. A MISP instance, its direct
+upload UI and preservation of full section descriptions were not tested. External
+mode is not verified for these custom attributes; explicitly use internal mode.
+
 Reproduce offline conversion after installing the optional converter into a
 separate environment (it is not an application dependency):
 
@@ -1445,11 +1533,11 @@ MARE_MISP_PYTHON=/tmp/mare-misp-check/bin/python .venv/bin/python -m pytest -q t
 ```
 
 The fixture/probe in `tests/verify_indicator_misp.py` uses the official parser and
-compares every canonical type/value/description. For ordinary checks:
+compares the original native attribute mappings, contextual types/values/descriptions/non-detection flags and software object names. For ordinary checks:
 
 ```sh
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pytest -q tests/test_indicator_stix.py tests/test_indicators.py tests/test_case_sync.py tests/test_backups.py tests/test_api_documentation.py
+.venv/bin/python -m pytest -q tests/test_indicator_catalog.py tests/test_indicator_stix.py tests/test_indicators.py tests/test_case_sync.py tests/test_backups.py tests/test_api_documentation.py
 MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/indicator-stix.cjs
 ```
 

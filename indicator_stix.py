@@ -7,11 +7,23 @@ import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from stix2 import parse
-from stix2.v21 import Bundle, Indicator, Grouping
+from stix2.v21 import Bundle, Indicator, Grouping, CustomObject
+from stix2.properties import StringProperty, BooleanProperty
 from stix2patterns.v21.pattern import Pattern
 from stix2patterns.inspector import INDEX_STAR
 from stix2patterns.v21.grammars.STIXPatternListener import STIXPatternListener
-from indicator_types import CATALOG, BY_NAME, canonical_type, analyze, inspect_sections
+from indicator_types import CATALOG, BY_NAME, canonical_type, analyze, inspect_sections, CONTEXT_TYPES
+
+# Same contextual schema used by official misp-stix 2026.10.12; no converter runtime.
+@CustomObject('x-misp-attribute', [
+    ('x_misp_type',StringProperty(required=True)),
+    ('x_misp_value',StringProperty(required=True)),
+    ('x_misp_comment',StringProperty()),
+    ('x_misp_category',StringProperty()),
+    ('x_misp_to_ids',BooleanProperty()),
+])
+class MISPAttribute:
+    pass
 
 MAX_BYTES=4*1024*1024
 MAX_OBJECTS=2000
@@ -28,20 +40,25 @@ def reconcile_rows(sections,current):
     by_content={}
     for section in current:
         for row,meta in zip(section['rows'],section.get('row_meta',[])):
-            by_content.setdefault(json.dumps(row,ensure_ascii=False),[]).append(meta)
+            for content in {json.dumps(row,ensure_ascii=False),json.dumps(analyze(row)['row'],ensure_ascii=False)}:
+                by_content.setdefault(content,[]).append(meta)
     used=set();now=timestamp()
     for section in sections:
         supplied=section.get('row_meta',[]);metadata=[]
         for index,row in enumerate(section['rows']):
+            original=list(row)
             result=analyze(row);row[:]=result['row']
             candidate=(supplied[index] or {}) if index<len(supplied) else {}
             old=previous.get(candidate.get('id'))
             if old and old['id'] in used:old=None
             if old is None:
-                old=next((m for m in by_content.get(json.dumps(row,ensure_ascii=False),[]) if m['id'] not in used),None)
-            content=json.dumps(row,ensure_ascii=False,sort_keys=True)
+                old=next((m for content in (original,row) for m in by_content.get(json.dumps(content,ensure_ascii=False),[]) if m['id'] not in used),None)
+            original_type=candidate.get('original_type',(old or {}).get('original_type'))
+            if original[0]!=row[0] and row[0]=='mobile-application-id':original_type=original_type or original[0]
+            content=json.dumps([row,original_type] if original_type is not None else row,ensure_ascii=False,sort_keys=True)
             digest=hashlib.sha256(content.encode()).hexdigest()
             meta=copy.deepcopy(old) if old else {'id':'indicator--'+str(uuid.uuid4()),'created':now,'modified':now}
+            if original_type is not None:meta['original_type']=original_type
             if meta.get('digest')!=digest:
                 next_time=(datetime.fromisoformat(meta['modified'].replace('Z','+00:00'))+timedelta(milliseconds=1)).isoformat(timespec='milliseconds').replace('+00:00','Z')
                 meta['modified']=max(now,next_time) if old else now
@@ -49,7 +66,7 @@ def reconcile_rows(sections,current):
         section['row_meta']=metadata
         previous_section=next((old for old in current if old['id']==section['id']),{})
         group=copy.deepcopy(previous_section.get('stix_meta'))
-        group_content=[section['title'],section['description'],[meta['id'] for row,meta in zip(section['rows'],metadata) if any(value.strip() for value in row)]]
+        group_content=[section['title'],section['description'],[('x-misp-attribute--'+meta['id'].split('--')[1] if analyze(row).get('export')=='contextual' else meta['id']) for row,meta in zip(section['rows'],metadata) if any(value.strip() for value in row)]]
         digest=hashlib.sha256(json.dumps(group_content,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         if group is None:group={'id':'grouping--'+str(uuid.uuid4()),'created':now,'modified':now}
         elif group['digest']!=digest:
@@ -71,21 +88,29 @@ def build_bundle(sections):
             result=analyze(row)
             if result.get('blank'):continue
             if result.get('error'):raise ValueError(result['error'])
-            item=Indicator(id=meta['id'],created=meta['created'],modified=meta['modified'],valid_from=meta['created'],
-                           pattern_type='stix',pattern_version='2.1',pattern=result['pattern'],
-                           description=row[2] or None,labels=[f'misp:type="{result["row"][0]}"'])
+            kind=result['row'][0]
+            if result.get('export')=='contextual':
+                from indicator_types import MISP_SOURCE
+                item=MISPAttribute(id='x-misp-attribute--'+meta['id'].split('--')[1],created=meta['created'],modified=meta['modified'],
+                    labels=[f'misp:type="{kind}"','misp:to_ids="False"']+(['mare:original-type='+json.dumps(meta['original_type'])] if 'original_type' in meta else []),
+                    x_misp_type=kind,x_misp_value=row[1],x_misp_to_ids=False,x_misp_comment=row[2] or None,
+                    x_misp_category=MISP_SOURCE['sane_defaults'][kind]['default_category'])
+            else:
+                item=Indicator(id=meta['id'],created=meta['created'],modified=meta['modified'],valid_from=meta['created'],
+                    pattern_type='stix',pattern_version='2.1',pattern=result['pattern'],description=row[2] or None,
+                    labels=[f'mare:type="{kind}"'] if kind=='software' else [f'misp:type="{kind}"'])
             objects.append(item);members.append(item.id);times.append(meta['modified'])
         if members:
             group=section.get('stix_meta',{})
             group_id=group.get('id','grouping--'+str(uuid.uuid5(uuid.UUID(members[0].split('--')[1]),section['id'])))
             objects.append(Grouping(id=group_id,name=section['title'],description=section['description'] or None,
-                                    context='unspecified',object_refs=members,created=group.get('created',min(times)),modified=group.get('modified',max(times))))
-    if report['count'] and not any(obj.type=='indicator' for obj in objects):
+                                    context='unspecified',object_refs=members,allow_custom=True,created=group.get('created',min(times)),modified=group.get('modified',max(times))))
+    if report['count'] and not any(obj.type in ('indicator','x-misp-attribute') for obj in objects):
         report.update(available=False,issues=[{'section':'Table','row':0,'reason':'Save the table to initialize STIX row identities.'}]);return None,report
     # Bundle IDs are derived from exact object content, not the export clock.
     key=uuid.uuid5(uuid.NAMESPACE_URL,json.dumps([json.loads(obj.serialize()) for obj in objects],sort_keys=True))
-    bundle=Bundle(id='bundle--'+str(key),objects=objects)
-    parse(bundle.serialize(),version='2.1')
+    bundle=Bundle(id='bundle--'+str(key),objects=objects,allow_custom=True)
+    parse(bundle.serialize(),version='2.1',allow_custom=True)
     return bundle.serialize(pretty=True),report
 
 
@@ -160,7 +185,7 @@ def from_pattern(pattern,description='',hint=None):
     raise ValueError('This composite pattern has no faithful canonical table representation; it was not split into rows.')
 
 
-def import_document(raw):
+def import_document(raw, *, with_provenance=False):
     if len(raw)>MAX_BYTES:raise ValueError('STIX uploads are limited to 4 MiB.')
     try:data=json.loads(raw.decode('utf-8-sig'))
     except (ValueError,UnicodeError,RecursionError) as exc:raise ValueError('Upload a valid UTF-8 STIX 2.1 JSON document.') from exc
@@ -173,7 +198,9 @@ def import_document(raw):
             if not isinstance(data.get('id'),str) or not data['id'].startswith('bundle--'):raise ValueError()
             uuid.UUID(data['id'][8:])
         except ValueError:raise ValueError('STIX Bundles require a valid bundle--UUID identifier.')
-    index={};rows=[];skipped=[];started=time.monotonic()
+    index={};rows=[];skipped=[];provenance=[];started=time.monotonic()
+    def add_row(row,original=None):
+        rows.append(row);provenance.append(original)
     for obj in objects:
         if len(json.dumps(obj))>256*1024:raise ValueError('An individual STIX object exceeds 256 KiB.')
         identifier=obj.get('id')
@@ -194,7 +221,22 @@ def import_document(raw):
         kind=obj['type']
         try:
             if obj.get('spec_version','2.1')!='2.1':raise ValueError('Only STIX 2.1 objects are supported.')
-            if kind=='indicator':
+            if kind=='x-misp-attribute':
+                if any(key not in obj for key in ('created','modified','labels','x_misp_type','x_misp_value')):raise ValueError('Malformed contextual attribute: created, modified, labels, x_misp_type and x_misp_value are required.')
+                if any(key in obj for key in ('x_misp_data','x_misp_attributes')):raise ValueError('Binary/structured contextual content requires review; it cannot be preserved as a text row.')
+                parsed=parse(obj,version='2.1',allow_custom=True)
+                if obj.get('revoked') or obj.get('object_marking_refs') or obj.get('granular_markings'):raise ValueError('Revoked/marked contextual attributes require review.')
+                if obj.get('x_misp_to_ids') is True or any(label.lower()=='misp:to_ids="true"' for label in obj.get('labels',[])):raise ValueError('Detection-enabled custom attributes require explicit review; contextual rows use to_ids=false.')
+                if canonical_type(obj['x_misp_type']) in BY_NAME and canonical_type(obj['x_misp_type']) not in CONTEXT_TYPES:raise ValueError('This non-detection custom attribute cannot be converted faithfully to a native detection/unsupported row. Review it explicitly as contextual text/other.')
+                row=[obj['x_misp_type'],obj['x_misp_value'],obj.get('x_misp_comment','')]
+                if not all(isinstance(value,str) for value in row):raise ValueError('Contextual type, value and comment must be strings.')
+                original=None
+                for label in obj.get('labels',[]):
+                    if label.startswith('mare:original-type='):
+                        original=json.loads(label.split('=',1)[1])
+                        if not isinstance(original,str) or len(original)>4000:raise ValueError('Invalid original type provenance.')
+                add_row(row,original)
+            elif kind=='indicator':
                 if any(key not in obj for key in ('created','modified','valid_from','pattern','pattern_type')):raise ValueError('Malformed Indicator: created, modified, valid_from, pattern and pattern_type are required.')
                 if obj.get('pattern_type')!='stix':raise ValueError('Non-STIX patterns (including YARA/Sigma) are not IOC values.')
                 if obj.get('revoked') or obj.get('valid_until') or obj.get('object_marking_refs') or obj.get('granular_markings'):raise ValueError('Revocation, expiry or marking semantics need review before conversion.')
@@ -202,14 +244,20 @@ def import_document(raw):
                 # Standards library validates required fields and the pattern grammar.
                 parsed=parse(obj,version='2.1',allow_custom=True)
                 if parsed.valid_from>datetime.now(timezone.utc):raise ValueError('Future validity starts require review; the table cannot preserve that detection window.')
-                hints=[label[11:-1] for label in obj.get('labels',[]) if label.startswith('misp:type="') and label.endswith('"')]
-                rows.append(from_pattern(obj['pattern'],obj.get('description',''),hints[0] if hints else None))
-            elif kind in ('domain-name','url','mac-addr','ipv4-addr','ipv6-addr','email-addr','mutex','file','windows-registry-key','x509-certificate','network-traffic','email-message'):
+                hints=[label.split('=',1)[1][1:-1] for label in obj.get('labels',[]) if isinstance(label,str) and label.startswith(('mare:type="','misp:type="')) and label.endswith('"')]
+                if not hints and 'misp:name="android-app"' in obj.get('labels',[]):hints=['android-package']
+                hint=hints[0] if hints else None
+                row=from_pattern(obj['pattern'],obj.get('description',''),hint)
+                add_row(row,hint if hint and row[0]=='mobile-application-id' and hint!='mobile-application-id' else None)
+            elif kind in ('software','domain-name','url','mac-addr','ipv4-addr','ipv6-addr','email-addr','mutex','file','windows-registry-key','x509-certificate','network-traffic','email-message'):
                 parse(obj,version='2.1',allow_custom=True)
                 if obj.get('defanged') or obj.get('object_marking_refs') or obj.get('granular_markings'):raise ValueError('Defanged/marked observables require explicit analyst review.')
                 description=obj.get('description','')
                 tests=[]
-                if kind in ('domain-name','url','mac-addr','ipv4-addr','ipv6-addr','email-addr'):tests=[(kind+':value',obj['value'])]
+                if kind=='software':
+                    if any(key in obj for key in ('cpe','swid','vendor','version','languages','extensions')):raise ValueError('Structured software properties require review; they cannot be preserved as a name-only row.')
+                    tests=[('software:name',obj['name'])]
+                elif kind in ('domain-name','url','mac-addr','ipv4-addr','ipv6-addr','email-addr'):tests=[(kind+':value',obj['value'])]
                 elif kind=='mutex':tests=[('mutex:name',obj['name'])]
                 elif kind in ('file','x509-certificate'):
                     hashes=obj.get('hashes',{})
@@ -246,9 +294,11 @@ def import_document(raw):
                         tests=[('email-message:body_multipart[*].body_raw_ref.name',target['name'])]
                 if not tests:raise ValueError('No supported scalar indicator value was supplied.')
                 from indicator_types import literal
-                rows.append(from_pattern('['+' AND '.join(path+' = '+literal(value) for path,value in tests)+']',description))
+                hint=obj.get('x_mare_indicator_type')
+                row=from_pattern('['+' AND '.join(path+' = '+literal(value) for path,value in tests)+']',description,hint)
+                add_row(row,hint if hint and row[0]=='mobile-application-id' and hint!='mobile-application-id' else None)
             else:skip(obj,'Context/unsupported STIX object; no independent IOC row was invented.')
         except Exception as error:
             skip(obj,str(error)[:500])
     if len(rows)>10000:raise ValueError('Import exceeds 10,000 rows.')
-    return rows,skipped
+    return (rows,skipped,provenance) if with_provenance else (rows,skipped)

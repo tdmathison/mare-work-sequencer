@@ -3,7 +3,6 @@ import csv
 import io
 import json
 import re
-import ipaddress
 import copy
 import os
 import tempfile
@@ -12,8 +11,7 @@ import hashlib
 import shutil
 from datetime import datetime
 from flask import request, abort, g, send_file, after_this_request
-from reporting import refang, defang, defang_in_text
-from indicator_types import CATALOG, analyze, inspect_sections
+from indicator_types import CATALOG, analyze, inspect_sections, canonical_type
 from indicator_stix import reconcile_rows, build_bundle, import_document
 DEFAULT_COLUMNS = ['type', 'value', 'description']
 DEFAULT_SECTION_TITLE = 'Indicators extracted during analysis'
@@ -108,7 +106,10 @@ def validate_sections(sections, *, allow_new_meta=False):
                 if meta is None:
                     if allow_new_meta:continue
                     raise ValueError('Saved indicator row identities cannot be null.')
-                if not isinstance(meta,dict) or set(meta)!={'id','created','modified','digest'}:raise ValueError('Malformed indicator row identity metadata.')
+                if not isinstance(meta,dict):raise ValueError('Malformed indicator row identity metadata.')
+                if 'original_type' in meta and (not isinstance(meta['original_type'],str) or len(meta['original_type'])>4000):raise ValueError('Original type provenance is limited to 4,000 characters.')
+                if allow_new_meta and set(meta)=={'original_type'}:continue
+                if set(meta)-{'original_type'}!={'id','created','modified','digest'}:raise ValueError('Malformed indicator row identity metadata.')
                 try:
                     if not meta['id'].startswith('indicator--'):raise ValueError()
                     uuid.UUID(meta['id'][11:])
@@ -131,7 +132,7 @@ def validate_sections(sections, *, allow_new_meta=False):
     if total > 10000:
         raise ValueError(
             'All sections together can contain at most 10,000 indicators.')
-    identities=[meta['id'] for s in sections for meta in s.get('row_meta',[]) if meta]
+    identities=[meta['id'] for s in sections for meta in s.get('row_meta',[]) if meta and 'id' in meta]
     identities += [s['stix_meta']['id'] for s in sections if s.get('stix_meta')]
     if len(identities)!=len(set(identities)):raise ValueError('Indicator row identities must be unique within the case.')
     return [{'id': s['id'], 'title': s['title'].strip(), 'description': s['description'], 'rows': s['rows'], **({'row_meta':s['row_meta']} if 'row_meta' in s else {}), **({'stix_meta':s['stix_meta']} if s.get('stix_meta') else {})} for s in sections]
@@ -176,16 +177,9 @@ def migrate_section_defaults(connection):
 
 
 def report_table(table):
-    # Analyst entries remain untouched; delivery copies are defanged.
-    def cell(value):
-        try:
-            ipaddress.ip_address(refang(value).strip())
-            return defang(value)
-        except ValueError:
-            return defang_in_text(value)
-
-    def rows(values): return [[cell(v) for v in row]
-                              for row in values if any(v.strip() for v in row)]
+    # Use the same type-aware value pipeline as STIX; preserve all other cells.
+    from indicator_types import csv_row
+    def rows(values): return [csv_row(row) for row in values if any(v.strip() for v in row)]
     result = {'columns': table['columns'], 'rows': rows(table['rows'])}
     if 'sections' in table:
         result['sections'] = [
@@ -367,14 +361,17 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
 
     app.extensions['indicator_save']=save
 
-    def append_rows(cid, current, rows):
+    def append_rows(cid, current, rows, originals=None):
         sections = current['sections']
         target = request.form.get('section_id', sections[0]['id'])
         section = next((s for s in sections if s['id'] == target), None)
         if section is None:
             raise ValueError('Choose an existing indicator section.')
+        original_count=len(section['rows'])
         section['rows'] = section['rows']+rows
-        if 'row_meta' in section:section['row_meta'] += [None]*len(rows)
+        if originals or 'row_meta' in section:
+            section.setdefault('row_meta',[None]*original_count)
+            section['row_meta'] += [{'original_type':value} if value is not None else None for value in (originals or [None]*len(rows))]
         return save(cid, current['columns'], [], int(request.form['revision']), sections)
 
     @app.get('/cases/<int:cid>/indicators')
@@ -410,13 +407,13 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             upload=request.files.get(kind)
             raw=upload.read(4*1024*1024+1) if upload else request.form.get(kind,'').encode()
             if len(raw)>4*1024*1024:raise ValueError('Imports are limited to 4 MiB.')
-            rows,skipped=import_document(raw) if kind=='stix' else (parse_csv(raw,upload is not None),[])
+            rows,skipped,originals=import_document(raw,with_provenance=True) if kind=='stix' else (parse_csv(raw,upload is not None),[],None)
             validate_table(DEFAULT_COLUMNS,rows)
             existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
             preview=[]
-            for row in rows:
+            for index,row in enumerate(rows):
                 result=analyze(row);duplicate=bool(result.get('key') and json.dumps(result['key']) in existing)
-                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized'))})
+                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None})
             return {'section_id':target['id'],'section':target['title'],'rows':preview,'skipped':skipped,'revision':current['revision']}
         except (ValueError,TypeError,KeyError,UnicodeError,csv.Error,RecursionError) as exc:return {'error':str(exc)},400
 
@@ -430,13 +427,15 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
                 target=next((s for s in current['sections'] if s['id']==request.form.get('section_id')),None)
                 if target is None:raise ValueError('Choose an existing indicator section.')
                 existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
-                accepted=[];skipped=0
-                for row in rows:
+                originals=json.loads(request.form.get('accepted_original_types','null')) or [None]*len(rows)
+                if not isinstance(originals,list) or len(originals)!=len(rows) or any(value is not None and (not isinstance(value,str) or len(value)>4000) for value in originals):raise ValueError('Invalid original type provenance.')
+                accepted=[];accepted_originals=[];skipped=0
+                for row,original in zip(rows,originals):
                     result=analyze(row);key=json.dumps(result['key']) if result.get('key') else None
                     if request.form.get('skip_duplicates','1')=='1' and key in existing:skipped+=1;continue
-                    accepted.append(row)
+                    accepted.append(row);accepted_originals.append(original)
                     if key:existing.add(key)
-                result=append_rows(cid,current,accepted);result.update(added=len(accepted),skipped_duplicates=skipped);return result
+                result=append_rows(cid,current,accepted,accepted_originals);result.update(added=len(accepted),skipped_duplicates=skipped);return result
             upload = request.files.get('csv')
             raw = upload.read(
                 4*1024*1024+1) if upload else request.form.get('csv', '').encode()

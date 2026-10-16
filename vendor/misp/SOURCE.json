@@ -1,0 +1,7 @@
+{
+  "package": "pymisp",
+  "version": "2.5.34.4",
+  "source": "https://pypi.org/project/pymisp/2.5.34.4/",
+  "path": "pymisp/data/describeTypes.json",
+  "sha256": "009ad1ca50475878f247fb6d2d774a05efc6fc3e9b4132764f5b84788f54efec"
+}

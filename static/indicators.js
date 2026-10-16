@@ -73,6 +73,7 @@
   function updateDownloadState(){
     document.getElementById("download-indicator-stix").disabled=locked||busy||Boolean(state&&!dirty&&!state.stix.available);
   }
+  function typeInfo(value){return state.types.find(item=>item.name.toLowerCase()===value.trim().toLowerCase())||state.types.find(item=>[item.label,...item.aliases].some(alias=>alias.toLowerCase()===value.trim().toLowerCase()));}
   function showValidation(){
     const issues=new Map((state.stix?.issues||[]).map(issue=>[issue.section_id+':'+issue.row,issue]));
     for(const section of state.sections){
@@ -81,7 +82,7 @@
       [...body.rows].forEach((row,index)=>{
         row.querySelectorAll('.indicator-correction').forEach(node=>node.remove());row.classList.remove('indicator-needs-correction');
         const issue=issues.get(section.id+':'+(index+1));
-        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent='Needs correction: '+issue.reason;row.cells[0].append(reason);}
+        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent=(issue.storage_valid?'Saved; STIX unavailable: ':'Needs correction: ')+issue.reason;row.cells[0].append(reason);}
       });
     }
   }
@@ -234,10 +235,12 @@
           cell.setAttribute("aria-multiline", "true");
           if(column===0){
             cell.contentEditable="false";
-            const input=document.createElement("input");input.type="text";input.value=value;input.setAttribute("list","indicator-type-options");input.setAttribute("aria-label",cell.getAttribute("aria-label"));input.setAttribute("role","combobox");input.setAttribute("aria-autocomplete","list");input.disabled=locked||busy;
-            input.addEventListener("input",()=>{row[0]=input.value;changed();});
+            const input=document.createElement("input");input.type="text";input.classList.add("indicator-type-input");input.value=value;input.setAttribute("list","indicator-type-options");input.setAttribute("aria-label",cell.getAttribute("aria-label"));input.setAttribute("role","combobox");input.setAttribute("aria-autocomplete","list");input.disabled=locked||busy;
+            const help=document.createElement("small");help.className="indicator-type-help";help.id="indicator-type-help-"+section.id+"-"+index;input.setAttribute("aria-describedby",help.id);
+            const updateHelp=()=>{const info=typeInfo(input.value);help.textContent=(section.row_meta?.[index]?.original_type?"Original type: "+section.row_meta[index].original_type+". ":"")+(info?info.help:"Unknown type: choose a catalog type or explicitly use text/other during import.");};updateHelp();
+            input.addEventListener("input",()=>{row[0]=input.value;updateHelp();changed();});
             input.addEventListener("keydown",event=>{if(event.key==="Enter")event.stopPropagation();});
-            cell.replaceChildren(input);
+            cell.replaceChildren(input,help);
           }
           cell.addEventListener("input", () => {
             if(column===0)return;
@@ -460,8 +463,12 @@
         const line=document.createElement("div");line.className="indicator-preview-row";
         const accept=document.createElement("input");accept.type="checkbox";accept.checked=true;accept.setAttribute("aria-label","Accept this row");item.accept=accept;
         line.append(accept);
-        item.row.forEach((value,index)=>{const field=document.createElement("input");field.value=value;field.setAttribute("aria-label",["Type","Value","Description"][index]);if(index===0)field.setAttribute("list","indicator-type-options");field.addEventListener("input",()=>{item.row[index]=field.value;});line.append(field);});
-        const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":"Ready";line.append(reason);host.append(line);
+        item.row.forEach((value,index)=>{const field=document.createElement(index===0?"input":"textarea");field.value=value;field.setAttribute("aria-label",["Type","Value","Description"][index]);if(index===0){field.classList.add("indicator-type-input");field.setAttribute("list","indicator-type-options");}field.addEventListener("input",()=>{item.row[index]=field.value;});line.append(field);});
+        const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":"Ready";line.append(reason);
+        if(item.unknown){
+          for(const kind of ["text","other"]){const button=document.createElement("button");button.type="button";button.textContent="Use "+kind;button.addEventListener("click",()=>{item.original_type=item.original_type??item.row[0];item.row[0]=kind;line.querySelector('input[list]').value=kind;reason.textContent="Contextual "+kind+"; original type retained: "+item.original_type;});line.append(button);}
+        }
+        host.append(line);
       }
       for(const skipped of preview.skipped){const item=document.createElement("p");item.textContent=`Skipped ${skipped.type} ${skipped.id}: ${skipped.reason}`;host.append(item);}
       document.getElementById("confirm-indicator-import").disabled=!preview.rows.length;
@@ -470,7 +477,9 @@
   document.getElementById("confirm-indicator-import").addEventListener("click",run(async()=>{
     if(!importPreview||importPreview.section_id!==importTarget)throw Error("Preview this upload before applying it.");
     const form=data();form.set("revision",importPreview.revision);form.set("section_id",importTarget);form.set("skip_duplicates",document.getElementById("indicator-skip-duplicates").checked?"1":"0");
-    form.set("accepted_rows",JSON.stringify(importPreview.rows.filter(item=>item.accept.checked).map(item=>item.row)));
+    const accepted=importPreview.rows.filter(item=>item.accept.checked);
+    form.set("accepted_rows",JSON.stringify(accepted.map(item=>item.row)));
+    form.set("accepted_original_types",JSON.stringify(accepted.map(item=>item.original_type??null)));
     try{
       const result=await request("/import",form);state=result;dirty=false;autosaveTimer.reset();render();
       status.textContent=`Added ${result.added} rows; skipped ${result.skipped_duplicates} duplicates. ${result.stix.available?'CSV/STIX saved.':'Draft/CSV saved; correct flagged rows for STIX.'}`;
@@ -486,7 +495,7 @@
     .then((result) => {
       state = result;
       const options=document.getElementById("indicator-type-options");
-      for(const item of state.types){for(const alias of new Set([item.name,item.label,...item.aliases])){const option=document.createElement("option");option.value=alias;option.label=item.name+" — "+item.label;options.append(option);}}
+      for(const item of [...state.types].sort((a,b)=>a.category.localeCompare(b.category)||a.name.localeCompare(b.name))){const option=document.createElement("option");option.value=item.name;option.label=item.category+" — "+item.label+([...item.aliases,...item.search_aliases].length?" — "+[...item.aliases,...item.search_aliases].join(", "):"");options.append(option);}
       render();
       status.textContent = locked
         ? "Read-only. Reopen the case to edit indicators."
