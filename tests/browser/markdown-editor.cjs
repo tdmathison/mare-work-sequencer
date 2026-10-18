@@ -338,8 +338,36 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const saved=(await state()).doc;
  await page.reload();await page.waitForFunction(saved=>window.MareEditors.getValue(document.querySelector('textarea[name=executive_summary]'))===saved,saved);
  assert.equal((await state()).doc,saved);
+ // Progress remains a standalone panel between generation and final upload.
+ for(const width of [1366,390]){
+  await page.setViewportSize({width,height:900});
+  const layout=await page.locator('.report-progress-panel').evaluate(panel=>({
+   before:panel.previousElementSibling.contains(document.querySelector('#generate-manual-report')),
+   after:panel.nextElementSibling.contains(document.querySelector('#final-report-form')),
+   outside:!panel.closest('form,fieldset'),
+   width:panel.getBoundingClientRect().width,
+   viewport:innerWidth
+  }));
+  assert.ok(layout.before&&layout.after&&layout.outside);
+  assert.ok(layout.width<=layout.viewport);
+ }
+ await page.setViewportSize({width:1366,height:900});
+ let jobRequests=0;
+ await page.route(`**/cases/${cid}/report-job`,async route=>{
+  // First request checks whether replacement is needed; second polls the job.
+  if(++jobRequests===2){
+   const response=await route.fetch(),result=await response.json();
+   await route.fulfill({response,json:{...result,job:{...result.job,status:'running',messages:['Generation in progress (polling regression)']}}});
+  }else await route.continue();
+ });
  await page.locator('#generate-report-pdf').uncheck();await page.locator('#generate-manual-report').click();
+ await page.locator('#report-messages').filter({hasText:'Generation in progress (polling regression)'}).waitFor();
+ assert.equal(await page.locator('#report-progress').isVisible(),true);
+ assert.equal(await page.locator('#report-progress').getAttribute('value'),null);
  await page.locator('#report-job-status').filter({hasText:'completed'}).waitFor({timeout:30000});
+ assert.equal(await page.locator('#report-progress').getAttribute('value'),'1');
+ assert.equal(await page.locator('#report-messages').getAttribute('aria-live'),'polite');
+ await page.unroute(`**/cases/${cid}/report-job`);
  const generated=await (await page.request.get(base+'/__editor_test__')).json();assert.ok(generated.paragraphs.some(text=>text.includes('Newer typing during save')));assert.equal(generated.inline_shapes,3);
  // Task dialog, dynamically initialized MITRE editors, Markdown-file editing.
  await page.locator('#tab-tasks').click();await page.locator('[data-open-task="add-task-dialog"]').click();

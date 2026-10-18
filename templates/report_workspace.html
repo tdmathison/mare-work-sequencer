@@ -156,6 +156,20 @@
     {% endif %}
   </form>
 </section>
+<section class="panel report-progress-panel">
+  <div class="heading">
+    <h2>Report generation progress</h2>
+    <span id="report-job-status" class="badge">Ready</span>
+  </div>
+  <progress
+    id="report-progress"
+    hidden
+    aria-label="Report generation progress"
+  ></progress>
+  <div id="report-messages" role="log" aria-live="polite">
+    <p class="muted">No generation request yet.</p>
+  </div>
+</section>
 <section class="panel">
   <h2>Continue editing & save the final report</h2>
   <p class="muted">
@@ -194,20 +208,6 @@
     <p class="muted">Start analysis or reopen the case to edit content.</p>
     {% endif %}
   </form>
-</section>
-<section class="panel report-progress-panel">
-  <div class="heading">
-    <h2>Report generation progress</h2>
-    <span id="report-job-status" class="badge">Ready</span>
-  </div>
-  <progress
-    id="report-progress"
-    hidden
-    aria-label="Report generation progress"
-  ></progress>
-  <div id="report-messages" role="log" aria-live="polite">
-    <p class="muted">No generation request yet.</p>
-  </div>
 </section>
 <dialog id="report-replace-dialog">
   <form method="dialog">
