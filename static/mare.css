@@ -997,8 +997,6 @@ footer {
 @media(max-width:600px) { .performance-header { align-items: stretch; flex-direction: column; } .performance-period { width: 100%; } .performance-period select { min-width: 0; flex: 1; } .performance-scorecards, .performance-side { grid-template-columns: minmax(0,1fr); } .performance-dashboard .panel { padding: 18px; } }
 /* Indicator type selection and unified local import preview. */
 #indicator-workspace td[data-column="0"] input{width:100%;min-width:150px;margin:0;padding:6px;font:inherit}
-.indicator-needs-correction td{border-color:var(--accent-dim)}
-.indicator-correction{display:block;color:var(--accent);font-size:12px;margin-top:5px;white-space:normal}
 #indicator-import-dialog{width:min(1050px,94vw);max-height:90vh;overflow:auto}
 .indicator-import-tabs{display:flex;gap:8px;margin:12px 0}
 .indicator-import-tabs [aria-selected="false"]{background:var(--panel);color:var(--text);border:1px solid var(--line)}
@@ -1013,9 +1011,17 @@ footer {
 input.indicator-type-input { appearance:none; padding-right:26px!important; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23dfb653' stroke-width='2'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:12px 8px; }
 input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 
-#indicator-workspace .indicator-type-help{display:block;font-size:11px;line-height:1.3;max-width:240px;margin-top:4px;color:var(--muted)}
 .indicator-preview-row textarea{margin:0;padding:6px;min-width:0;resize:vertical;min-height:44px;font:inherit}
 .indicator-preview-row button{padding:5px 8px;font-size:12px}
 @media(max-width:650px){.indicator-preview-row textarea{grid-column:2}}
 
-#indicator-workspace .indicator-export-info{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+/* Compact row status; all explanatory text stays outside the table layout. */
+#indicator-workspace .indicator-type-controls{display:flex;align-items:center;gap:4px;white-space:normal}
+#indicator-workspace .indicator-table .indicator-type-controls input{min-width:0;flex:1;width:0}
+#indicator-workspace .indicator-validation-slot{display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px;height:24px}
+#indicator-workspace .indicator-validation-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;min-height:0;padding:0;margin:0;border:0;background:transparent;color:var(--ok);font-size:17px;line-height:1;font-weight:700}
+#indicator-workspace [data-validation="invalid"] .indicator-validation-icon{color:var(--danger);cursor:help}
+#indicator-workspace button.indicator-validation-icon:hover{background:var(--panel-2)}
+#indicator-workspace .indicator-validation-icon:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#indicator-workspace .indicator-validation-tooltip{position:fixed;z-index:2000;max-width:min(360px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:auto;padding:8px 10px;background:var(--panel-2);color:var(--text);border:1px solid var(--danger);border-radius:4px;font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+#indicator-workspace .indicator-validation-tooltip[hidden]{display:none}

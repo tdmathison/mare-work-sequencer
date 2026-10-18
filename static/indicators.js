@@ -69,22 +69,95 @@
     dirty = true;
     status.textContent = "Unsaved changes";
     updateDownloadState();
+    showValidation();
   }
   function updateDownloadState(){
     document.getElementById("download-indicator-stix").disabled=locked||busy||Boolean(state&&!dirty&&!state.stix.available);
   }
   function typeInfo(value){return state.types.find(item=>item.name.toLowerCase()===value.trim().toLowerCase())||state.types.find(item=>[item.label,...item.aliases].some(alias=>alias.toLowerCase()===value.trim().toLowerCase()));}
-  function showValidation(){
-    const issues=new Map((state.stix?.issues||[]).map(issue=>[issue.section_id+':'+issue.row,issue]));
-    const notices=new Map((state.stix?.notices||[]).map(item=>[item.section_id+':'+item.row,item]));
-    for(const section of state.sections){
-      const body=container.querySelector('[data-section="'+section.id+'"] tbody');
-      if(!body)continue;
-      [...body.rows].forEach((row,index)=>{
-        row.querySelectorAll('.indicator-correction,.indicator-export-info').forEach(node=>node.remove());row.classList.remove('indicator-needs-correction');
-        const issue=issues.get(section.id+':'+(index+1));
-        if(issue){row.classList.add('indicator-needs-correction');const reason=document.createElement('small');reason.className='indicator-correction';reason.textContent='Requires correction/additional data: '+issue.reason;row.cells[0].append(reason);}
-        else if(section.rows[index].some(value=>value.trim())){const info=document.createElement('small');info.className='indicator-export-info';info.textContent=notices.get(section.id+':'+(index+1))?.message||'Native STIX mapping';row.cells[0].append(info);}
+  // Cache only authoritative results for the exact live row object/content.
+  // Row indices alone become stale after edits, deletion or an in-flight save.
+  const validation = new WeakMap();
+  const signature = row => JSON.stringify(row);
+  let openError = null;
+  const errorTip = document.createElement("div");
+  errorTip.id = "indicator-validation-error";
+  errorTip.className = "indicator-validation-tooltip";
+  errorTip.setAttribute("role", "tooltip");
+  errorTip.hidden = true;
+  root.append(errorTip);
+  function closeError() {
+    openError?.setAttribute("aria-expanded", "false");
+    openError = null;
+    errorTip.hidden = true;
+  }
+  function showError(control) {
+    closeError();
+    openError = control;
+    control.setAttribute("aria-expanded", "true");
+    errorTip.textContent = control.dataset.error;
+    errorTip.hidden = false;
+    const rect = control.getBoundingClientRect();
+    errorTip.style.left = Math.max(8, Math.min(rect.left, innerWidth - errorTip.offsetWidth - 8)) + "px";
+    errorTip.style.top = Math.max(8, rect.bottom + 6 + errorTip.offsetHeight <= innerHeight - 8
+      ? rect.bottom + 6 : rect.top - errorTip.offsetHeight - 6) + "px";
+  }
+  document.addEventListener("pointerdown", event => {
+    if (!openError?.contains(event.target)) closeError();
+  });
+  document.addEventListener("keydown", event => { if (event.key === "Escape") closeError(); });
+  window.addEventListener("scroll", closeError, true);
+  window.addEventListener("resize", closeError);
+  function rememberValidation() {
+    const issues = new Map((state.stix?.issues || []).map(issue => [issue.section_id + ":" + issue.row, issue.reason]));
+    for (const section of state.sections) section.rows.forEach((row, index) => {
+      validation.set(row, {signature: signature(row), error: issues.get(section.id + ":" + (index + 1))});
+    });
+  }
+  function showValidation() {
+    for (const section of state.sections) {
+      const body = container.querySelector('[data-section="' + section.id + '"] tbody');
+      if (!body) continue;
+      [...body.rows].forEach((tr, index) => {
+        const row = section.rows[index], slot = tr.querySelector(".indicator-validation-slot");
+        if (!row || !slot) return;
+        const result = validation.get(row);
+        const kind = !row.some(value => value.trim()) ? "blank"
+          : !result || result.signature !== signature(row) ? "pending"
+          : result.error ? "invalid" : "valid";
+        if (slot.dataset.validation === kind && slot.dataset.error === (result?.error || "")) return;
+        if (slot.contains(openError)) closeError();
+        slot.replaceChildren();
+        slot.dataset.validation = kind;
+        slot.dataset.error = result?.error || "";
+        if (kind === "blank" || kind === "pending") return;
+        const icon = document.createElement(kind === "invalid" ? "button" : "span");
+        icon.className = "indicator-validation-icon";
+        // Match the application's existing text-symbol status/disclosure icons.
+        icon.textContent = kind === "valid" ? "✓" : "✕";
+        icon.setAttribute("aria-label", kind === "valid" ? "Valid indicator" : "Invalid indicator: " + result.error);
+        if (kind === "valid") icon.setAttribute("role", "img");
+        else {
+          icon.type = "button";
+          icon.dataset.error = result.error;
+          icon.setAttribute("aria-describedby", errorTip.id);
+          icon.setAttribute("aria-expanded", "false");
+          icon.addEventListener("mouseenter", () => showError(icon));
+          icon.addEventListener("mouseleave", () => { if (document.activeElement !== icon) closeError(); });
+          icon.addEventListener("focus", () => showError(icon));
+          icon.addEventListener("blur", closeError);
+          icon.addEventListener("click", event => { event.stopPropagation(); showError(icon); });
+          // Let the button use native keyboard activation instead of cell navigation.
+          icon.addEventListener("keydown", event => {
+            event.stopPropagation();
+            if (event.key === "Escape") closeError();
+            if (event.key === "Tab") {
+              event.preventDefault();
+              (event.shiftKey ? tr.cells[0].querySelector("input") : tr.cells[1]).focus({preventScroll:true});
+            }
+          });
+        }
+        slot.append(icon);
       });
     }
   }
@@ -125,6 +198,8 @@
     } else status.textContent = "No indicator values needed this change.";
   }
   function render() {
+    closeError();
+    if (!dirty) rememberValidation();
     container.replaceChildren();
     for (const section of state.sections) {
       const article = document.createElement("article");
@@ -238,11 +313,11 @@
           if(column===0){
             cell.contentEditable="false";
             const input=document.createElement("input");input.type="text";input.classList.add("indicator-type-input");input.value=value;input.setAttribute("list","indicator-type-options");input.setAttribute("aria-label",cell.getAttribute("aria-label"));input.setAttribute("role","combobox");input.setAttribute("aria-autocomplete","list");input.disabled=locked||busy;
-            const help=document.createElement("small");help.className="indicator-type-help";help.id="indicator-type-help-"+section.id+"-"+index;input.setAttribute("aria-describedby",help.id);
-            const updateHelp=()=>{const info=typeInfo(input.value);help.textContent=(section.row_meta?.[index]?.original_type?"Original type: "+section.row_meta[index].original_type+". ":"")+(info?info.help:"Unknown type: choose a catalog type or explicitly use text/other during import.");};updateHelp();
-            input.addEventListener("input",()=>{row[0]=input.value;updateHelp();changed();});
+            const controls=document.createElement("div");controls.className="indicator-type-controls";
+            const slot=document.createElement("span");slot.className="indicator-validation-slot";
+            input.addEventListener("input",()=>{row[0]=input.value;changed();});
             input.addEventListener("keydown",event=>{if(event.key==="Enter")event.stopPropagation();});
-            cell.replaceChildren(input,help);
+            controls.append(input,slot);cell.replaceChildren(controls);
           }
           cell.addEventListener("input", () => {
             if(column===0)return;
@@ -252,6 +327,10 @@
           cell.addEventListener("keydown", (event) => {
             if (locked || busy) return;
             if (event.key === "Tab") {
+              if (column === 0 && !event.shiftKey && event.target === cell.querySelector("input")) {
+                const error = cell.querySelector("button.indicator-validation-icon");
+                if (error) { event.preventDefault(); error.focus({preventScroll:true}); return; }
+              }
               event.preventDefault();
               let next = index * 3 + column + (event.shiftKey ? -1 : 1);
               if (next < 0) {
@@ -544,7 +623,8 @@
         }
         state.stix=newerChanges?{...state.stix,available:false}:result.stix;
         dirty = newerChanges;
-        if(!newerChanges)showValidation();
+        if(!newerChanges)rememberValidation();
+        showValidation();
         status.textContent =
           "Autosaved to iocs/indicators.csv at " +
           new Date().toLocaleTimeString() +
