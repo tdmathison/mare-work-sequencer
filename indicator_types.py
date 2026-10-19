@@ -175,21 +175,32 @@ def analyze(row, *, to_ids=None):
         return {'row':row,'error':str(error)}
 
 
+def duplicate_key(row, *, result=None):
+    """Same canonical type/value identity for import checks and saved feedback."""
+    result = analyze(row) if result is None else result
+    return json.dumps(result['key']) if result.get('key') else None
+
+
 def inspect_sections(sections):
-    issues=[];notices=[];normalized=0;count=0
+    issues=[];notices=[];duplicates=[];normalized=0;count=0
     for section in sections:
+        groups={}
         for index,row in enumerate(section['rows']):
             metadata=section.get('row_meta',[])
             result=analyze(row,to_ids=(metadata[index] or {}).get('to_ids') if index<len(metadata) else None)
             if result.get('blank'):continue
             count+=1;normalized+=bool(result.get('normalized'))
+            key=duplicate_key(row, result=result)
+            if key is not None:groups.setdefault(key,[]).append(index+1)
             if not result.get('error') and result.get('export')=='contextual':
                 message='MISP-compatible representation'
                 if row[1]!=row[1].strip():message+=' — MISP import trims boundary whitespace; STIX retains it.'
                 elif result['row'][0]=='datetime':message+=' — MISP may normalize the timezone spelling.'
                 notices.append({'section_id':section['id'],'row':index+1,'message':message,'to_ids':result.get('to_ids',False)})
             if result.get('error'):issues.append({'section_id':section['id'],'section':section['title'],'row':index+1,'reason':result['error'],'storage_valid':result.get('storage_valid',False)})
-    return {'available':not issues,'issues':issues,'normalized':normalized,'count':count,'notices':notices}
+        for rows in groups.values():
+            if len(rows)>1:duplicates.extend({'section_id':section['id'],'row':row} for row in rows)
+    return {'available':not issues,'issues':issues,'normalized':normalized,'count':count,'notices':notices,'duplicates':duplicates}
 
 
 # CSV-only component mappings do not imply verified STIX export support.

@@ -419,3 +419,28 @@ def test_structured_software_and_android_context_require_review():
     obj=json.loads(stix_file("[software:name = 'com.example.app']"))
     obj['labels']=['misp:name="android-app"']
     assert import_document(json.dumps(obj).encode())[0]==[['mobile-application-id','com.example.app','Original description']]
+
+
+def test_saved_duplicate_warnings_share_import_normalization():
+    client,cid,post=setup();base=f'/cases/{cid}/indicators'
+    rows=[['URL','hxxps://EXAMPLE[.]com/path','First'],
+          ['url','https://example.com/path','Different description'],
+          ['url','https://example.com/other','Unique'],
+          ['sha256','invalid','Invalid first'],['SHA256','invalid','Invalid second'],
+          ['','','']]
+    saved=post(base,rows=json.dumps(rows),revision='0')
+    assert saved.status_code==200
+    report=saved.json['stix']
+    assert report['duplicates']==[{'section_id':'default','row':1},{'section_id':'default','row':2}]
+    assert {item['row'] for item in report['issues']}=={4,5}
+    preview=post(base+'/import/preview',format='csv',section_id='default',csv='type,value,description\nurl,https://example.com/path,Import')
+    assert preview.status_code==200 and preview.json['rows'][0]['duplicate']
+    rows[3:]=[]
+    valid=post(base,rows=json.dumps(rows),revision=str(saved.json['revision']),automatic='1')
+    assert valid.status_code==200 and valid.json['stix']['available']
+    assert len(valid.json['stix']['duplicates'])==2
+    assert client.get(base+'/stix').status_code==200  # Warning never blocks export.
+    rows[1][1]='https://unique.example/path'
+    corrected=post(base,rows=json.dumps(rows),revision=str(valid.json['revision']),automatic='1')
+    assert corrected.status_code==200 and corrected.json['stix']['duplicates']==[]
+    assert len(corrected.json['sections'][0]['rows'])==3

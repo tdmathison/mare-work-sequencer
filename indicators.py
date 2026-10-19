@@ -11,7 +11,7 @@ import hashlib
 import shutil
 from datetime import datetime
 from flask import request, abort, g, send_file, after_this_request
-from indicator_types import CATALOG, analyze, inspect_sections, canonical_type
+from indicator_types import CATALOG, analyze, inspect_sections, canonical_type, duplicate_key
 from indicator_stix import reconcile_rows, build_bundle, import_document
 DEFAULT_COLUMNS = ['type', 'value', 'description']
 DEFAULT_SECTION_TITLE = 'Indicators extracted during analysis'
@@ -410,10 +410,10 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             if len(raw)>4*1024*1024:raise ValueError('Imports are limited to 4 MiB.')
             rows,skipped,originals,intents=import_document(raw,with_provenance=True,with_intent=True) if kind=='stix' else (parse_csv(raw,upload is not None),[],None,None)
             validate_table(DEFAULT_COLUMNS,rows)
-            existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
+            existing={key for row in target['rows'] if (key:=duplicate_key(row)) is not None}
             preview=[]
             for index,row in enumerate(rows):
-                result=analyze(row);duplicate=bool(result.get('key') and json.dumps(result['key']) in existing)
+                result=analyze(row);duplicate=duplicate_key(row, result=result) in existing
                 preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None,'to_ids':intents[index] if intents else None})
             return {'section_id':target['id'],'section':target['title'],'rows':preview,'skipped':skipped,'revision':current['revision']}
         except (ValueError,TypeError,KeyError,UnicodeError,csv.Error,RecursionError) as exc:return {'error':str(exc)},400
@@ -427,14 +427,14 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
                 rows=json.loads(request.form['accepted_rows']);validate_table(DEFAULT_COLUMNS,rows)
                 target=next((s for s in current['sections'] if s['id']==request.form.get('section_id')),None)
                 if target is None:raise ValueError('Choose an existing indicator section.')
-                existing={json.dumps(result['key']) for row in target['rows'] if (result:=analyze(row)).get('key')}
+                existing={key for row in target['rows'] if (key:=duplicate_key(row)) is not None}
                 originals=json.loads(request.form.get('accepted_original_types','null')) or [None]*len(rows)
                 if not isinstance(originals,list) or len(originals)!=len(rows) or any(value is not None and (not isinstance(value,str) or len(value)>4000) for value in originals):raise ValueError('Invalid original type provenance.')
                 intents=json.loads(request.form.get('accepted_intents','null')) or [None]*len(rows)
                 if not isinstance(intents,list) or len(intents)!=len(rows) or any(value is not None and not isinstance(value,bool) for value in intents):raise ValueError('Invalid detection intent.')
                 accepted=[];accepted_originals=[];accepted_intents=[];skipped=0
                 for row,original,intent in zip(rows,originals,intents):
-                    result=analyze(row);key=json.dumps(result['key']) if result.get('key') else None
+                    result=analyze(row);key=duplicate_key(row, result=result)
                     if request.form.get('skip_duplicates','1')=='1' and key in existing:skipped+=1;continue
                     accepted.append(row);accepted_originals.append(original);accepted_intents.append(intent)
                     if key:existing.add(key)

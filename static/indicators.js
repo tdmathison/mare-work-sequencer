@@ -70,6 +70,7 @@
     status.textContent = "Unsaved changes";
     updateDownloadState();
     showValidation();
+    highlightDuplicates();
   }
   function updateDownloadState(){
     document.getElementById("download-indicator-stix").disabled=locked||busy||Boolean(state&&!dirty&&!state.stix.available);
@@ -96,6 +97,7 @@
     openError = control;
     control.setAttribute("aria-expanded", "true");
     errorTip.textContent = control.dataset.error;
+    errorTip.dataset.validation = control.parentElement.dataset.validation;
     errorTip.hidden = false;
     const rect = control.getBoundingClientRect();
     errorTip.style.left = Math.max(8, Math.min(rect.left, innerWidth - errorTip.offsetWidth - 8)) + "px";
@@ -109,9 +111,10 @@
   window.addEventListener("scroll", closeError, true);
   window.addEventListener("resize", closeError);
   function rememberValidation() {
+    const duplicates = new Set((state.stix?.duplicates || []).map(item => item.section_id + ":" + item.row));
     const issues = new Map((state.stix?.issues || []).map(issue => [issue.section_id + ":" + issue.row, issue.reason]));
     for (const section of state.sections) section.rows.forEach((row, index) => {
-      validation.set(row, {signature: signature(row), error: issues.get(section.id + ":" + (index + 1))});
+      validation.set(row, {signature: signature(row), error: issues.get(section.id + ":" + (index + 1)), duplicate: duplicates.has(section.id + ":" + (index + 1))});
     });
   }
   function showValidation() {
@@ -124,22 +127,22 @@
         const result = validation.get(row);
         const kind = !row.some(value => value.trim()) ? "blank"
           : !result || result.signature !== signature(row) ? "pending"
-          : result.error ? "invalid" : "valid";
+          : result.error ? "invalid" : result.duplicate ? "duplicate" : "valid";
         if (slot.dataset.validation === kind && slot.dataset.error === (result?.error || "")) return;
         if (slot.contains(openError)) closeError();
         slot.replaceChildren();
         slot.dataset.validation = kind;
         slot.dataset.error = result?.error || "";
         if (kind === "blank" || kind === "pending") return;
-        const icon = document.createElement(kind === "invalid" ? "button" : "span");
+        const icon = document.createElement(kind === "valid" ? "span" : "button");
         icon.className = "indicator-validation-icon";
         // Match the application's existing text-symbol status/disclosure icons.
-        icon.textContent = kind === "valid" ? "✓" : "✕";
-        icon.setAttribute("aria-label", kind === "valid" ? "Valid indicator" : "Invalid indicator: " + result.error);
+        icon.textContent = kind === "valid" ? "✓" : kind === "duplicate" ? "⚠" : "✕";
+        icon.setAttribute("aria-label", kind === "valid" ? "Valid indicator" : kind === "duplicate" ? "Duplicate rows detected" : "Invalid indicator: " + result.error);
         if (kind === "valid") icon.setAttribute("role", "img");
         else {
           icon.type = "button";
-          icon.dataset.error = result.error;
+          icon.dataset.error = kind === "duplicate" ? "Duplicate rows detected" : result.error;
           icon.setAttribute("aria-describedby", errorTip.id);
           icon.setAttribute("aria-expanded", "false");
           icon.addEventListener("mouseenter", () => showError(icon));
@@ -197,6 +200,42 @@
       render();
     } else status.textContent = "No indicator values needed this change.";
   }
+  function highlightDuplicates() {
+    const focused = document.activeElement?.closest(".indicator-table tbody tr");
+    const article = focused?.closest(".indicator-section");
+    const section = state?.sections.find(item => item.id === article?.dataset.section);
+    const value = section?.rows[focused?.sectionRowIndex]?.[1];
+    for (const item of state?.sections || []) {
+      const body = container.querySelector('[data-section="' + item.id + '"] tbody');
+      if (!body) continue;
+      [...body.rows].forEach((tr, index) => {
+        tr.classList.toggle("indicator-duplicate-match", tr !== focused && Boolean(value?.trim()) && item.rows[index]?.[1] === value);
+      });
+    }
+  }
+  container.addEventListener("focusin", highlightDuplicates);
+  container.addEventListener("focusout", () => queueMicrotask(highlightDuplicates));
+  function removeDuplicates(section) {
+    const seen = new Set(), rows = [], metadata = [];
+    section.rows.forEach((row, index) => {
+      const value = row[1];
+      if (value.trim() && seen.has(value)) return;
+      if (value.trim()) seen.add(value);
+      rows.push(row);
+      metadata.push(section.row_meta?.[index] ?? null);
+    });
+    const removed = section.rows.length - rows.length;
+    if (removed) {
+      section.rows = rows;
+      if (section.row_meta) section.row_meta = metadata;
+      changed();
+      render();
+      container.querySelector('[data-section="' + section.id + '"] .indicator-remove-duplicates').focus({preventScroll:true});
+    }
+    status.textContent = removed
+      ? `Removed ${removed} duplicate row${removed === 1 ? "" : "s"}; first instances preserved. Unsaved changes.`
+      : "No duplicate values in this section.";
+  }
   function render() {
     closeError();
     if (!dirty) rememberValidation();
@@ -247,6 +286,11 @@
           run(() => transformValues(section, refangIndicator)),
         ),
       );
+      const deduplicate = button("Remove duplicates", () => {
+        if (!locked && !busy) removeDuplicates(section);
+      });
+      deduplicate.className = "indicator-remove-duplicates";
+      actions.append(deduplicate);
       actions.append(
         button("Edit section", () => {
           if (locked || busy) return;
@@ -396,7 +440,7 @@
       article.append(heading, description, actions, wrap);
       container.append(article);
     }
-    editable();showValidation();
+    editable();showValidation();highlightDuplicates();
   }
   async function request(path, data) {
     const response = await fetch(

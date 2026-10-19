@@ -1025,3 +1025,9 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 #indicator-workspace .indicator-validation-icon:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 #indicator-workspace .indicator-validation-tooltip{position:fixed;z-index:2000;max-width:min(360px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:auto;padding:8px 10px;background:var(--panel-2);color:var(--text);border:1px solid var(--danger);border-radius:4px;font-size:13px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
 #indicator-workspace .indicator-validation-tooltip[hidden]{display:none}
+
+/* Show other exact-value matches only while an indicator row has focus. */
+#indicator-workspace .indicator-table tr.indicator-duplicate-match > td{background:rgba(223,182,83,.12);box-shadow:inset 0 2px 0 var(--accent-dim),inset 0 -2px 0 var(--accent-dim)}
+
+#indicator-workspace [data-validation="duplicate"] .indicator-validation-icon{color:var(--accent);cursor:help}
+#indicator-workspace .indicator-validation-tooltip[data-validation="duplicate"]{border-color:var(--accent)}

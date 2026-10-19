@@ -174,8 +174,84 @@ let log='',browser;server.stderr.on('data',data=>log+=data);
  await checkDisclosure();
  const complete=await(await page.request.get(base+'/cases/1/indicators/stix')).json();
  assert.ok(complete.objects.some(item=>item.type==='x-misp-attribute'&&item.x_misp_type==='port'&&item.x_misp_value==='443'&&item.x_misp_to_ids===false));
+ // Manual and imported duplicate values highlight across sections; removal is local.
+ for(const kind of ['port','text']){
+  await sections.first().getByRole('button',{name:'Add row',exact:true}).click();
+  const row=sections.first().locator('tbody tr').last();
+  await row.getByRole('combobox').fill(kind);await row.locator('td[data-column="1"]').fill('443');
+ }
+ await page.locator('#save-indicators').click();await page.locator('#indicator-status').filter({hasText:'CSV and STIX'}).waitFor();
+ const duplicateSaved=await(await page.request.get(base+'/cases/1/indicators')).json();
+ const firstDuplicateId=duplicateSaved.sections[0].row_meta.at(-2).id;
+ await sections.nth(1).getByRole('button',{name:'Import',exact:true}).click();
+ await page.locator('#indicator-csv-text').fill('type,value,description\nport,443,duplicate one\nport,443,duplicate two\n');
+ await page.locator('#preview-indicator-import').click();await page.locator('#indicator-import-status').filter({hasText:'2 exact destination duplicates'}).waitFor();
+ await page.locator('#indicator-skip-duplicates').uncheck();
+ await page.locator('#confirm-indicator-import').click();await page.waitForFunction(()=>!document.querySelector('#indicator-import-dialog').open);
+ const firstDuplicate=sections.first().locator('tbody tr').nth(2);
+ await firstDuplicate.locator('td[data-column="1"]').focus();
+ assert.equal(await workspace.locator('.indicator-duplicate-match').count(),4);
+ assert.equal(await firstDuplicate.evaluate(el=>el.classList.contains('indicator-duplicate-match')),false);
+ // Editing recomputes matches without rendering/replacing the focused cell.
+ await firstDuplicate.locator('td[data-column="1"]').fill('444');
+ assert.equal(await workspace.locator('.indicator-duplicate-match').count(),0);
+ await firstDuplicate.locator('td[data-column="1"]').fill('443');
+ assert.equal(await workspace.locator('.indicator-duplicate-match').count(),4);
+ for(let i=0;i<2;i++)await sections.first().getByRole('button',{name:'Add row',exact:true}).click();
+ assert.equal(await workspace.locator('.indicator-duplicate-match').count(),0);
+ const otherCount=await sections.nth(1).locator('tbody tr').count();
+ const removeDuplicates=sections.first().getByRole('button',{name:'Remove duplicates',exact:true});
+ assert.equal(await removeDuplicates.evaluate(el=>el.previousElementSibling.textContent),'Refang');
+ await removeDuplicates.click();
+ assert.equal(await sections.first().locator('tbody tr').count(),5); // two original, one retained, two blanks
+ assert.equal(await sections.nth(1).locator('tbody tr').count(),otherCount);
+ assert.equal(await sections.first().locator('[data-validation="blank"]').count(),2);
+ assert.equal(await removeDuplicates.evaluate(el=>el===document.activeElement),true);
+ await removeDuplicates.click();await page.locator('#indicator-status').filter({hasText:'No duplicate values'}).waitFor();
+ await page.locator('#save-indicators').click();await page.locator('#indicator-status').filter({hasText:'CSV and STIX'}).waitFor();
+ const deduplicated=await(await page.request.get(base+'/cases/1/indicators')).json();
+ assert.equal(deduplicated.sections[0].rows.filter(row=>row[1]==='443').length,1);
+ assert.equal(deduplicated.sections[0].row_meta[2].id,firstDuplicateId);
+ assert.equal(deduplicated.sections[1].rows.filter(row=>row[1]==='443').length,3);
+ // Saved canonical/refanged equivalents warn on every member, including the first.
+ for(const value of ['hxxps://EXAMPLE[.]com/path','https://example.com/path']){
+  await sections.first().getByRole('button',{name:'Add row',exact:true}).click();
+  const row=sections.first().locator('tbody tr').last();
+  await row.getByRole('combobox').fill('url');await row.locator('td[data-column="1"]').fill(value);
+ }
+ await page.locator('#save-indicators').click();await page.locator('#indicator-status').filter({hasText:'CSV and STIX'}).waitFor();
+ const allRows=sections.first().locator('tbody tr');
+ const urlFirst=allRows.nth(await allRows.count()-2),urlSecond=allRows.last();
+ for(const row of [urlFirst,urlSecond]){
+  const warning=row.getByRole('button',{name:'Duplicate rows detected',exact:true});
+  assert.equal(await warning.textContent(),'⚠');
+  await warning.hover();assert.equal(await page.locator('#indicator-validation-error').textContent(),'Duplicate rows detected');
+  await warning.focus();assert.equal(await warning.getAttribute('aria-expanded'),'true');
+  await warning.press('Escape');await warning.press('Enter');assert.equal(await page.locator('#indicator-validation-error').isVisible(),true);
+ }
+ assert.equal(await sections.nth(1).locator('[data-validation="duplicate"]').count(),3);
+ // Hold an autosave response, then change the second row: old warnings must not return.
+ await urlFirst.locator('td[data-column="1"]').fill('https://one.example/path');
+ let releaseDuplicateSave;const duplicateGate=new Promise(resolve=>releaseDuplicateSave=resolve);
+ await page.route('**/cases/1/indicators',async route=>{if(route.request().method()==='POST'&&(route.request().postData()||'').includes('name="automatic"'))await duplicateGate;await route.continue();});
+ const duplicateAuto=page.waitForRequest(request=>request.url().endsWith('/indicators')&&request.method()==='POST'&&(request.postData()||'').includes('name="automatic"'));
+ await page.evaluate(()=>{Date.now=()=>window.indicatorDateNow()+6*60000;});await duplicateAuto;
+ await urlSecond.locator('td[data-column="1"]').fill('https://two.example/path');
+ releaseDuplicateSave();await page.locator('#indicator-status').filter({hasText:'newer changes pending'}).waitFor();
+ assert.equal(await urlSecond.locator('[data-validation="pending"]').count(),1);
+ assert.equal(await urlSecond.locator('.indicator-validation-icon').count(),0);
+ await page.unroute('**/cases/1/indicators');await page.evaluate(()=>{Date.now=window.indicatorDateNow;});
+ await page.locator('#save-indicators').click();await page.locator('#indicator-status').filter({hasText:'CSV and STIX'}).waitFor();
+ assert.equal(await sections.first().locator('[data-validation="duplicate"]').count(),0);
+ assert.equal(await urlFirst.getByRole('img',{name:'Valid indicator'}).count(),1);
+ assert.equal(await urlSecond.getByRole('img',{name:'Valid indicator'}).count(),1);
+ // An unchanged autosave retains canonical warnings in the other section.
+ await page.evaluate(()=>{Date.now=()=>window.indicatorDateNow()+6*60000;});
+ await page.locator('#indicator-status').filter({hasText:'Autosaved to'}).waitFor();
+ await page.evaluate(()=>{Date.now=window.indicatorDateNow;});
+ assert.equal(await sections.nth(1).locator('[data-validation="duplicate"]').count(),3);
  // Invalid values, missing binary data and unknown types all use the same X.
- for(const [kind,value] of [['sha256','invalid hash'],['attachment','sample.bin'],['unknown-indicator-type','example']]){
+ for(const [kind,value] of [['sha256','invalid hash'],['SHA256','invalid hash'],['attachment','sample.bin'],['unknown-indicator-type','example']]){
   await sections.first().getByRole('button',{name:'Add row',exact:true}).click();
   const row=sections.first().locator('tbody tr').last();
   await row.getByRole('combobox').fill(kind);await row.locator('td[data-column="1"]').fill(value);
@@ -185,9 +261,13 @@ let log='',browser;server.stderr.on('data',data=>log+=data);
   assert.equal(await row.locator('.indicator-validation-icon').count(),1);
  }
  await page.reload();await sections.first().locator('[data-validation="invalid"]').first().waitFor();
- assert.equal(await sections.first().locator('[data-validation="invalid"]').count(),3);
- assert.equal(await portRow.getByRole('img',{name:'Valid indicator'}).count(),1);
+ assert.equal(await sections.first().locator('[data-validation="invalid"]').count(),4);
+ assert.equal(await portRow.getByRole('button',{name:'Duplicate rows detected',exact:true}).count(),1);
  await page.setViewportSize({width:390,height:844});
+ const narrowWarning=portRow.getByRole('button',{name:'Duplicate rows detected',exact:true});
+ await narrowWarning.click();
+ assert.equal(await page.locator('#indicator-validation-error').textContent(),'Duplicate rows detected');
+ assert.ok(await page.locator('#indicator-validation-error').evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;}));
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  assert.equal(await workspace.locator('.indicator-type-help,.indicator-export-info,.indicator-correction').count(),0);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);

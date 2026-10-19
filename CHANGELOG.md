@@ -1,5 +1,9 @@
 # Latest update
 
+- Added compact yellow duplicate warnings after indicator saves/autosaves, including the first row in each set. Saved feedback reuses import canonical type/value normalization, preserves blocking-error priority, and exposes “Duplicate rows detected” on hover, keyboard focus and tap. Warnings neither remove data nor block exports; stale autosave results cannot overwrite edited row feedback.
+
+- Added focus-based highlighting of exact, nonblank duplicate indicator values across sections and a per-section Remove duplicates action beside Refang. Removal keeps the first row and its identity/metadata, leaves blank rows intact, and uses the existing save/autosave flow.
+
 - Replaced persistent Indicators row help and export labels with compact accessible check/X status icons. Blank and unvalidated edits remain neutral; backend validation is tied to exact row content to reject stale autosave feedback. Errors are available on hover, keyboard focus and tap without increasing row height or changing export/import behavior.
 
 - Closed the 165-type indicator storage/export gap using pinned official MISP event/attribute conversion and its contextual fallback writer. Added 68 verified native pattern mappings and two intent-constrained descriptive mappings (plus the existing MARE software extension); all 192 non-binary MISP types now round-trip through the actual importer. Preserved explicit detection intent, stable identities/unchanged revisions, section context and output-specific refanging; only invalid values, missing binary content and explicit converter failures withhold complete STIX. Replaced fallback validation errors with informational statuses, documented exact upstream limitations, and added complete-catalog, native, API/package/intent and browser regressions.
