@@ -1,5 +1,7 @@
 # Latest update
 
+- Corrected the MIP Dashboard title and added ascending/descending sorting to all non-action table columns. Sort preferences persist per account in the database and apply to both table and card views, retaining filters and existing backup actions.
+
 - Fixed single-case and full-backup imports to resolve creators and assigned owners by exact destination username, including accounts with different installation UUIDs. Preserved unmatched-owner Unassigned behavior, creator fallback to the importing account, existing-case creator attribution and explicit incoming-ownership decisions.
 
 - Added compact yellow duplicate warnings after indicator saves/autosaves, including the first row in each set. Saved feedback reuses import canonical type/value normalization, preserves blocking-error priority, and exposes “Duplicate rows detected” on hover, keyboard focus and tap. Warnings neither remove data nor block exports; stale autosave results cannot overwrite edited row feedback.

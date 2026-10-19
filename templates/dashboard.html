@@ -2,7 +2,7 @@
 <div class="heading dashboard-heading">
   <div>
     <span class="eyebrow">DELIVERABLE WORKSPACE</span>
-    <h1>MIP Dashbaord</h1>
+    <h1>MIP Dashboard</h1>
   </div>
   <div>
     {% if can_tags_read and tags_ready %}<button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags %} ({{selected_tags|length}}){% endif %}</button>{% endif %}
@@ -39,12 +39,23 @@
   <table class="mip-table">
     <thead>
       <tr>
-        <th scope="col" class="mip-table-number">Case number</th>
-        <th scope="col" class="mip-table-title">Case title</th>
-        <th scope="col" class="mip-table-person">Assigned owner</th>
-        <th scope="col" class="mip-table-person">Creator</th>
-        <th scope="col" class="mip-table-stage">Stage</th>
-        <th scope="col" class="mip-table-reviewed">Reviewed</th>
+        {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Reviewed','reviewed')] %}
+        {% set active = board_sort == key %}
+        {% set next_direction = 'desc' if active and sort_direction == 'asc' else 'asc' %}
+        <th scope="col" class="mip-table-{{column_class}}" aria-sort="{{('ascending' if sort_direction == 'asc' else 'descending') if active else 'none'}}">
+          <form method="post" action="{{url_for('save_board_sort')}}" class="mip-sort-form">
+            {{token(csrf)}}
+            <input type="hidden" name="column" value="{{key}}">
+            <input type="hidden" name="direction" value="{{next_direction}}">
+            <input type="hidden" name="q" value="{{board_query}}">
+            <input type="hidden" name="match" value="{{tag_match}}">
+            {% for tid in selected_tags %}<input type="hidden" name="tag" value="{{tid}}">{% endfor %}
+            <button type="submit" class="mip-sort-button" aria-label="Sort by {{label}}, {{'ascending' if next_direction == 'asc' else 'descending'}}">
+              <span class="mip-sort-label">{{label}}</span><span class="mip-sort-direction" aria-hidden="true">{{('↑' if sort_direction == 'asc' else '↓') if active else '↕'}}</span>
+            </button>
+          </form>
+        </th>
+        {% endfor %}
         <th scope="col" class="mip-table-actions">Actions</th>
       </tr>
     </thead>

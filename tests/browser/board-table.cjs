@@ -18,7 +18,7 @@ let browser, log = ''; server.stderr.on('data', data => log += data);
 with app.app_context():
  uid=run("INSERT INTO users(username,password,role,forced,active) VALUES(?,'unused','User',0,0)",('long-owner-'+'x'*65,)).lastrowid
  for stage in range(4):
-  cid=run("INSERT INTO cases(number,name,created,stage,owner,creator,external_system,external_number) VALUES(?,?,'now',?,?,1,'JIRA','EXT-123')",('MARE-2026-'+str(stage)+'123456789012345678901234567890','Long case title '+('malware '*80) if stage==1 else 'Short title '+str(stage),stage,uid if stage==2 else None if stage==0 else 1)).lastrowid
+  cid=run("INSERT INTO cases(number,name,created,stage,owner,creator,external_system,external_number) VALUES(?,?,'now',?,?,1,'JIRA','EXT-123')",('MARE-2026-'+str(stage)+'123456789012345678901234567890','Long case title '+('malware '*20) if stage==1 else 'Short title '+str(stage),stage,uid if stage==2 else None if stage==0 else 1)).lastrowid
   ensure_package(cid)
  (package(1)/'scripts'/'decoder.py').write_text('print(42)')
 `], {cwd:root, env});
@@ -31,7 +31,9 @@ with app.app_context():
   await Promise.all([page.waitForURL(base+'/'), page.getByRole('button',{name:'Sign in'}).click()]);
   const cardBefore = await page.locator('.mip-board').innerHTML();
   await page.goto(base+'/?view=table');
-  assert.deepEqual(await page.locator('.mip-table th').allTextContents(), ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed','Actions']);
+  assert.deepEqual(await page.locator('.mip-sort-label').allTextContents(), ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']);
+  assert.equal((await page.locator('.mip-table th').last().textContent()).trim(),'Actions');
+  assert.equal(await page.locator('h1').textContent(),'MIP Dashboard');
   assert.equal(await page.locator('.mip-table tbody tr').count(), 5);
   assert.match(await page.locator('.mip-table').innerText(), /Unassigned/);
   assert.match(await page.locator('.mip-table').innerText(), /\(disabled\)/);
@@ -66,6 +68,20 @@ with app.app_context():
   assert.ok(await touchPage.locator('.mip-table button').first().evaluate(e => e.getBoundingClientRect().height >= 44));
   await touch.close();
   await page.goto(base+'/?view=cards'); assert.equal(await page.locator('.mip-board').innerHTML(), cardBefore);
+  // Every data header toggles, persists on reload and orders card view identically.
+  for(const label of ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']){
+    await page.goto(base+'/?view=table');
+    await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Sort by '+label+', ascending',exact:true}).click()]);
+    assert.equal(await page.locator('th[aria-sort="ascending"] .mip-sort-label').textContent(),label);
+    await page.reload();assert.equal(await page.locator('th[aria-sort="ascending"] .mip-sort-label').textContent(),label);
+    const descending=page.getByRole('button',{name:'Sort by '+label+', descending',exact:true});
+    await descending.focus();assert.equal(await descending.evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
+    await Promise.all([page.waitForNavigation(),descending.press('Enter')]);
+    assert.equal(await page.locator('th[aria-sort="descending"] .mip-sort-label').textContent(),label);
+    const tableOrder=await page.locator('.mip-table tbody td.mip-table-number').evaluateAll(cells=>cells.map(cell=>cell.firstChild.textContent.trim()));
+    await page.getByRole('link',{name:'Card view',exact:true}).click();
+    assert.deepEqual(await page.locator('.mip-board .case-card .eyebrow').allTextContents(),tableOrder);
+  }
   await page.goto(base+'/?view=table&q=not-a-matching-case');
   assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '7');
   assert.match(await page.locator('.mip-table tbody').innerText(), /No cases found/);

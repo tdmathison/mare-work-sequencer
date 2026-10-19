@@ -783,7 +783,13 @@ forms and CSRF protection, and preserve existing workflow/owner edit restriction
 On the MIP Board, **Filters** opens a narrow left drawer. Search tags, check multiple
 names, choose **Match Any** (OR) or **Match All** (AND), then Apply. Case search combines
 with the selected tags. **Clear Filters** removes tag restrictions while retaining
-case search and card/table view. Collapse or Escape hides the drawer without
+case search and card/table view. Every table column except Actions supports
+ascending/descending sorting by clicking its header (or activating it with the
+keyboard). The selected column and direction are saved to your account in the
+database, persist across logins, and also order card view. Text columns sort
+case-insensitively, Stage follows workflow order, and Reviewed sorts by the
+fraction of categories reviewed. Accounts without a saved sort retain newest-first
+ordering. Sorting retains the current search and tag filters. Collapse or Escape hides the drawer without
 clearing active filters; the Filters button shows the active selection count.
 The closed drawer consumes no horizontal space; below 900px it overlays the board.
 Cards show up to three subdued chips and a **+N** overflow indicator with remaining

@@ -25,7 +25,7 @@ import csv
 import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
-from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g
+from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
@@ -122,6 +122,10 @@ with app.app_context():
         db().execute('ALTER TABLE users ADD COLUMN autosave_minutes INTEGER NOT NULL DEFAULT 5')
     if 'board_view' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
         db().execute("ALTER TABLE users ADD COLUMN board_view TEXT NOT NULL DEFAULT 'cards'")
+    if 'board_sort' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
+        db().execute("ALTER TABLE users ADD COLUMN board_sort TEXT NOT NULL DEFAULT 'newest'")
+    if 'board_sort_direction' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
+        db().execute("ALTER TABLE users ADD COLUMN board_sort_direction TEXT NOT NULL DEFAULT 'desc'")
     if 'user_uuid' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
         db().execute('ALTER TABLE users ADD COLUMN user_uuid TEXT')
     db().execute("UPDATE users SET user_uuid=lower(hex(randomblob(16))) WHERE user_uuid IS NULL")
@@ -578,6 +582,21 @@ def save_sample_archive_password():
     return redirect('/account')
 
 
+BOARD_SORT_COLUMNS = ('number', 'title', 'owner', 'creator', 'stage', 'reviewed')
+
+
+@app.post('/account/board-sort')
+def save_board_sort():
+    column = request.form.get('column')
+    direction = request.form.get('direction')
+    if column not in BOARD_SORT_COLUMNS or direction not in ('asc', 'desc'):
+        abort(400)
+    run('UPDATE users SET board_sort=?,board_sort_direction=? WHERE id=?',
+        (column, direction, g.user['id']))
+    return redirect(url_for('dashboard', view='table', q=request.form.get('q', ''),
+                            match=request.form.get('match', 'any'), tag=request.form.getlist('tag')))
+
+
 @app.get('/')
 def dashboard():
     selected = request.args.getlist('tag')
@@ -596,13 +615,29 @@ def dashboard():
         for tag in tag_assignments(db()): tag_map.setdefault(tag['case_id'], []).append(tag)
     for c in cases:
         c['readiness'] = readiness(c['id'])
+    board_sort = g.user['board_sort']
+    sort_direction = g.user['board_sort_direction']
+    if board_sort not in BOARD_SORT_COLUMNS:
+        board_sort, sort_direction = 'newest', 'desc'
+    if sort_direction not in ('asc', 'desc'):
+        sort_direction = 'asc'
+    sort_keys = {
+        'newest': lambda c: c['id'],
+        'number': lambda c: c['number'].casefold(),
+        'title': lambda c: c['name'].casefold(),
+        'owner': lambda c: (c['owner_name'] or 'Unassigned').casefold(),
+        'creator': lambda c: c['creator_name'].casefold(),
+        'stage': lambda c: c['stage'],
+        'reviewed': lambda c: sum(r['status'] != 'Pending' for r in c['readiness']) / (len(c['readiness']) or 1),
+    }
+    cases.sort(key=lambda c: (sort_keys[board_sort](c), c['id']), reverse=sort_direction == 'desc')
     view = request.args.get('view')
     if view not in ('cards', 'table'):
         view = g.user['board_view']
     selected_labels = {t['id']: t['name'] for rows in tag_map.values() for t in rows if t['id'] in selected}
     if selected and not tag_prototype(db()):
         selected_labels.update({r['id']:r['name'] for r in db().execute('SELECT id,name FROM tags WHERE id IN ('+','.join('?' for _ in selected)+')', selected)})
-    return render_template('dashboard.html', selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
+    return render_template('dashboard.html', board_sort=board_sort, sort_direction=sort_direction, selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
 
 
 def metrics_data():

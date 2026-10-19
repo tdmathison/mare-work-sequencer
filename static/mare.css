@@ -1031,3 +1031,11 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 
 #indicator-workspace [data-validation="duplicate"] .indicator-validation-icon{color:var(--accent);cursor:help}
 #indicator-workspace .indicator-validation-tooltip[data-validation="duplicate"]{border-color:var(--accent)}
+
+/* Account-persisted sorting, limited to the MIP Board table headers. */
+.mip-table .mip-sort-form{margin:0}
+.mip-table .mip-sort-button{display:flex;align-items:center;gap:5px;padding:0;margin:0;background:transparent;color:inherit;font:inherit;text-align:left;border:0}
+.mip-table .mip-sort-direction{display:inline-block;min-width:1em;color:var(--muted)}
+.mip-table th[aria-sort="ascending"] .mip-sort-button,.mip-table th[aria-sort="descending"] .mip-sort-button,.mip-table th[aria-sort="ascending"] .mip-sort-direction,.mip-table th[aria-sort="descending"] .mip-sort-direction{color:var(--accent)}
+.mip-table .mip-sort-button:hover{color:var(--accent)}
+@media(pointer:coarse){.mip-table .mip-sort-button{min-height:44px}}

@@ -4,7 +4,7 @@ from flask import request
 
 
 SECTION_ENDPOINTS = {
-    "board": {"dashboard", "create_case_page", "new_case"},
+    "board": {"dashboard", "create_case_page", "new_case", "save_board_sort"},
     "search": {"mip_search", "mip_search_results", "mip_search_finding"},
     "metrics": {"metrics"},
     "tags": {"tags_manager", "tag_detail", "tags_search", "tags_create", "tag_manage"},
