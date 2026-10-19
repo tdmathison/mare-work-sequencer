@@ -594,11 +594,16 @@ def save_board_sort():
     run('UPDATE users SET board_sort=?,board_sort_direction=? WHERE id=?',
         (column, direction, g.user['id']))
     return redirect(url_for('dashboard', view='table', q=request.form.get('q', ''),
-                            match=request.form.get('match', 'any'), tag=request.form.getlist('tag')))
+                            match=request.form.get('match', 'any'), tag=request.form.getlist('tag'),
+                            stage=request.form.getlist('stage')))
 
 
 @app.get('/')
 def dashboard():
+    stage_values = request.args.getlist('stage')
+    if len(stage_values) > len(STAGES) or any(value not in ('0', '1', '2', '3') for value in stage_values):
+        abort(400)
+    selected_stages = sorted(set(map(int, stage_values)))
     selected = request.args.getlist('tag')
     if len(selected) > 100 or any(not v.isdigit() or len(v) > 10 for v in selected): abort(400)
     selected = sorted(set(map(int, selected)))
@@ -610,6 +615,18 @@ def dashboard():
     query = request.args.get('q', '').strip()
     sql, args = case_filter(selected, match)
     cases = [dict(c) for c in db().execute(CASE_QUERY+" WHERE (instr(lower(c.name),?)>0 OR instr(lower(c.number),?)>0 OR instr(lower(coalesce(c.description,'')),?)>0)"+sql+' ORDER BY c.id DESC', [query.lower()]*3+args)]
+    stage_counts = {stage: sum(c['stage'] == stage for c in cases) for stage in range(len(STAGES))}
+    metrics = [
+        {'label': 'All MIPs', 'count': db().execute('SELECT count(*) FROM cases').fetchone()[0],
+         'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view']),
+         'active': not selected_stages and not selected and not query},
+    ]
+    for label, values in [('Not started', [0]), ('In progress', [1, 2]), ('Completed', [3])]:
+        metrics.append({'label': label, 'count': sum(stage_counts[value] for value in values),
+                        'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view'], q=query, match=match, tag=selected, stage=values),
+                        'active': selected_stages == values})
+    if selected_stages:
+        cases = [c for c in cases if c['stage'] in selected_stages]
     tag_map = {}
     if can_read_tags and not tag_prototype(db()):
         for tag in tag_assignments(db()): tag_map.setdefault(tag['case_id'], []).append(tag)
@@ -637,7 +654,7 @@ def dashboard():
     selected_labels = {t['id']: t['name'] for rows in tag_map.values() for t in rows if t['id'] in selected}
     if selected and not tag_prototype(db()):
         selected_labels.update({r['id']:r['name'] for r in db().execute('SELECT id,name FROM tags WHERE id IN ('+','.join('?' for _ in selected)+')', selected)})
-    return render_template('dashboard.html', board_sort=board_sort, sort_direction=sort_direction, selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
+    return render_template('dashboard.html', board_metrics=metrics, selected_stages=selected_stages, board_sort=board_sort, sort_direction=sort_direction, selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
 
 
 def metrics_data():

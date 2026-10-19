@@ -1,5 +1,7 @@
 # Latest update
 
+- Made MIP Dashboard metric tiles apply shared stage filters and added multi-stage checkboxes to the Filters drawer. In progress includes analysis and packaging; All MIPs and Clear Filters clear stage, search and tag filters. Preserved filters when sorting or switching views, and made stage/search filters available without tag permissions.
+
 - Corrected the MIP Dashboard title and added ascending/descending sorting to all non-action table columns. Sort preferences persist per account in the database and apply to both table and card views, retaining filters and existing backup actions.
 
 - Fixed single-case and full-backup imports to resolve creators and assigned owners by exact destination username, including accounts with different installation UUIDs. Preserved unmatched-owner Unassigned behavior, creator fallback to the importing account, existing-case creator attribution and explicit incoming-ownership decisions.

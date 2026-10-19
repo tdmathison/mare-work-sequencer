@@ -5,32 +5,23 @@
     <h1>MIP Dashboard</h1>
   </div>
   <div>
-    {% if can_tags_read and tags_ready %}<button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags %} ({{selected_tags|length}}){% endif %}</button>{% endif %}
+    <button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags or selected_stages %} ({{selected_tags|length + selected_stages|length}}){% endif %}</button>
     <a
       class="board-create"
-      href="/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}"
+      href="/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}{% for stage in selected_stages %}&amp;stage={{stage}}{% endfor %}"
       >{{'Card view' if view=='table' else 'Table view'}}</a
     >
     <a class="board-create" href="/cases/new">Create case</a>
   </div>
 </div>
 <div class="tag-board-layout">
-{% if can_tags_read and tags_ready %}{% include 'board_tags.html' %}{% endif %}
+{% include 'board_tags.html' %}
 <div class="tag-board-content">
-<div class="metrics">
-  {% for title in ['All MIPs','Not started','In progress','Completed'] %}
-  <div class="panel">
-    <span>{{title}}</span
-    ><strong
-      >{% if loop.index==1 %}{{cases|length}}{% elif loop.index==2
-      %}{{cases|selectattr('stage','equalto',0)|list|length}}{% elif
-      loop.index==4
-      %}{{cases|selectattr('stage','equalto',stages|length-1)|list|length}}{%
-      else
-      %}{{cases|rejectattr('stage','equalto',0)|rejectattr('stage','equalto',stages|length-1)|list|length}}{%
-      endif %}</strong
-    >
-  </div>
+<div class="metrics board-filter-metrics" aria-label="Filter cases by stage">
+  {% for metric in board_metrics %}
+  <a class="panel board-metric-filter{% if metric.active %} is-active{% endif %}" href="{{metric.url}}"{% if metric.active %} aria-current="true"{% endif %}>
+    <span>{{metric.label}}</span><strong>{{metric.count}}</strong>
+  </a>
   {% endfor %}
 </div>
 {% if view=='table' %}
@@ -50,6 +41,7 @@
             <input type="hidden" name="q" value="{{board_query}}">
             <input type="hidden" name="match" value="{{tag_match}}">
             {% for tid in selected_tags %}<input type="hidden" name="tag" value="{{tid}}">{% endfor %}
+            {% for stage in selected_stages %}<input type="hidden" name="stage" value="{{stage}}">{% endfor %}
             <button type="submit" class="mip-sort-button" aria-label="Sort by {{label}}, {{'ascending' if next_direction == 'asc' else 'descending'}}">
               <span class="mip-sort-label">{{label}}</span><span class="mip-sort-direction" aria-hidden="true">{{('↑' if sort_direction == 'asc' else '↓') if active else '↕'}}</span>
             </button>

@@ -1039,3 +1039,11 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 .mip-table th[aria-sort="ascending"] .mip-sort-button,.mip-table th[aria-sort="descending"] .mip-sort-button,.mip-table th[aria-sort="ascending"] .mip-sort-direction,.mip-table th[aria-sort="descending"] .mip-sort-direction{color:var(--accent)}
 .mip-table .mip-sort-button:hover{color:var(--accent)}
 @media(pointer:coarse){.mip-table .mip-sort-button{min-height:44px}}
+
+/* Dashboard stage shortcuts and the shared filter drawer. */
+.board-filter-metrics .board-metric-filter{display:block;color:var(--text);text-decoration:none}
+.board-filter-metrics .board-metric-filter:hover,.board-filter-metrics .board-metric-filter.is-active{border-color:var(--accent);background:var(--panel-2)}
+.board-stage-filters{margin:12px 0 18px;padding:10px;border:1px solid var(--line);min-width:0}
+.board-stage-filters legend{color:var(--accent);font-size:13px}
+.board-stage-filters label{display:flex;align-items:center;gap:8px;margin:8px 0;font-size:13px}
+.board-stage-filters input[type="checkbox"]{width:auto;flex:none;margin:0;accent-color:var(--accent)}

@@ -68,6 +68,43 @@ with app.app_context():
   assert.ok(await touchPage.locator('.mip-table button').first().evaluate(e => e.getBoundingClientRect().height >= 44));
   await touch.close();
   await page.goto(base+'/?view=cards'); assert.equal(await page.locator('.mip-board').innerHTML(), cardBefore);
+  // Dashboard shortcuts and manual checkboxes share the same stage query.
+  await page.goto(base+'/?view=table');
+  for(const [label,stages,count] of [['Not started',['0'],1],['In progress',['1','2'],3],['Completed',['3'],1]]){
+    const shortcut=page.locator('.board-metric-filter').filter({hasText:label});
+    await shortcut.focus();await Promise.all([page.waitForNavigation(),shortcut.press('Enter')]);
+    assert.deepEqual(new URL(page.url()).searchParams.getAll('stage'),stages);
+    assert.equal(await page.locator('.mip-table tbody tr').count(),count);
+    await page.getByRole('button',{name:/^Filters/}).click();
+    assert.deepEqual(await page.locator('.board-stage-filters input:checked').evaluateAll(inputs=>inputs.map(input=>input.value)),stages);
+    await page.keyboard.press('Escape');
+  }
+  await page.locator('.board-metric-filter').filter({hasText:'In progress'}).click();
+  await page.getByRole('link',{name:'Card view',exact:true}).click();
+  assert.equal(await page.locator('.mip-board .mip-card').count(),3);
+  await page.getByRole('link',{name:'Table view',exact:true}).click();
+  const sortStage=page.getByRole('button',{name:'Sort by Stage, ascending',exact:true});
+  await Promise.all([page.waitForNavigation(),sortStage.click()]);
+  assert.deepEqual(new URL(page.url()).searchParams.getAll('stage'),['1','2']);
+  await page.getByRole('button',{name:/^Filters/}).click();
+  for(const checkbox of await page.locator('.board-stage-filters input').all())await checkbox.uncheck();
+  await page.getByRole('checkbox',{name:'Not started',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Completed',exact:true}).check();
+  await page.locator('#tag-filter-drawer').getByRole('button',{name:'Apply',exact:true}).click();
+  assert.deepEqual(new URL(page.url()).searchParams.getAll('stage'),['0','3']);
+  assert.equal(await page.locator('.mip-table tbody tr').count(),2);
+  await page.goto(base+'/?view=table&q=not-a-matching-case&stage=3');
+  await page.locator('.board-metric-filter').filter({hasText:'All MIPs'}).click();
+  assert.equal(new URL(page.url()).searchParams.has('stage'),false);
+  assert.equal(new URL(page.url()).searchParams.has('q'),false);
+  assert.equal(await page.locator('.mip-table tbody tr').count(),5);
+  await page.goto(base+'/?view=table&q=Short&stage=0');
+  await page.getByRole('button',{name:/^Filters/}).click();
+  await page.locator('#tag-filter-drawer').getByRole('button',{name:'Clear Filters',exact:true}).click();
+  assert.equal(new URL(page.url()).searchParams.get('q'),'');
+  assert.equal(new URL(page.url()).searchParams.has('stage'),false);
+  // Reset sort for the ascending/descending checks below.
+  await page.getByRole('button',{name:'Sort by Reviewed, ascending',exact:true}).click();
   // Every data header toggles, persists on reload and orders card view identically.
   for(const label of ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']){
     await page.goto(base+'/?view=table');
@@ -85,6 +122,15 @@ with app.app_context():
   await page.goto(base+'/?view=table&q=not-a-matching-case');
   assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '7');
   assert.match(await page.locator('.mip-table tbody').innerText(), /No cases found/);
+  // The stage-only drawer works for an account without tag-read permission.
+  const revoke=spawnSync(python,['-c',"from app import app,run\nwith app.app_context():run(\"DELETE FROM role_permissions WHERE role_name='User' AND permission='tags:read'\");run(\"UPDATE users SET role='User' WHERE username='editor-test'\")"],{cwd:root,env});
+  assert.equal(revoke.status,0,revoke.stderr.toString());
+  await page.goto(base+'/?view=table');
+  await page.getByRole('button',{name:/^Filters/}).click();
+  assert.equal(await page.locator('[data-filter-search]').count(),0);
+  await page.getByRole('checkbox',{name:'Completed',exact:true}).check();
+  await page.locator('#tag-filter-drawer').getByRole('button',{name:'Apply',exact:true}).click();
+  assert.equal(await page.locator('.mip-table tbody tr').count(),1);
   assert.deepEqual(errors, []);
   console.log('PASS: compact dimensions, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, RAW backup/Python renaming, narrow and touch layouts, empty board, unchanged card markup.');
 })().catch(error => {console.error(error); console.error(log); process.exitCode=1;}).finally(async () => {

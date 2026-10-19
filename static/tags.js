@@ -111,7 +111,7 @@
       list.replaceChildren();for(const tag of rows){const label=document.createElement('label'),checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selected.has(tag.id);checkbox.addEventListener('change',()=>{checkbox.checked?selected.add(tag.id):selected.delete(tag.id);fields();});label.append(checkbox,document.createTextNode(tag.name));list.append(label);}feedback.textContent=tags.length===100?'Showing 100 matches. Narrow your search.':'';fields();
     }catch(error){if(error.name!=='AbortError')feedback.textContent=error.message;}
   };
-  input.addEventListener('input',()=>{revision++;controller?.abort();clearTimeout(timer);timer=setTimeout(load,120);});
-  form.querySelector('[data-clear-tags]').addEventListener('click',()=>{selected.clear();fields();input.value='';form.querySelector('[name=match]').value='any';form.requestSubmit();});
-  fields();load();
+  input?.addEventListener('input',()=>{revision++;controller?.abort();clearTimeout(timer);timer=setTimeout(load,120);});
+  form.querySelector('[data-clear-tags]').addEventListener('click',()=>{selected.clear();fields();if(input)input.value='';form.querySelector('[name=q]').value='';form.querySelectorAll('[name=stage]').forEach(field=>field.checked=false);const match=form.querySelector('[name=match]');if(match)match.value='any';form.requestSubmit();});
+  fields();if(input&&list)load();
 })();
