@@ -76,20 +76,19 @@ class ImportSync:
     def api(self):
         return request.path.startswith("/api/v1/")
 
-    def owner(self, case):
-        source = case.get("assigned_user")
-        if isinstance(source, dict):
-            row = (
-                self.db()
-                .execute(
-                    "SELECT id FROM users WHERE user_uuid=? AND username=?",
-                    (source.get("user_uuid"), source.get("username")),
-                )
-                .fetchone()
-            )
-            if row:
-                return row[0]
+    def matching_user(self, source):
+        # Account UUIDs belong to an installation. Portable attribution resolves
+        # exact usernames in the destination, never source numeric user IDs.
+        if isinstance(source, dict) and isinstance(source.get("username"), str):
+            return self.db().execute(
+                "SELECT id,username FROM users WHERE username=?",
+                (source["username"],),
+            ).fetchone()
         return None
+
+    def owner(self, case):
+        row = self.matching_user(case.get("assigned_user"))
+        return row["id"] if row is not None else None
 
     def lookup(self, operation):
         try:
@@ -702,6 +701,11 @@ class ImportSync:
         canonical_hash = fingerprint(canonical_tag_snapshot(incoming))
         c = validated[0]
         owner = self.owner(c)
+        creator = self.matching_user(
+            item["meta"].get("source_creator")
+            or (source or {}).get("source_creator")
+            or {"username": c.get("creator_username")}
+        )
         revision = source["revision_uuid"] if source else None
         recovery = None
         committed = False
@@ -769,8 +773,8 @@ class ImportSync:
                         owner,
                         c.get("external_system", ""),
                         c.get("external_number", ""),
-                        g.user["id"],
-                        g.user["username"],
+                        creator["id"] if creator is not None else g.user["id"],
+                        creator["username"] if creator is not None else g.user["username"],
                         c.get("report_path", ""),
                     ),
                 ).lastrowid

@@ -49,7 +49,7 @@ def test_all_case_backup_round_trip_owners_ids_tables_and_files():
         cases=db().execute('SELECT * FROM cases ORDER BY id').fetchall();assert len(cases)==4
         imported=cases[2];new=imported['id']
         assert imported['number'].startswith('MARE-') and imported['number'] not in ('SOURCE-01','SOURCE-02')
-        assert imported['creator']==uid and imported['creator_username']=='importer' and imported['owner']==1 and imported['stage']==2
+        assert imported['creator']==1 and imported['creator_username']=='backup-user' and imported['owner']==1 and imported['stage']==2
         assert db().execute('SELECT state FROM tasks WHERE case_id=?',(new,)).fetchone()[0]=='In Progress'
         assert db().execute('SELECT include_export FROM notes WHERE case_id=?',(new,)).fetchone()[0]==0
         assert db().execute('SELECT value FROM figure_sequence WHERE case_id=?',(new,)).fetchone()[0]==8
@@ -137,7 +137,7 @@ def test_single_raw_backup_restores_stage_owner_and_python_files():
     assert post('/import-export/import-raw',backup=(io.BytesIO(raw.data),'raw.zip')).location.startswith('/import-export/review/')
 
 
-def test_same_username_different_identifier_stays_unassigned_preserving_stage():
+def test_same_username_different_identifier_maps_owner_preserving_stage():
     client,cid,uid,post=setup_backup_case();exported=post(f'/cases/{cid}/backup').data
     with app.app_context():
         old_uuid=db().execute('SELECT user_uuid FROM users WHERE id=?',(uid,)).fetchone()[0]
@@ -151,10 +151,8 @@ def test_same_username_different_identifier_stays_unassigned_preserving_stage():
     assert post('/import-export/import-raw',backup=(io.BytesIO(exported),'single.zip')).location.startswith('/import-export/review/')
     with app.app_context():
         imported=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone();new=imported['id']
-        assert imported['stage']==2 and imported['owner'] is None
-    assert post(f'/cases/{new}/notes',body='Blocked').status_code==409
-    assert b'Assign an active owner' in client.get(f'/cases/{new}').data
-    post(f'/cases/{new}/owner',owner_id=str(replacement))
+        assert imported['stage']==2 and imported['owner']==replacement
+        assert imported['creator']==replacement and imported['creator_username']=='backup-user'
     assert post(f'/cases/{new}/notes',body='Resumed').status_code==302
     with app.app_context():assert db().execute('SELECT stage FROM cases WHERE id=?',(new,)).fetchone()[0]==2
 

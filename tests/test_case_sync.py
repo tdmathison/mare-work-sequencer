@@ -8,6 +8,7 @@ import zipfile
 
 import pytest
 from werkzeug.datastructures import FileStorage
+from werkzeug.security import generate_password_hash
 from app import app, db, run, ROOT, package, backup_helpers
 from case_sync import fingerprint, logical_snapshot, validate_graph
 from test_backups import setup_backup_case
@@ -246,3 +247,84 @@ def test_recompute_fingerprint_and_expiration_access():
         validate_graph(bad, computed)
     with pytest.raises(ValueError, match="fingerprint"):
         validate_graph(sync, "0" * 64)
+
+
+@pytest.mark.parametrize('full', [False, True], ids=['single-case', 'full-backup'])
+def test_import_maps_distinct_creator_and_owner_by_username(full):
+    from sync_helpers import other_destination
+    client,cid,importer,post=setup_backup_case()
+    with app.app_context():
+        owner=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                  ('tm876w',generate_password_hash('password-long-123'),'User')).lastrowid
+        run('UPDATE cases SET owner=? WHERE id=?',(owner,cid))
+        originals={row['username']:row['user_uuid'] for row in db().execute('SELECT username,user_uuid FROM users')}
+    blob=post('/import-export/export' if full else f'/cases/{cid}/backup').data
+    # Model independently provisioned destination accounts with the same names.
+    with app.app_context():
+        run("UPDATE users SET username='importing-analyst' WHERE id=?",(importer,))
+        run("UPDATE users SET username='source-owner-only' WHERE id=?",(owner,))
+        creator_match=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                          ('backup-user',generate_password_hash('password-long-123'),'User')).lastrowid
+        owner_match=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                        ('tm876w',generate_password_hash('password-long-123'),'User')).lastrowid
+        for name in ['backup-user','tm876w']:
+            assert db().execute('SELECT user_uuid FROM users WHERE username=?',(name,)).fetchone()[0]!=originals[name]
+    other_destination()
+    operation,plan=preview(client,blob,full)
+    item=next(item for item in plan['items'] if item['meta']['case']['name']=='Case one')
+    assert item['preview']['owner_warning'].startswith('Incoming owner maps')
+    outcomes=apply(client,operation)
+    assert all(item['action']=='Imported new' for item in outcomes),outcomes
+    with app.app_context():
+        restored=db().execute("SELECT * FROM cases WHERE name='Case one' AND id<>?",(cid,)).fetchone()
+        assert restored['owner']==owner_match
+        assert restored['creator']==creator_match and restored['creator_username']=='backup-user'
+        assert restored['stage']==2
+        assert db().execute('SELECT count(*) FROM users').fetchone()[0]==4
+
+
+def test_import_username_matching_preserves_unmatched_fallbacks():
+    from sync_helpers import other_destination
+    client,cid,uid,post=setup_backup_case()
+    blob=post(f'/cases/{cid}/backup').data
+    with app.app_context():
+        run("UPDATE users SET username='BACKUP-USER' WHERE id=?",(uid,))
+    other_destination()
+    operation,plan=preview(client,blob)
+    assert 'unmatched' in plan['items'][0]['preview']['owner_warning']
+    outcomes=apply(client,operation)
+    assert outcomes[0]['action']=='Imported new'
+    with app.app_context():
+        restored=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone()
+        assert restored['owner'] is None
+        assert restored['creator']==uid and restored['creator_username']=='BACKUP-USER'
+        service=app.extensions['case_import_sync']
+        assert service.owner({'assigned_user':{'username':'backup-user','user_uuid':db().execute('SELECT user_uuid FROM users WHERE id=?',(uid,)).fetchone()[0]}}) is None
+        assert service.owner({'assigned_user':{'username':'BACKUP-USER'}})==uid
+
+
+def test_username_mapping_does_not_override_local_creator_or_ownership_choice():
+    client,cid,uid,post=setup_backup_case()
+    with app.app_context():
+        owner=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                  ('tm876w',generate_password_hash('password-long-123'),'User')).lastrowid
+        run('UPDATE cases SET owner=? WHERE id=?',(owner,cid))
+    blob=post(f'/cases/{cid}/backup').data
+    with app.app_context():
+        run("UPDATE users SET username='source-owner-only' WHERE id=?",(owner,))
+        owner_match=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                        ('tm876w',generate_password_hash('password-long-123'),'User')).lastrowid
+        run('UPDATE cases SET owner=? WHERE id=?',(uid,cid))
+    newer,_=incoming(blob,'Incoming update')
+    operation,plan=preview(client,newer)
+    assert plan['items'][0]['preview']['classification']=='update'
+    assert apply(client,operation)[0]['action']=='Updated existing'
+    with app.app_context():
+        restored=db().execute('SELECT * FROM cases WHERE id=?',(cid,)).fetchone()
+        assert restored['owner']==uid and restored['creator']==uid
+    newest,_=incoming(newer,'Explicit incoming owner')
+    operation,_=preview(client,newest)
+    assert apply(client,operation,{'owner-0':'incoming'})[0]['action']=='Updated existing'
+    with app.app_context():
+        restored=db().execute('SELECT * FROM cases WHERE id=?',(cid,)).fetchone()
+        assert restored['owner']==owner_match and restored['creator']==uid
