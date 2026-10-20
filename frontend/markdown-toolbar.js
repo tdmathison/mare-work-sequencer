@@ -12,7 +12,7 @@ function dialog(toolbar, label) {
   const heading = document.createElement('h2'); heading.textContent = label; node.append(heading); toolbar.append(node); node.addEventListener('keydown',event=>{ if(event.key === 'Escape') event.stopPropagation(); }); return node;
 }
 export function mountToolbar(editor) {
-  const section = editor.source.closest('.manual-section');
+  const section = editor.source.closest('.manual-section,.mitre-mapping-editor');
   const toolbar = section?.querySelector('.markdown-toolbar') || document.createElement('div');
   if (!toolbar.isConnected) { toolbar.className = 'markdown-toolbar'; editor.container.before(toolbar); }
   toolbar.setAttribute('role','toolbar'); toolbar.setAttribute('aria-label','Markdown commands');

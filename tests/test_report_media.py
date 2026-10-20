@@ -85,7 +85,8 @@ def test_mitre_mapping_editors_save_canonical_report_sources():
     assert client.get(f'/cases/{cid}/report-data').json['mitre_mappings']=={'attack':attack,'mbc':mbc}
 
 def test_mitre_mapping_save_has_autosave_countdown_and_manual_reset():
-    source=Path('static/report-workspace.js').read_text()
+    import re
+    source=re.sub(r'\s+', '', Path('static/report-workspace.js').read_text()).replace(chr(34), chr(39))
     assert "mappingCountdown.id='save-mitre-mappings-countdown'" in source
     assert 'mitreAutosaveTimer=window.MareAutosave.register' in source
     assert 'canSave:()=>mitreMappingsDirty&&!mitreMappingsSaving&&!loading' in source
@@ -118,3 +119,26 @@ def test_asset_manager_hides_and_protects_managed_report_markdown():
     (root/'reports/malware-analysis-report.md').write_text('# Analyst final report')
     listed={item['path'] for item in client.get(base+'/assets?category=reports').json['files']}
     assert {'reports/executive-summary.md','reports/malware-analysis-report.md'}<=listed
+
+
+def test_readonly_markdown_preview_preserves_stage_guards_and_safe_rendering():
+    with app.app_context():
+        uid=run("INSERT INTO users(username,password,role,forced) VALUES('preview-reader','unused','User',0)").lastrowid
+        cid=run("INSERT INTO cases(number,name,created,stage,owner_required) VALUES('PREVIEW-READONLY','Preview','2026',3,1)").lastrowid
+        root=ensure_package(cid)
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='preview-token')
+    base=f'/cases/{cid}'
+    markdown='# Mapping\n\n| ID | Evidence |\n|---|---|\n| T1000 | **Observed** |\n\n- Item\n\n`code` [link](https://example.com)\n\n<script>alert(1)</script> [bad](javascript:alert(1))'
+    for stage in (0,1,2,3):
+        with app.app_context():run('UPDATE cases SET stage=? WHERE id=?',(stage,cid))
+        before={str(path.relative_to(root)):path.read_bytes() for path in root.rglob('*') if path.is_file()}
+        response=client.post(base+'/markdown-preview',data={'csrf':'preview-token','text':markdown})
+        assert response.status_code==200
+        html=response.json['html']
+        assert '<table>' in html and '<strong>Observed</strong>' in html and '<h1>' in html
+        assert '<script>' not in html and 'href="javascript:' not in html
+        assert client.post(base+'/mitre-mappings',data={'csrf':'preview-token','mitre_attack_markdown':'edit'}).status_code==409
+        assert before=={str(path.relative_to(root)):path.read_bytes() for path in root.rglob('*') if path.is_file()}
+    assert client.post(base+'/markdown-preview',data={'text':markdown}).status_code==403
+    assert client.post(base+'/markdown-preview',data={'csrf':'preview-token','text':''}).json['html']==''

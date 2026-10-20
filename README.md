@@ -478,6 +478,10 @@ MIP packaging and backup/import/export formats unchanged. Word prose defaults to
   workspace dialogs, with existing image section/storage IDs and preview endpoints.
 - **MITRE ATT&CK/MBC:** dynamically created Markdown editors use CodeMirror, retain
   their identifiers, and save through the existing manual/autosave mapping routes.
+  Both provide the shared **Show Preview / Hide Preview** control for current,
+  unsaved Markdown, including tables, and support preview in expanded mode.
+  Toggling preserves editor state and does not save. Preview remains available
+  in readable read-only cases; editing and saving remain restricted.
 - **Markdown files:** `.md` and `.markdown` files opened through the existing file
   editor use CodeMirror and submit the original `content` field. Other file types
   retain their ordinary text editor.

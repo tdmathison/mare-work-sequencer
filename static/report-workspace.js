@@ -1,6 +1,7 @@
 (() => {
   const form = document.getElementById("report-form");
-  if (!form) return;
+  if (!form || form.dataset.reportWorkspaceInitialized === "true") return;
+  form.dataset.reportWorkspaceInitialized = "true";
   const cid = form.dataset.caseId,
     generate = document.getElementById("generate-manual-report"),
     save = document.getElementById("save-sections"),
@@ -233,10 +234,44 @@
     mappingEditors = document.createElement("div");
   mappingEditors.className = "mitre-mapping-editors";
   function mappingEditor(labelText, id, placeholder) {
-    const label = document.createElement("label");
-    label.textContent = labelText;
+    const section = document.createElement("section");
+    section.className = "mitre-mapping-editor";
+    section.id = id + "-section";
+    const heading = document.createElement("div");
+    heading.className = "heading";
+    const title = document.createElement("h3");
+    title.textContent = labelText;
+    const expand = document.createElement("button");
+    expand.type = "button";
+    expand.className = "expand-editor";
+    expand.textContent = "Expand editor";
+    expand.setAttribute("aria-expanded", "false");
+    expand.setAttribute("aria-controls", section.id);
+    heading.append(title, expand);
+    const tabs = document.createElement("div");
+    tabs.className = "editor-view-tabs";
+    tabs.setAttribute("role", "tablist");
+    tabs.setAttribute("aria-label", labelText + " view");
+    for (const [name, selected] of [["Raw", true], ["Preview", false]]) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "editor-" + name.toLowerCase() + "-tab";
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(selected));
+      tab.textContent = name;
+      tabs.append(tab);
+    }
+    const toolbar = document.createElement("div");
+    toolbar.className = "markdown-toolbar";
+    const pane = document.createElement("div");
+    pane.className = "markdown-preview";
+    pane.hidden = true;
+    pane.setAttribute("role", "tabpanel");
+    const container = document.createElement("div");
+    container.className = "markdown-editor";
     const textarea = document.createElement("textarea");
     textarea.id = id;
+    textarea.className = "markdown-source";
     textarea.rows = 14;
     textarea.maxLength = 100000;
     textarea.spellcheck = false;
@@ -244,8 +279,9 @@
     textarea.setAttribute("aria-label", labelText);
     textarea.disabled = form.querySelector("fieldset").disabled;
     textarea.placeholder = placeholder;
-    label.append(textarea);
-    mappingEditors.append(label);
+    container.append(textarea);
+    section.append(heading, tabs, toolbar, pane, container);
+    mappingEditors.append(section);
     return textarea;
   }
   const mitreAttack = mappingEditor(
@@ -264,6 +300,8 @@
   saveMappings.type = "button";
   saveMappings.id = "save-mitre-mappings";
   saveMappings.textContent = "Save MITRE mappings";
+  saveMappings.disabled = form.querySelector("fieldset").disabled;
+  promptButton.disabled = form.querySelector("fieldset").disabled;
   const mappingCountdown = document.createElement("span");
   mappingCountdown.id = "save-mitre-mappings-countdown";
   mappingCountdown.className = "autosave-countdown";
@@ -471,7 +509,7 @@
       .querySelector(".editor-preview-tab")
       .setAttribute("aria-selected", "false");
   }
-  form.querySelectorAll(".manual-section").forEach((section) => {
+  form.querySelectorAll(".manual-section,.mitre-mapping-editor").forEach((section) => {
     const raw = section.querySelector(".editor-raw-tab"),
       preview = section.querySelector(".editor-preview-tab"),
       pane = section.querySelector(".markdown-preview"),
@@ -542,7 +580,7 @@
   }
   form.querySelectorAll(".expand-editor").forEach((button) =>
     button.addEventListener("click", () => {
-      const section = button.closest(".manual-section");
+      const section = button.closest(".manual-section,.mitre-mapping-editor");
       if (expanded === section) {
         collapse();
         return;

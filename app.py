@@ -424,7 +424,7 @@ def enforce_case_stage():
         return
     c = case(cid)
     message = None
-    if request.endpoint in ('assign_case_owner', 'backup_single_export', 'delete_case'):
+    if request.endpoint in ('assign_case_owner', 'backup_single_export', 'delete_case', 'markdown_preview'):
         return
     if c['owner_required'] and not c['owner_active'] and request.endpoint != 'detail' and not (request.endpoint == 'progress' and c['stage'] == 0):
         return {'error': 'Assign an active owner in Case details to resume this case at its current stage.'}, 409

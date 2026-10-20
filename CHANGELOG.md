@@ -1,5 +1,7 @@
 # Latest update
 
+- Enabled the shared Show Preview control for MITRE ATT&CK and MBC editors, including unsaved content and expanded mode. Kept save/edit controls locked in read-only cases while allowing authenticated, CSRF-protected Markdown rendering through the existing safe preview endpoint.
+
 - Made MIP Dashboard metric tiles apply shared stage filters and added multi-stage checkboxes to the Filters drawer. In progress includes analysis and packaging; All MIPs and Clear Filters clear stage, search and tag filters. Preserved filters when sorting or switching views, and made stage/search filters available without tag permissions.
 
 - Corrected the MIP Dashboard title and added ascending/descending sorting to all non-action table columns. Sort preferences persist per account in the database and apply to both table and card views, retaining filters and existing backup actions.

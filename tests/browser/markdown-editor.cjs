@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
-const {spawn} = require('node:child_process');
+const {spawn, spawnSync} = require('node:child_process');
 const {chromium} = require('playwright');
 const root = path.resolve(__dirname, '../..');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'mare-editor-browser-'));
@@ -376,6 +376,46 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await task.locator('[data-editor-preview]').click();await task.locator('.markdown-preview strong').waitFor();await checkToolbar(task);await checkMenus(task);await task.locator('[data-editor-preview]').click();
  await task.getByRole('button',{name:'Create task'}).click();await page.waitForURL(`**/cases/${cid}?tab=tasks`);assert.ok(await page.locator('.task-body').filter({hasText:'Task **Markdown**'}).count());
  await page.locator('#tab-report').click();
+ const mappingSample='### MITRE Mapping\n\n| ID | Evidence |\n|---|---|\n| T1000 | **Observed** and *reviewed* |\n\n- First\n- Second\n\n```text\ncode sample\n```\n\n[Reference](https://example.com)\n\n'+('Additional evidence\n\n'.repeat(80));
+ const mappingWrites=[];
+ const recordMappingWrites=request=>{if(request.method()==='POST'&&/\/(mitre-mappings|report-sections)$/.test(request.url()))mappingWrites.push(request.url());};
+ page.on('request',recordMappingWrites);
+ for(const id of ['mitre-attack-markdown','mitre-mbc-markdown']){
+  const area=page.locator('#'+id),mapping=page.locator('#'+id+'-section');
+  await area.evaluate((source,text)=>{const editor=window.MareEditors.get(source);source.__previewEditor=editor;editor.setValue(text,{notify:true});editor.setSelection(35,42);editor.view.scrollDOM.scrollTop=120;},mappingSample);
+  await delay(100);
+  const before=await area.evaluate(source=>{const editor=window.MareEditors.get(source);return {doc:editor.getValue(),selection:editor.selection(),scroll:editor.view.scrollDOM.scrollTop};});
+  for(let repeat=0;repeat<2;repeat++){
+   await mapping.getByRole('button',{name:'Show Preview',exact:true}).click();
+   await mapping.locator('.markdown-preview table').waitFor();
+   assert.equal(await mapping.locator('.markdown-preview h3').textContent(),'MITRE Mapping');
+   assert.equal(await mapping.locator('.markdown-preview strong').textContent(),'Observed');
+   assert.ok(await mapping.locator('.markdown-preview li').count());
+   assert.equal(await mapping.locator('.markdown-preview a').getAttribute('href'),'https://example.com');
+   await mapping.getByRole('button',{name:'Hide Preview',exact:true}).click();await delay(100);
+   const after=await area.evaluate(source=>{const editor=window.MareEditors.get(source);return {doc:editor.getValue(),selection:editor.selection(),scroll:editor.view.scrollDOM.scrollTop};});
+   assert.deepEqual(after,before);
+  }
+  await mapping.locator('[data-editor-expand]').click();
+  assert.equal(await mapping.evaluate(node=>node.classList.contains('editor-expanded')),true);
+  await mapping.getByRole('button',{name:'Show Preview',exact:true}).click();await mapping.locator('.markdown-preview table').waitFor();
+  await checkToolbar(mapping);await mapping.getByRole('button',{name:'Hide Preview',exact:true}).click();
+  await page.keyboard.press('Escape');
+  await area.evaluate(source=>window.MareEditors.get(source).setValue('',{notify:true}));
+  await mapping.getByRole('button',{name:'Show Preview',exact:true}).click();
+  await page.waitForFunction(id=>document.querySelector('#'+id+'-section .markdown-preview').textContent==='',id);
+  await mapping.getByRole('button',{name:'Hide Preview',exact:true}).click();
+  assert.equal(await area.evaluate(source=>window.MareEditors.get(source)===source.__previewEditor),true);
+ }
+ assert.deepEqual(mappingWrites,[]);page.off('request',recordMappingWrites);
+ await page.addScriptTag({url:base+'/static/report-workspace.js'});
+ await page.locator('#tab-tasks').click();await page.locator('#tab-report').click();
+ for(const id of ['mitre-attack-markdown','mitre-mbc-markdown']){
+  assert.equal(await page.locator('#'+id).count(),1);
+  assert.equal(await page.locator('#'+id+'-section [data-editor-preview]').count(),1);
+  assert.equal(await page.locator('#'+id+'-section .cm-editor').count(),1);
+ }
+ await page.locator('#mitre-mbc-markdown').evaluate((source,text)=>window.MareEditors.get(source).setValue(text,{notify:true}),mappingSample);
  await page.locator('#mitre-attack-markdown').evaluate(area=>window.MareEditors.get(area).insert('### MITRE Attack\n\nSaved mapping'));
  await page.locator('#save-mitre-mappings').click();await page.locator('#mitre-mapping-status').filter({hasText:'saved to mappings'}).waitFor();
  await page.goto(`${base}/cases/${cid}/file?path=mappings/mitre-attack.md`);
@@ -403,6 +443,18 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
   editor.destroy();if(source.hidden || source.value!=='abcx' || source.parentElement!==document.body)throw new Error('cleanup failed');source.remove();
  });
  assert.equal(await page.locator('#add-task-dialog textarea[name=description]').evaluate(area=>window.MareEditors.get(area).view.lineWrapping),true);
+ const lockCase=spawnSync(python,['-c',`from app import app,run
+with app.app_context():run('UPDATE cases SET stage=3,owner_required=1 WHERE id=?',(${cid},))`],{cwd:root,env:{...process.env,MARE_EDITOR_BROWSER_TEST:'1',MARE_DATA_DIR:temporary}});
+ assert.equal(lockCase.status,0,lockCase.stderr.toString());
+ await page.goto(`${base}/cases/${cid}?tab=report`);
+ await page.waitForFunction(()=>window.MareEditors?.get(document.querySelector('#mitre-attack-markdown'))?.getValue().includes('Saved mapping'));
+ assert.equal(await page.locator('#save-mitre-mappings').isDisabled(),true);
+ for(const id of ['mitre-attack-markdown','mitre-mbc-markdown']){
+  const mapping=page.locator('#'+id+'-section');
+  assert.equal(await page.locator('#'+id).evaluate(source=>window.MareEditors.get(source).readOnly),true);
+  await mapping.getByRole('button',{name:'Show Preview',exact:true}).click();await mapping.locator('.markdown-preview').filter({hasText:id==='mitre-attack-markdown'?'Saved mapping':'MITRE Mapping'}).waitFor();
+  await mapping.getByRole('button',{name:'Hide Preview',exact:true}).click();
+ }
  assert.equal(errors.length,0,errors.join('\n'));assert.deepEqual(external,[]);
  console.log('PASS: saved Markdown, 700 lines, cursor/gutter geometry, wrapping, scroll, resize, expand, all headings/inline toggles/lists, multicursor typing, folding, View preferences/history, HTML/TSV/span tables, modal validation, top toolbar/viewport dropdowns, search, image picker/drop/paste, preview, concurrent manual/autosave, reload, Word report, tasks, mappings, Markdown files; no browser errors or external requests.');
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();if(server.exitCode===null){server.kill();await new Promise(resolve=>server.once('exit',resolve));}fs.rmSync(temporary,{recursive:true,force:true});});
