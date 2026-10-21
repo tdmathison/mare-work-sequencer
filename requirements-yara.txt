@@ -1,0 +1,2 @@
+# Optional classic YARA compiler/scanner; never installed at application startup.
+yara-python==4.5.4

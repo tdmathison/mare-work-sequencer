@@ -2,7 +2,16 @@
   const workspace = document.getElementById('tools-workspace');
   if (!workspace) return;
   const tabs = [...workspace.querySelectorAll('[role="tab"]')];
-  function select(tab) {
+  let selecting = false;
+  async function select(tab) {
+    if (selecting) return;
+    const previous = tabs.find(item => item.getAttribute('aria-selected') === 'true');
+    if (previous && previous !== tab) {
+      const frame = document.getElementById(previous.getAttribute('aria-controls')).querySelector('iframe');
+      let guard;
+      try { guard = frame.contentWindow?.mareCanLeaveTool; } catch (_) { /* Cross-origin tools cannot expose a leave hook. */ }
+      if (typeof guard === 'function') { selecting = true; try { if (!await guard()) return; } finally { selecting = false; } }
+    }
     tabs.forEach(item => {
       const active = item === tab;
       item.setAttribute('aria-selected', String(active));

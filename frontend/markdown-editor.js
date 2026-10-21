@@ -1,3 +1,4 @@
+import {mountYaraTool} from './yara-editor';
 import {mountSnortTool} from './snort-editor';
 import {mountPythonExamples} from './python-example';
 import {mountTextTool} from './text-editor';
@@ -263,3 +264,4 @@ if (document.querySelector('[data-text-tool]')) mountTextTool({theme, highlighti
 mountPythonExamples({theme, highlighting});
 
 mountSnortTool({theme,highlighting});
+mountYaraTool({theme,highlighting});

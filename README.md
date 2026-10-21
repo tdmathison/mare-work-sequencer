@@ -1868,3 +1868,161 @@ configured; it validates the rule and checks target versus baseline alerts using
 harmless synthetic fixtures under `tests/fixtures/snort/`. After deployment test
 real engine errors, PCAP/PCAPNG support, cancellation/cleanup, browser console,
 reverse proxy upload/time limits, narrow layouts and unchanged case permissions.
+
+### YARA Rule Editor — editor with assistance dock
+
+Tools → **YARA Rule Editor** is independent of cases. The source document is
+always authoritative: paste or type complete files, including multiple rules,
+imports, comments, dependencies and unsupported syntax. Helpers edit localized
+source ranges through native CodeMirror history; they never regenerate a file.
+
+The left pane searches cases and browses nested `signatures/*.yara` files.
+Changing the browser case does **not** replace the document. Opening a file offers
+Save / Discard / Cancel for unsaved edits. Save replaces the complete opened file
+using its snapshot hash, safe paths, the existing per-case file lock and atomic
+asset writer. Save As / Save to case accepts a relative `.yara` path in a case the
+user may modify, with explicit confirmation before replacing a destination.
+Concurrent disk edits block Save; reopen explicitly or use another destination.
+Existing ownership, lifecycle, report-job locks, authorization, CSRF, readiness,
+revision, indexing and archive handling remain in effect. There are no new tables.
+Case asset links show a read-only escaped source preview; edit with the YARA tool
+so the atomic/version checks are retained. Existing `.yar` assets keep their
+existing behavior; this first tool version browses and saves `.yara` files.
+
+The editor provides line numbers, highlighting, indentation, brace matching and
+folding, comment toggling (Cmd/Ctrl+/), search/replace, native history, default-on
+word wrap, completion (automatic and Ctrl+Space), and module-member hover details.
+The editor-height slider adjusts the vertical editor/dock split. Dock visibility
+and height are saved per account in local storage; rule content is not. The editor
+toolbar’s **Options → Word wrap** item toggles wrapping without changing source or
+history, and saves that preference per account in the same browser. Narrow
+screens have a collapsible case pane. The dock tabs are **Completion**, **Conditions**,
+**Metadata**, **Problems**, **Test**, then **Docs**. All documentation links are in
+Docs; source, snippets, metadata and test output are rendered as text.
+
+Completion is a curated **classic YARA 4.5.4** profile, not a claim of latest or
+complete specification support. It accounts for the cursor's rule/section,
+local string identifiers, other rule names, common built-ins, string modifiers,
+metadata conventions and imported members of `pe`, `elf`, `math`, `hash`, `time`
+and `dotnet`. Known duplicate/incompatible modifier suggestions are suppressed;
+comments and literal bodies do not receive unrelated suggestions. The dock uses
+the same contextual suggestions as the primary editor popup. Imports are never
+added implicitly: preview and apply an import explicitly, without duplication.
+Other modules and language constructs remain source-editable and compiler-checked.
+There is no language-server dependency. The
+[official YARA-X language server](https://github.com/virustotal/yara-x/tree/main/ls)
+was evaluated, but its diagnostics do not establish classic YARA compatibility.
+
+Conditions is an optional searchable snippet library. Insert at cursor and
+Replace selection are distinct operations; neither adds Boolean operators or
+silently replaces a whole condition. Prerequisites and placeholders are shown.
+Metadata keys are user-defined: suggestions such as author, description and
+malware_family are conventions, not condition variables or a mandatory schema.
+Choose the rule by cursor or explicit selector and provide a key, type and value.
+String values are escaped; integers are signed 64-bit; booleans are true/false.
+A meta section is created if needed. Existing keys are selected for direct source
+editing rather than duplicated. Values are never invented or populated from
+account/sample data automatically. Helpers require complete lexical rule bounds;
+unsupported/incomplete documents remain intact and editable.
+
+#### Optional classic compiler and scanner
+
+The reproducible target is **classic YARA engine and binding 4.5.4**, installed
+through the official `yara-python` package. Later upstream releases exist; the
+profile is deliberately versioned. It is **not YARA-X** and never switches engines
+silently. No executable dependencies are downloaded during Flask startup.
+
+```sh
+.venv/bin/python -m pip install -r requirements-yara.txt
+# Optional when the compiler is installed in a separate administrator-owned venv:
+export MARE_YARA_PYTHON=/absolute/path/to/yara-venv/bin/python
+npm ci
+npm run build:editors
+```
+
+Node is needed only to build committed editor assets. The Flask application
+works without the optional compiler: editing, client-side assistance, drafts,
+case saves and downloads remain available. Test reports Engine unavailable with
+setup guidance. The worker checks both the binding and native library version.
+Update the pin, profile, curated completion catalog and integration tests together
+when approving another target. Official references:
+[language](https://yara.readthedocs.io/en/latest/writingrules.html),
+[compiler/scanner API](https://yara.readthedocs.io/en/latest/yarapython.html),
+[classic releases](https://github.com/VirusTotal/yara/releases),
+[binding releases](https://github.com/VirusTotal/yara-python/releases).
+Upstream online documentation may describe a newer 4.5 release than this profile.
+
+Checks compile the **complete current document**, including imports and in-file
+rule dependencies. Source changes debounce automatic checks for 1.5 seconds.
+Results are tied to the editor revision; old responses cannot repaint newer text
+as valid. Problems separates lexical-helper findings from compiler errors/warnings
+and sample results. Compiler line information is navigable; when the binding
+provides no column, the UI says unavailable instead of inventing a column.
+Balanced braces and keyword recognition never produce a valid indicator.
+
+**Includes are disabled** with the official `includes=False` compiler option.
+They are preserved in stored source but produce an actionable compiler error.
+Neither absolute nor relative includes can read server files. External-variable
+configuration, external module data and include-workspace resolution are not
+provided in this version. Imported built-in modules use the selected compiler's
+installed module support; the UI's curated list is not a complete module schema.
+
+Test accepts a positive sample and optional benign baseline, uploaded temporarily
+or selected from authorized case `samples/` assets. All files are scanned **as
+data**, never executed or unpacked; encrypted sample archives are scanned as
+stored archive bytes. Results identify each sample/rule and bounded string
+identifiers, offsets, lengths and 32-byte hex previews. Match/no match/error are
+separate states, and positive/baseline outcomes remain separate. A match does not
+establish rule quality. Cancellation kills the worker process group. Scan errors,
+timeouts and nonzero process exits are never represented as successful no-match.
+
+Workers use administrator-controlled Python and a trusted local worker script,
+argument arrays (`shell=False`), private temporary job directories, file leases,
+process-group cancellation, 64 KiB stdout/stderr limits, CPU/file/open-file limits,
+and a 512 MiB address-space limit on Linux. macOS has no reliable address-space
+limit here; production deployment targets Linux/Gunicorn. These process limits
+are not a container or general native-code security boundary: run the service
+under a dedicated unprivileged account and apply host service isolation as needed.
+Only trusted application code controls worker paths and flags. Source is limited
+to 100,000 UTF-8 bytes; the original BOM and unchanged bytes are retained on
+unchanged saves, while edited line endings follow the loaded file's convention.
+
+Configuration (bounded ranges are validated at startup):
+
+| Variable | Default | Range / meaning |
+| --- | --- | --- |
+| `MARE_YARA_PYTHON` | Flask's Python | Absolute administrator-owned interpreter |
+| `MARE_YARA_TIMEOUT` | 15 | 1–60 seconds for each worker process |
+| `MARE_YARA_CONCURRENCY` | 2 | 1–4 jobs across Gunicorn workers |
+| `MARE_YARA_UPLOAD_LIMIT` | 10485760 | 1024–20971520 bytes per sample |
+| `MARE_YARA_JOB_TTL` | 3600 | 60–86400 seconds for result metadata |
+
+The worker also limits total CPU to 10 seconds, each sample scan to 5 seconds,
+and reports at most 100 matched rules and 100 string instances per rule. An
+oversized response fails with a bounded-output error rather than silent omission.
+Temporary source/samples are removed on success, failure, cancellation and
+abandoned-job cleanup. Job results under `MARE_DATA_DIR/yara-jobs` are excluded
+from installation backups. Account drafts under `yara-drafts` are persistent and
+included. Draft writes are serialized and stale save-status responses are ignored.
+Save/Discard/Cancel is offered for document replacement, Tools-tab switches and
+ordinary same-origin application navigation. Discard leaves the case file alone;
+a recoverable draft may remain. Browser refresh, browser close and external
+navigation use the browser's restricted native unsaved-change prompt, which
+cannot offer application-defined Save/Discard/Cancel buttons.
+
+#### YARA verification
+
+```sh
+node tests/browser/yara-language.cjs
+.venv/bin/python -m pytest -q tests/test_yara.py tests/test_snort.py tests/test_tools.py tests/test_navigation.py
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/yara-editor.cjs
+```
+
+Real compiler tests skip explicitly if the pinned optional engine is unavailable.
+Browser acceptance requires it: it covers standalone completion, snippet history,
+metadata/import edits, real validation, positive/baseline scanning, full-file case
+save/reopen, dirty cancellation/discard, stale responses, source navigation, draft
+recovery and narrow layouts. Also verify dock resize/collapse, keyboard completion,
+case asset selection, permissions and concurrent disk edits under the production
+reverse proxy. Configure proxy request limits for two sample uploads plus source
+and multipart overhead; do not expose the temporary data directory through Nginx.

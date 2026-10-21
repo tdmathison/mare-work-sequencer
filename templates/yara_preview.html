@@ -1,0 +1,4 @@
+{% extends 'base.html' %}{% block content %}
+<a href="{{url_for('detail',cid=cid)}}">Back to workbench</a>
+<section class="panel"><h1>{{path}}</h1><p>Read-only source preview. Use the YARA Rule Editor for complete-file, version-checked saves.</p><p><a href="{{url_for('tools_workspace',tool_id='yara-rule-editor')}}">Open YARA Rule Editor</a> · <a href="{{url_for('file',cid=cid,path=path,download=1)}}">Download</a></p><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{content}}</pre></section>
+{% endblock %}

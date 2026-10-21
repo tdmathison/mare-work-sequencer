@@ -351,7 +351,7 @@ def analyze(raw):
     return dict(count=info["count"], reason=info["reason"])
 
 
-def safe_signature(package, relative):
+def safe_signature(package, relative, suffix=".rules"):
     if (
         not isinstance(relative, str)
         or not relative
@@ -360,9 +360,9 @@ def safe_signature(package, relative):
         or any(ord(c) < 32 for c in relative)
         or PurePosixPath(relative).is_absolute()
         or any(p in ("", ".", "..") for p in relative.split("/"))
-        or PurePosixPath(relative).suffix.lower() != ".rules"
+        or PurePosixPath(relative).suffix.lower() != suffix
     ):
-        raise ValueError("Use a relative .rules filename within signatures/.")
+        raise ValueError(f"Use a relative {suffix} filename within signatures/.")
     package = Path(package)
     if package.is_symlink() or package.parent.is_symlink():
         raise ValueError("Symbolic package paths are not allowed.")
@@ -396,11 +396,11 @@ class Conflict(FileExistsError):
         self.kind = kind
 
 
-def _write(package, relative, raw, connection, cid, description="", expected=None):
+def _write(package, relative, raw, connection, cid, description="", expected=None, suffix=".rules"):
     """Caller holds the case lock; preserve the complete file as supplied."""
     if len(raw) > LIMIT or b"\0" in raw:
         raise ValueError("Rule source exceeds limits or contains NUL.")
-    target = safe_signature(package, relative)
+    target = safe_signature(package, relative, suffix)
     if target.exists() and target.stat().st_size > LIMIT:
         raise ValueError("Existing file exceeds editor limits; original retained.")
     original = target.read_bytes() if target.exists() else None
@@ -466,10 +466,10 @@ def _write(package, relative, raw, connection, cid, description="", expected=Non
         Path(name).unlink(missing_ok=True)
 
 
-def persist(package, relative, raw, connection, cid, description="", expected=None):
+def persist(package, relative, raw, connection, cid, description="", expected=None, suffix=".rules"):
     """Whole-file upload/Save As. Never split, normalize, or combine files."""
     with locked(package):
-        return _write(package, relative, raw, connection, cid, description, expected)
+        return _write(package, relative, raw, connection, cid, description, expected, suffix)
 
 
 def selected_source(raw):

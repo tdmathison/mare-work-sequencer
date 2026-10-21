@@ -1,5 +1,7 @@
 # Latest update
 
+- Added a free-form YARA Rule Editor under Tools, with CodeMirror completion, condition snippets, safe metadata helpers, diagnostics, optional classic YARA 4.5.4 validation and bounded positive/baseline scans. Added recoverable account drafts, complete-file version-checked case storage and read-only asset previews; includes are disabled. Documented the curated language profile, execution limits and YARA-X distinction, with real compiler and browser regression coverage.
+
 - Completed Snort Request bytes and Option library insertion workflows with local target/match selectors, content previews/configuration, shared mapped source anchors, sticky-buffer restoration, dependency checks, duplicate-free modifiers and explicit advanced templates. Added browser coverage for byte-to-source insertion, history, stale targets and selected-signature saves.
 
 - Fixed Snort signature boundary scanning for inline/multiline block comments, retaining exact byte spans and completed prefix rules when a later region is unsafe. Added filename/line/column/excerpt diagnostics for malformed quotes and option blocks, explicit partial-file review, and safe-prefix save checks. Added reported malformed-file fixtures and browser regressions for repeated middle-signature edits with unchanged surrounding content.

@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),esbuild=require('esbuild');
+const box={exports:{}};new Function('module','exports',esbuild.buildSync({entryPoints:['frontend/yara-language.js'],bundle:true,write:false,format:'cjs'}).outputFiles[0].text)(box,box.exports);
+const {analyze,suggestions,metadataEdit,SNIPPETS}=box.exports;
+const source='import "pe"\n/* rule Fake { condition: true } */\nrule First { strings: $a = "test { }" ascii condition: $a }\nrule Second { meta: author = "me" strings: $b = { 4D 5A [1-3] (00 | 01) } condition: First and $b and pe.is_pe }';
+const model=analyze(source);assert.deepEqual(model.diagnostics,[]);assert.deepEqual(model.rules.map(r=>r.name),['First','Second']);assert.deepEqual(model.rules.map(r=>r.strings),[['$a'],['$b']]);
+let at=source.indexOf('$b and')+2;let options=suggestions(source,at).options.map(x=>x.label);assert.ok(options.includes('$b')&&options.includes('First')&&!options.includes('author'));
+at=source.indexOf('pe.is_pe')+3;assert.ok(suggestions(source,at).options.some(x=>x.label==='imphash'&&x.detail.includes('()')));
+assert.ok(suggestions('rule A { condition: pe.',23).message.includes('Import'));
+assert.equal(suggestions(source,source.indexOf('test')+2).options.length,0);assert.equal(suggestions(source,source.indexOf('Fake')+2).options.length,0);
+const modifiers='rule A { strings: $a = "abc" ascii  condition: $a }';at=modifiers.indexOf('  condition')+1;options=suggestions(modifiers,at).options.map(x=>x.label);assert.ok(!options.includes('ascii')&&options.includes('wide'));
+const rule=model.rules[1],edit=metadataEdit(source,rule,'malware_family','a"b\\c','String').change;
+const changed=source.slice(0,edit.from)+edit.insert+source.slice(edit.from);assert.ok(changed.includes('malware_family = "a\\"b\\\\c"'));assert.ok(metadataEdit(source,rule,'author','x','String').existing);assert.equal(source.slice(0,model.rules[0].to),changed.slice(0,model.rules[0].to));
+assert.throws(()=>metadataEdit(source,rule,'bad key','x','String'));assert.throws(()=>metadataEdit(source,rule,'valid','notbool','Boolean'));assert.throws(()=>metadataEdit(source,rule,'valid','9223372036854775808','Integer'));
+assert.ok(SNIPPETS.length>=12);assert.ok(analyze('rule bad { condition: true').diagnostics.length);
+console.log('PASS: YARA lexical contexts, imports/module signatures, local strings/rules, modifier filtering, metadata targeting/duplicates/escaping and snippets.');
+
+for(const text of ['rule A { condition: "unterminated','rule A { condition: true // unfinished comment','rule A { /* unclosed'])assert.equal(suggestions(text,text.length).options.length,0);
+const partial='rule A { strings: $a = "abc" ';
+assert.ok(suggestions(partial,partial.length).options.some(o=>o.label==='ascii'));
+console.log('PASS: completion stays context-aware at unfinished-document and comment/literal boundaries.');

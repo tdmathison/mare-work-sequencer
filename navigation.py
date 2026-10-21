@@ -13,6 +13,7 @@ SECTION_ENDPOINTS = {
         "tools_cyberchef",
         "tools_text_manipulation",
         "tools_text_process",
+        "tools_yara", "yara_state", "yara_jobs", "yara_job", "yara_cancel", "yara_draft", "yara_download",
         "tools_snort", "snort_state", "snort_jobs", "snort_job", "snort_cancel", "snort_draft", "snort_download",
     },
     "users": {"users", "user_action"},

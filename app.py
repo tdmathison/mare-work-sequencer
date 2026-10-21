@@ -406,7 +406,11 @@ def protect():
             session.clear()
     if request.endpoint == 'static':
         return
-    if request.endpoint == 'snort_jobs':
+    if request.endpoint == 'yara_jobs':
+        request.max_content_length = app.config['YARA_UPLOAD_LIMIT']*2+300000
+    elif request.endpoint in ('yara_save','yara_draft','yara_download'):
+        request.max_content_length = 600000
+    elif request.endpoint == 'snort_jobs':
         request.max_content_length = app.config['SNORT_UPLOAD_LIMIT']*2+300000
     elif request.endpoint in ('snort_save','snort_normalize','snort_draft','snort_download'):
         request.max_content_length = 600000
@@ -1016,6 +1020,17 @@ def file(cid):
     p = safe_path(cid, rel)
     if not p.is_file():
         abort(404)
+    if p.suffix.lower() == '.yara':
+        if not all(has_permission(g.user, permission, db()) for permission in ('cases:read', 'cases:assets')):
+            abort(403)
+        if request.args.get('download') and request.method == 'GET':
+            return send_file(p, as_attachment=True)
+        if request.method != 'GET':
+            abort(405, description='Edit YARA through Tools to retain version-checked atomic saves.')
+        if p.stat().st_size > 100000:
+            return send_file(p, as_attachment=True)
+        return render_template('yara_preview.html', cid=cid, path=rel,
+                               content=p.read_text(encoding='utf-8', errors='replace'))
     generated_stix=p==(package(cid)/'iocs/indicators.stix.json').resolve()
     if generated_stix:
         from indicators import stix_file_is_current
@@ -1380,6 +1395,8 @@ register_tools(app, db)
 from analyst_tools import require_tool
 from snort_tool import register_snort
 register_snort(app, db, require_tool, ROOT, case, ensure_package, audit)
+from yara_tool import register_yara
+register_yara(app, db, require_tool, ROOT, case, ensure_package, audit, safe_path)
 register_navigation(app)
 
 register_search(app, ROOT, db, CASE_QUERY, STAGES)
