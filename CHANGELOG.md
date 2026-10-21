@@ -1,5 +1,7 @@
 # Latest update
 
+- Completed Snort Request bytes and Option library insertion workflows with local target/match selectors, content previews/configuration, shared mapped source anchors, sticky-buffer restoration, dependency checks, duplicate-free modifiers and explicit advanced templates. Added browser coverage for byte-to-source insertion, history, stale targets and selected-signature saves.
+
 - Fixed Snort signature boundary scanning for inline/multiline block comments, retaining exact byte spans and completed prefix rules when a later region is unsafe. Added filename/line/column/excerpt diagnostics for malformed quotes and option blocks, explicit partial-file review, and safe-prefix save checks. Added reported malformed-file fixtures and browser regressions for repeated middle-signature edits with unchanged surrounding content.
 
 - Improved Snort Construct controls with visible native action/protocol/direction selectors, editable address/port presets and categorized additive flow choices. Aligned checkbox labels and centralized official references in a searchable Docs tab. Corrected service-based full-header guidance and added browser regressions for controls, alignment and link placement.

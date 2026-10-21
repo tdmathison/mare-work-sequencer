@@ -3,6 +3,7 @@ import { EditorView, Decoration, keymap, lineNumbers, drawSelection } from "@cod
 import { history, historyKeymap, defaultKeymap, undo, redo, undoDepth, redoDepth, isolateHistory } from "@codemirror/commands";
 import { StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { EXAMPLE, EMPTY, BUFFERS, MODIFIERS, parse, modifierValues, contentPatch, modifierPatch, removal, movement, conversion, hexBytes, encodeContent } from "./snort-model";
+import { captureTarget, resolveTarget, planInsertion } from "./snort-insertion";
 import { CATALOG } from "./snort-catalog";
 import {ACTIONS,PROTOCOLS,SERVICES,ADDRESSES,PORTS,FLOW_GROUPS,flowTokens,validateFlow} from "./snort-options";
 const language = StreamLanguage.define({ token(s) {
@@ -26,11 +27,14 @@ function mountSnortTool({ theme, highlighting }) {
   root.dataset.initialized = "true";
   const $ = (s) => root.querySelector(s), $$ = (s) => [...root.querySelectorAll(s)];
   let model = parse(""), selected = null, parseTimer, draftTimer, opened = null, fileDocument = null, clean = "", caseId = "", cases = [], files = [], sidIndex = {}, inventoryId = 0, draftBusy = false, ready = false, navigating = false, internal = false, exact = null, newline = "\n", engine = null, job = null, submitted = null, pollTimer, draftRevision = 0;
+  let insertionTarget=null, insertionError="", modifierTarget=null, configPreview=null;
+  const workflowResults={byte:null,library:null};
   const wrap = new Compartment(), hist = new Compartment();
   const view = new EditorView({ parent: $("[data-rule-editor]"), state: EditorState.create({ extensions: [hist.of(history()), keymap.of([...historyKeymap, ...defaultKeymap]), lineNumbers(), drawSelection(), theme, syntaxHighlighting(highlighting), language, marks, wrap.of(EditorView.lineWrapping), EditorView.contentAttributes.of({ "aria-label": "Snort rule source" }), EditorView.updateListener.of((update) => {
     $("[data-undo]").disabled = !undoDepth(view.state);
     $("[data-redo]").disabled = !redoDepth(view.state);
     if (update.docChanged && !internal) {
+      mapWorkflowTargets(update);
       exact = null;
       changed();
       clearTimeout(parseTimer);
@@ -124,6 +128,8 @@ function mountSnortTool({ theme, highlighting }) {
     opened = context ? { ...context, whole: context.whole ?? context.start === void 0 } : null;
     clean = text;
     selected = null;
+    insertionTarget=null;insertionError="";modifierTarget=null;workflowResults.byte=workflowResults.library=null;
+    $("[data-byte-view]").hidden=$("[data-library-view]").hidden=true;
     reparse();
     changed();
   }
@@ -150,6 +156,7 @@ function mountSnortTool({ theme, highlighting }) {
     paint();
     $("[data-parse]").textContent = model.diagnostics.length ? model.diagnostics.join(" ") : `Parsed ${model.rules.length} rule(s) \xB7 ${model.compatibility.length ? "compatibility review required" : "parsing is not engine validation"}`;
     if (view.hasFocus) selectAt(view.state.selection.main.head);
+    refreshWorkflows();
   }
   function current() {
     if (model.source !== doc()) {
@@ -164,6 +171,7 @@ function mountSnortTool({ theme, highlighting }) {
     const c = options.find((c2) => c2.kind === "buffer") || options.find((c2) => c2.kind === "content") || options[0];
     if (c && c.id !== selected?.id) {
       selected = c;
+      if(c.kind==="content"&&c.safe)modifierTarget=captureTarget(model,c,"after");
       renderOutline();
       renderInspector();
       paint();
@@ -171,9 +179,11 @@ function mountSnortTool({ theme, highlighting }) {
   }
   function selectComponent(c, scroll = true) {
     selected = c;
+    if(c.kind==="content"&&c.safe)modifierTarget=captureTarget(model,c,"after");
     renderOutline();
     renderInspector();
     paint();
+    refreshWorkflows();
     if (scroll && c.spans[0]) view.dispatch({ effects: EditorView.scrollIntoView(c.spans[0].from, { y: "nearest" }), scrollIntoView: false });
   }
   function paint() {
@@ -190,7 +200,6 @@ function mountSnortTool({ theme, highlighting }) {
   function renderOutline() {
     const target = $("[data-outline]");
     target.replaceChildren();
-    target.classList.remove("snort-header-inspector");
     for (const rule of model.rules) {
       for (const [title, kinds] of [["Traffic scope", ["header", "flow"]], ["Match groups", ["content", "buffer", "option"]], ["Rule identity", ["identity", "reference"]]]) {
         const h = document.createElement("h3");
@@ -230,6 +239,7 @@ function mountSnortTool({ theme, highlighting }) {
     headerLayoutObserver?.disconnect();
     const target = $("[data-inspector]");
     target.replaceChildren();
+    target.classList.remove("snort-header-inspector");
     $("[data-inspector-error]").textContent = "";
     if (!selected) {
       target.textContent = "Select a source or outline component.";
@@ -250,6 +260,11 @@ function mountSnortTool({ theme, highlighting }) {
     const fields = document.createElement("div");
     fields.className = "snort-fields";
     target.append(fields);
+    if(c.kind==='content'&&c.safe){
+      const actions=document.createElement('div');actions.className='snort-actions';
+      for(const side of ['before','after'])actions.append(button('Insert '+side,()=>{chooseTarget(current(),side);notice('New match will be inserted '+side+' '+current().label+'.');}));
+      actions.append(button('Add modifier',()=>{modifierTarget=captureTarget(model,current(),'after');$('[data-tab="library"]').click();refreshWorkflows();$('[data-library-match]').focus({preventScroll:true});}));target.append(actions);
+    }
     const edits = [];
     let apply = null;
     if (c.safe && c.kind === "header") {
@@ -473,52 +488,138 @@ function mountSnortTool({ theme, highlighting }) {
     for (const [k, n] of Object.entries(counts)) if (n > 1) collisions.push("SID " + k + " is repeated in the current source.");
     list($("[data-diagnostics]"), model.diagnostics, "Lexical structure parsed; this is not engine validation.");
     list($("[data-compatibility]"), model.compatibility, "No known curated compatibility finding; full compatibility remains unverified.");
-    list($("[data-quality]"), [...model.warnings, ...collisions], "No curated warning. This does not establish detection quality.");
+    list($("[data-quality]"), [...model.warnings, ...(doc().includes("REPLACE_ME")?["Incomplete template: replace REPLACE_ME in source before engine validation." ]:[]), ...collisions], "No curated warning. This does not establish detection quality.");
   }
-  function insertOption(syntax) {
-    const c = current(), location = $("[data-insert-location]").value;
-    if (!c.safe || !location) throw Error("Choose a safe component and explicit insertion location in Construct.");
-    const r = model.rules[c.rule];
-    let point;
-    if (location === "end") point = r.close;
-    else {
-      const ranges = c.kind === "content" ? [c.content] : c.options;
-      if (!ranges.length) throw Error("Select an option or choose End of selected rule.");
-      point = location === "before" ? ranges[0].from : ranges.at(-1).to;
-    }
-    patches([{ from: point, to: point, insert: " " + syntax + " " }]);
+  function targetLabel(c,side){return side==='end'?'End of option block':`${side==='before'?'Before':'After'} ${c.label}: ${c.summary || c.id}`;}
+  function track(anchor,update){
+    if(!anchor)return null;
+    let touched=false;
+    update.changes.iterChangedRanges((a,b)=>{if(a===b?a>anchor.from&&a<anchor.to:a<anchor.to&&b>anchor.from)touched=true;});
+    if(touched)return null;
+    return {...anchor,from:update.changes.mapPos(anchor.from,1),to:update.changes.mapPos(anchor.to,-1)};
   }
-  $("[data-add]").addEventListener("click", () => {
-    try {
-      const key = $("[data-add-kind]").value;
-      insertOption(CATALOG.find((x) => x.name === key).syntax);
-    } catch (e) {
-      notice(e.message);
+  function mapWorkflowTargets(update){
+    if(insertionTarget){const mapped=track(insertionTarget,update);if(!mapped)insertionError='Insertion target changed or was removed. Choose a new location below.';insertionTarget=mapped;}
+    if(modifierTarget)modifierTarget=track(modifierTarget,update);
+    for(const key of ['byte','library'])workflowResults[key]=track(workflowResults[key],update);
+  }
+  function targetChoices(){
+    if(model.diagnostics.length||opened?.whole)return [];
+    const rules=model.rules.filter(r=>r.complete&&r.dialect!=='ambiguous');
+    return rules.flatMap(r=>{
+      const matches=r.components.filter(c=>c.kind==='content'&&c.safe);
+      const header=r.components.find(c=>c.kind==='header'&&c.safe);
+      return [...matches.flatMap(c=>['before','after'].map(side=>({c,side}))),...(header?[{c:header,side:'end'}]:[])];
+    });
+  }
+  function chooseTarget(c,side){insertionTarget=captureTarget(model,c,side);insertionError='';refreshWorkflows();}
+  function refreshWorkflows(){
+    if(model.source!==doc()){reparse();return;}
+    const choices=targetChoices();
+    if(insertionTarget){try{resolveTarget(model,insertionTarget);}catch(e){insertionTarget=null;insertionError=e.message;}}
+    if(!insertionTarget&&!insertionError&&model.rules.length===1){
+      const matches=choices.filter(x=>x.side==='after');
+      const candidate=matches.at(-1)||choices.find(x=>x.side==='end');
+      if(candidate)try{const t=captureTarget(model,candidate.c,candidate.side);planInsertion(model,t,'content:"preview";','payload');insertionTarget=t;}catch(e){insertionError=e.message;}
     }
-  });
+    for(const holder of $$('[data-insertion-controls]')){
+      const hadFocus=holder.contains(document.activeElement);
+      holder.replaceChildren();
+      const select=input(holder,'Insertion location','','text',['']);select.options[0].textContent='Choose insertion location…';
+      for(const {c,side}of choices){const key=c.id+':'+side;select.add(new Option(targetLabel(c,side),key));if(insertionTarget&&captureTarget(model,c,side).from===insertionTarget.from&&c.kind===insertionTarget.kind&&side===insertionTarget.side)select.value=key;}
+      select.onchange=()=>{const chosen=choices.find(x=>x.c.id+':'+x.side===select.value);if(chosen)chooseTarget(chosen.c,chosen.side);else{insertionTarget=null;insertionError='Choose an insertion location below.';refreshWorkflows();}};
+      const description=document.createElement('p');description.setAttribute('role','status');
+      description.textContent=insertionTarget?'New component will be inserted '+targetLabel(resolveTarget(model,insertionTarget),insertionTarget.side).replace(/^./,c=>c.toLowerCase())+'.':insertionError||'Complete a rule and select its syntax interpretation to enable insertion.';
+      holder.append(description);if(hadFocus)select.focus({preventScroll:true});
+    }
+    let matched=false;
+    for(const name of ['library','byte']){
+      const match=$('[data-'+name+'-match]'),hadFocus=document.activeElement===match;
+      match.replaceChildren(new Option('Choose a content match…',''));
+      for(const c of model.components.filter(c=>c.kind==='content'&&c.safe)){
+        match.add(new Option(c.label+': '+c.summary,c.id));
+        if(modifierTarget&&captureTarget(model,c,'after').from===modifierTarget.from&&model.source.slice(modifierTarget.from,modifierTarget.to)===modifierTarget.text){match.value=c.id;matched=true;}
+      }
+      if(hadFocus)match.focus({preventScroll:true});
+    }
+    if(!matched)modifierTarget=null;
+    refreshBytePreview();configPreview?.();
+  }
+  function workflowEdit(plan,message,status,placeholder=false){
+    patches([plan.change]);
+    const c=model.components.find(c=>c.kind==='content'&&c.content.from>=plan.from&&c.content.from<plan.to)||model.components.find(c=>c.spans.some(s=>s.from>=plan.from&&s.from<plan.to));
+    if(c){selectComponent(c,false);workflowResults[status==='[data-byte-status]'?'byte':'library']=captureTarget(model,c,'after');}
+    if(placeholder){const at=doc().indexOf('REPLACE_ME',plan.from);if(at>=0&&at<plan.to)view.dispatch({selection:{anchor:at,head:at+10},scrollIntoView:false});$('[data-validation]').textContent='Incomplete source template: configure the selected placeholder and validate with Snort.';}
+    $(status).textContent=message+' '+plan.effect;
+    $(status==='[data-byte-status]'?'[data-byte-view]':'[data-library-view]').hidden=false;
+    notice(message);
+  }
+  function insertOption(syntax,buffer=null,status='[data-library-status]',placeholder=false){
+    if(model.source!==doc())reparse();
+    const plan=planInsertion(model,insertionTarget,syntax,buffer);
+    workflowEdit(plan,'Added '+(buffer!==null?'content match.':'option; review its source syntax.'),status,placeholder);
+  }
+  function applyModifier(name,value){
+    if(model.source!==doc())reparse();
+    if(!modifierTarget)throw Error('Choose a content match using the selector in Option library.');
+    const c=resolveTarget(model,modifierTarget);
+    if(c.kind!=='content')throw Error('Choose a content match.');
+    const old=modifierValues(c);
+    if(old[name]!==undefined){selectComponent(c,false);workflowResults.library=captureTarget(model,c,'after');const existing=c.modifiers.find(o=>o.key===name)||c.inline.find(o=>o.raw.split(/\s+/)[0]===name);if(existing)view.dispatch({selection:{anchor:existing.from,head:existing.to},scrollIntoView:false});$('[data-library-status]').textContent='Already applied: '+name+' on '+c.label+'.';$('[data-library-view]').hidden=false;return;}
+    if(name==='fast_pattern'&&c.decoded.negated)throw Error('Negated content cannot be assigned fast_pattern by this workflow.');
+    if(['offset','depth'].includes(name)&&['distance','within'].some(k=>old[k]!==undefined)||['distance','within'].includes(name)&&['offset','depth'].some(k=>old[k]!==undefined))throw Error('Remove conflicting absolute/relative positioning before applying this modifier.');
+    const at=c.content.from;patches([modifierPatch(model,c,name,value)]);
+    const updated=model.components.find(x=>x.kind==='content'&&x.content.from===at);if(updated){selectComponent(updated,false);workflowResults.library=captureTarget(model,updated,'after');}
+    $('[data-library-status]').textContent='Applied '+name+' to '+(updated?.label||'content match')+'.';$('[data-library-view]').hidden=false;
+  }
+  for(const name of ['library','byte'])$('[data-'+name+'-match]').onchange=e=>{const c=model.components.find(c=>c.id===e.target.value);modifierTarget=c?captureTarget(model,c,'after'):null;refreshWorkflows();};
+  for(const key of ['byte','library'])$('[data-'+key+'-view]').onclick=()=>{try{if(model.source!==doc())reparse();const c=resolveTarget(model,workflowResults[key]);$('[data-tab="construct"]').click();selectComponent(c);}catch(e){$('[data-'+key+'-status]').textContent='The result changed. Select it in the current outline. '+e.message;}};
+  function configureOption(item){
+    const target=$('[data-library-config]');target.hidden=false;target.replaceChildren();
+    const h=document.createElement('h3');h.textContent='Configure '+item.name;target.append(h);
+    const isContent=item.name==='content'||BUFFERS.includes(item.name),modifier=MODIFIERS.includes(item.name);
+    const value=input(target,isContent?'Content value':modifier?'Modifier value':'Option source',isContent?'':modifier?'':item.syntax);
+    let buffer=null;
+    if(isContent){buffer=input(target,'Inspection buffer',BUFFERS.includes(item.name)?item.name:'payload','text',['payload',...BUFFERS]);}
+    const explanation=document.createElement('p');explanation.setAttribute('role','status');target.append(explanation);
+    const preview=()=>{try{if(isContent){const syntax='content:"'+encodeContent(value.value,'text')+'";';const plan=planInsertion(model,insertionTarget,syntax,buffer.value);explanation.textContent=syntax+' '+plan.effect;}else explanation.textContent=modifier?'Apply to the chosen content match; existing modifiers are selected without duplication.':'Advanced source insertion: review all required values and cursor effects. REPLACE_ME is incomplete syntax; it is selected for editing, not engine-validated.';}catch(e){explanation.textContent=e.message;}};
+    configPreview=preview;value.oninput=preview;if(buffer)buffer.onchange=preview;preview();
+    const apply=button(isContent?'Add content match':modifier?'Apply '+item.name:'Insert source template',()=>{
+      try{
+        if(isContent){if(!value.value)throw Error('Enter a nonempty content value.');insertOption('content:"'+encodeContent(value.value,'text')+'";',buffer.value);}
+        else if(modifier){if(!value.value)throw Error('Enter the required modifier value.');applyModifier(item.name,value.value);}
+        else{
+          if(!value.value.trim())throw Error('Enter option source.');
+          const probe=parse('alert tcp any any -> any 80 ('+value.value+')','snort3');
+          if(probe.diagnostics.length||probe.rules.length!==1||probe.rules[0].options.length!==1||probe.rules[0].options[0].key!==item.name)
+            throw Error('Enter exactly one '+item.name+' option ending with a semicolon. Use its dedicated buffer/content controls for other components.');
+          if(['msg','sid','rev','classtype','priority','metadata','flow'].includes(item.name)){
+            const c=resolveTarget(model,insertionTarget),rule=model.rules[c.rule];
+            const existing=rule.components.find(x=>x.options.some(o=>o.key===item.name));
+            if(existing){selectComponent(existing,false);workflowResults.library=captureTarget(model,existing,'after');$('[data-library-status]').textContent=item.name+' already exists. Use View in Construct to edit it.';$('[data-library-view]').hidden=false;return;}
+          }
+          insertOption(value.value,null,'[data-library-status]',value.value.includes('REPLACE_ME'));
+        }
+      }catch(e){$('[data-library-status]').textContent=e.message;}
+    });target.append(apply);
+    value.focus({preventScroll:true});
+  }
+  $('[data-add]').onclick=()=>{
+    const item=CATALOG.find(x=>x.name===$('[data-add-kind]').value);
+    $('[data-tab="library"]').click();configureOption(item);
+  };
   function library() {
-    const term = $("[data-library-search]").value.toLowerCase(), target = $("[data-library]");
-    target.replaceChildren();
-    for (const item of CATALOG.filter((x) => `${x.name} ${x.description} ${x.group}`.toLowerCase().includes(term))) {
-      const div = document.createElement("div");
-      div.className = "snort-option";
-      const h = document.createElement("h3");
-      h.textContent = item.group + " \xB7 " + item.name;
-      const text = document.createElement("p");
-      text.textContent = item.description;
-      const code = document.createElement("code");
-      code.textContent = item.syntax;
-      const status = document.createElement("p");
-      status.textContent = (item.structured ? "Structured inspector available" : "Source editing only") + " \xB7 " + (engine?.modules?.includes(item.name) ? "Installed module discovered (configuration still required)" : "Availability not confirmed by engine");
-      div.append(h, text, code, status, button("Insert " + item.name, () => {
-        if (MODIFIERS.includes(item.name)) patches([modifierPatch(model, current(), item.name, ["nocase", "fast_pattern"].includes(item.name) ? "true" : "0")]);
-        else insertOption(item.syntax);
-      }));
-      const actions = document.createElement("div");
-      actions.className = "snort-actions";
-      for (const node of [...div.children]) if (node.matches("a,button")) actions.append(node);
-      div.append(actions);
-      target.append(div);
+    const term=$('[data-library-search]').value.toLowerCase(),target=$('[data-library]');target.replaceChildren();
+    for(const item of CATALOG.filter(x=>`${x.name} ${x.description} ${x.group}`.toLowerCase().includes(term))){
+      const div=document.createElement('div');div.className='snort-option';
+      const h=document.createElement('h3');h.textContent=item.group+' · '+item.name;
+      const p=document.createElement('p');p.textContent=item.description;
+      const code=document.createElement('code');code.textContent=item.syntax;
+      const modifier=MODIFIERS.includes(item.name),flag=['nocase','fast_pattern'].includes(item.name);
+      const action=button(modifier?'Apply '+item.name:BUFFERS.includes(item.name)?'Add match in '+item.name:item.name==='content'?'Add content match':'Configure '+item.name,()=>{
+        try{if(modifier&&flag)applyModifier(item.name,'true');else configureOption(item);}catch(e){$('[data-library-status]').textContent=e.message;$('[data-library-match]').focus({preventScroll:true});}
+      });
+      div.append(h,p,code,action);target.append(div);
     }
   }
   function docs(){
@@ -543,6 +644,7 @@ function mountSnortTool({ theme, highlighting }) {
   });
   for (const b of $$("[data-tab]")) {
     b.addEventListener("click", () => {
+      refreshWorkflows();
       for (const tab of $$("[data-tab]")) {
         const active = tab === b;
         tab.setAttribute("aria-selected", String(active));
@@ -906,6 +1008,25 @@ function mountSnortTool({ theme, highlighting }) {
   };
   $("[data-refresh]").onclick = () => inventory().catch((e) => $("[data-browser-status]").textContent = e.message);
   let bytes = [], anchor = 0, cursor = 0, dragging = false, parsedHex = "";
+  function refreshBytePreview(){
+    const add=$('[data-bytes-add]'),position=$('[data-bytes-position]');
+    position.disabled=true;
+    try{
+      const value=selectionContent(),values=bytes.slice(value.a,value.b);
+      $('[data-byte-preview]').textContent=`Offsets [${value.a}, ${value.b}) · ${values.length} bytes\nHex: ${values.map(v=>v.toString(16).padStart(2,'0')).join(' ')}\nASCII: ${values.map(v=>v>=32&&v<=126?String.fromCharCode(v):'.').join('')}\ncontent:"${value.mixed}";`;
+      const c=modifierTarget?resolveTarget(model,modifierTarget):null,origin=$('[data-origin]').value;
+      position.disabled=!(c?.kind==='content'&&c.safe&&['payload','application'].includes(origin)&&(origin==='payload'?['payload','pkt_data'].includes(c.bufferName):$('[data-origin-buffer]').value===c.bufferName));
+      try{
+        const plan=planInsertion(model,insertionTarget,'content:"'+value.mixed+'";',$('[data-byte-buffer]').value);
+        $('[data-byte-effect]').textContent=plan.effect;add.disabled=false;
+      }catch(e){add.disabled=true;$('[data-byte-effect]').textContent=e.message;}
+    }catch(e){add.disabled=true;$('[data-byte-effect]').textContent=e.message;$('[data-byte-preview]').textContent='No current byte preview: '+e.message;}
+    position.title=position.disabled?'Choose a safe content match and matching transport-payload or exact application-buffer origin. No frame decoding is performed.':'';
+  }
+  for(const name of ['hex','representation','byte-buffer','origin','origin-buffer']){
+    $('[data-'+name+']').addEventListener('input',refreshBytePreview);
+    $('[data-'+name+']').addEventListener('change',refreshBytePreview);
+  }
   function range() {
     const a = Number($("[data-byte-start]").value), b = Number($("[data-byte-end]").value);
     if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b <= a || b > bytes.length) throw Error("Select a nonempty byte range within the parsed bytes.");
@@ -919,6 +1040,7 @@ function mountSnortTool({ theme, highlighting }) {
     $("[data-byte-end]").value = Math.max(a, b) + 1;
     for (const cell of $$("[data-byte]")) cell.setAttribute("aria-pressed", String(Number(cell.dataset.byte) >= Math.min(a, b) && Number(cell.dataset.byte) <= Math.max(a, b)));
     $("[data-byte-selection]").textContent = `Selection [${Math.min(a, b)}, ${Math.max(a, b) + 1}) \xB7 ${Math.abs(a - b) + 1} bytes`;
+    refreshBytePreview();
   }
   $("[data-read-bytes]").onclick = () => {
     try {
@@ -964,7 +1086,7 @@ function mountSnortTool({ theme, highlighting }) {
       byteSelection(0, 0);
       $("[data-byte-status]").textContent = `Read ${bytes.length} bytes.`;
     } catch (e) {
-      $("[data-byte-status]").textContent = e.message;
+      $("[data-byte-status]").textContent = e.message;refreshBytePreview();
     }
   };
   document.addEventListener("pointerup", () => dragging = false);
@@ -975,12 +1097,11 @@ function mountSnortTool({ theme, highlighting }) {
     try {
       const [a, b] = range();
       byteSelection(a, b - 1);
-    } catch {
+    } catch {refreshBytePreview();
     }
   };
   function selectionContent() {
     const [a, b] = range();
-    if (!$("[data-origin]").value) throw Error("Specify the input origin; no position is inferred.");
     const values = bytes.slice(a, b), rep = $("[data-representation]").value;
     if (rep === "text") {
       const text = new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(values));
@@ -991,9 +1112,11 @@ function mountSnortTool({ theme, highlighting }) {
   }
   function byteAction(kind) {
     try {
-      const value = selectionContent(), c = current();
-      if (kind === "add") insertOption('content:"' + value.mixed + '";');
-      else if (kind === "replace") patches([contentPatch(c, value.mixed, "mixed", c.decoded.negated)]);
+      const value = selectionContent();
+      if(kind==='add'){insertOption('content:"'+value.mixed+'";',$('[data-byte-buffer]').value,'[data-byte-status]');return;}
+      if(!modifierTarget)throw Error("Choose a content match for replacement or positioning in this tab.");
+      const c=resolveTarget(model,modifierTarget);
+      if (kind === "replace") patches([contentPatch(c, value.mixed, "mixed", c.decoded.negated)]);
       else {
         if (c.kind !== "content") throw Error("Select a content match.");
         const origin = $("[data-origin]").value;

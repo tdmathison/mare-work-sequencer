@@ -20,3 +20,5 @@
 @container snort-inspector (max-width:379px){
   .snort-tool .snort-header-fields{grid-template-columns:minmax(0,1fr)}
 }
+
+.snort-tool [data-library-config]{border:1px solid var(--line);padding:12px;margin:12px 0;min-width:0;box-sizing:border-box}.snort-tool [data-insertion-controls] label{min-width:0}.snort-tool [data-library]>div>button{margin-top:8px}

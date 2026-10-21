@@ -1760,10 +1760,41 @@ permissions, ownership and lifecycle restrictions apply. No complete file is
 regenerated from parsed rules, and no selected rule is appended as a duplicate.
 
 Request bytes accepts at most 4,096 whitespace-separated byte pairs. Select by
-mouse, arrows/Shift+arrows, or numeric range. Adding/replacing content imposes no
-positioning. Applying offset/depth is separate and requires the matching transport
-payload or exact application-buffer origin. Full-frame offsets are refused;
-this version performs no packet decoding or HTTP buffer normalization.
+mouse, arrows/Shift+arrows, or numeric range. This tab shows start/end/count,
+hex/printable ASCII, the proposed content expression, the target inspection
+buffer and an insertion selector. Both this tab and Option library share the
+Construct insertion target: before/after a specific match or the end of the
+option block. A safe single rule defaults to after its last match, or the end
+of the block when it has no matches. Unsafe defaults require an explicit choice.
+Construct also offers Insert before, Insert after and Add modifier controls.
+Source-range anchors survive edits elsewhere; changing/removing a target
+invalidates it instead of silently selecting a different ordinal match.
+
+Add as content group creates one undoable source transaction, updates/highlights
+the outline and offers View in Construct. Byte input and selection remain
+available. Buffer changes for new Snort 3 matches restore the previous buffer
+before existing later options; legacy HTTP buffers apply only to the new match.
+Later relative matches and advanced/unknown cursor dependencies block insertion
+at that location: choose the end of the option block or resolve them explicitly
+in source. No existing matches are silently reassigned to another buffer.
+
+Adding/replacing content imposes no positioning. Replacement and positioning
+have their own content-match selector in Request bytes. Applying offset/depth is
+separate and requires the matching transport-payload or exact application-buffer
+origin. Full-frame offsets are refused; this version performs no packet decoding
+or HTTP buffer normalization.
+
+Option library actions open configuration for new content, required modifier
+values or explicit option source. Content must be nonempty. Buffer entries add
+a configured content match in that buffer rather than changing later matches.
+Modifiers use the selected compatible content match, with a match selector
+available in the library; Already applied selects the existing modifier without
+duplicating it. Advanced templates require an explicit source-insertion action;
+REPLACE_ME is selected and remains flagged for correction. Lexical acceptance
+of a template never establishes Snort engine compatibility. Errors appear in
+the active workflow and leave inputs unchanged. All actions edit the same
+CodeMirror source and use its native history; case-file saves still replace
+only the selected signature's verified byte span.
 
 #### Snort execution setup and isolation
 
@@ -1828,6 +1859,7 @@ npm run build:editors
 node tests/browser/snort-model.cjs
 .venv/bin/python -m pytest -q tests/test_snort.py tests/test_tools.py tests/test_navigation.py
 MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/snort-builder.cjs
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/snort-workflows.cjs
 ```
 
 Fake-engine tests verify job lifecycle, never Snort compatibility. The separate

@@ -34,3 +34,18 @@ assert.equal(applyPatches(lexical,[contentPatch(secondMatch,'/edited','text',fal
 assert.ok(parse(lexical+'/* unterminated (').diagnostics.some(d=>d.includes('Unterminated block')));
 assert.equal(parse('alert tcp any any -> any 80 (content:"/* literal */"; sid:1;)').components.find(c=>c.kind==='content').safe,true);
 console.log('PASS: quoted/comment parentheses, escaped strings, exact UTF-16 ranges and second-signature inspector patches.');
+const insertBox={exports:{}};new Function('module','exports',esbuild.buildSync({entryPoints:['frontend/snort-insertion.js'],bundle:true,write:false,format:'cjs'}).outputFiles[0].text)(insertBox,insertBox.exports);
+const {captureTarget,resolveTarget,planInsertion}=insertBox.exports;
+const noMatches=parse('alert tcp any any -> any 80 (msg:"empty"; sid:1;)');
+let target=captureTarget(noMatches,noMatches.components.find(c=>c.kind==='header'),'end');
+assert.match(planInsertion(noMatches,target,'content:"|41 22 5c|";','payload').change.insert,/content:/);
+const scope=parse('alert tcp any any -> any 80 (http_uri; content:"a"; content:"b"; sid:1;)','snort3');
+const cm=scope.components.filter(c=>c.kind==='content');target=captureTarget(scope,cm[0],'after');
+const scoped=planInsertion(scope,target,'content:"new";','file_data');
+assert.equal(scoped.change.insert,' file_data; content:"new"; http_uri; ');
+const scopedModel=parse(applyPatches(scope.source,[scoped.change]),'snort3');assert.deepEqual(scopedModel.components.filter(c=>c.kind==='content').map(c=>c.bufferName),['http_uri','file_data','http_uri']);
+const relative=parse(scope.source.replace('content:"b"','content:"b",distance 0'),'snort3');
+assert.throws(()=>planInsertion(relative,captureTarget(relative,relative.components.find(c=>c.kind==='content'),'after'),'content:"new";','payload'),/relative/);
+assert.throws(()=>resolveTarget(parse(scope.source.replace('content:"a"','content:"x"'),'snort3'),target),/changed or was removed/);
+assert.throws(()=>planInsertion(scope,target,'content:"unterminated;','payload'),/incomplete/);
+console.log('PASS: shared insertion planning, no-match rules, sticky restoration, cursor dependency checks and stale targets.');
