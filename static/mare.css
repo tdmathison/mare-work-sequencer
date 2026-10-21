@@ -1050,3 +1050,12 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 
 .mitre-mapping-editor{min-width:0}
 .mitre-mapping-editor h3{margin-top:0}
+
+/* Compact application workspace text; editor font preferences remain independent. */
+.case-tabs button { font-size: 14px; }
+:where(#panel-workbench, #panel-tasks, .task-workspace-dialog, .settings-page) {
+    font-size: 14px;
+}
+:where(#panel-workbench, #panel-tasks, .task-workspace-dialog, .settings-page) label {
+    font-size: 14px;
+}

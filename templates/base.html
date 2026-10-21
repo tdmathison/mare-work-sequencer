@@ -50,7 +50,7 @@
       {{application_nav_link('IMPORT & EXPORT', '/import-export', 'import_export')}}
     </nav>
     {% endif %}
-    <main class="page">
+    <main class="page {% block page_class %}{% endblock %}">
       {% for message in get_flashed_messages() %}
       <div class="notice" role="status">{{message}}</div>
       {% endfor %}{% block content %}{% endblock %}{% if
