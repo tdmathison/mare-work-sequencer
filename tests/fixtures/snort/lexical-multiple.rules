@@ -1,0 +1,16 @@
+/* file comment: alert tcp any any -> any any (msg:"not a rule"; ) " */
+alert tcp $HOME_NET any -> $EXTERNAL_NET 80 (
+  msg:"quoted (paren) and escaped \"quote\" and \\ slash";
+  /* inline option comment ( ; alert http ( ) */
+  content:"|28 29 22 5c|"; http_uri; depth:4;
+  pcre:"/(first|second)\\\\path/";
+  sid:7; rev:1;
+)
+include local.rules # directive comment (not structural)
+alert tcp any any -> any 443 (
+  http_uri;
+  # a commented rule: alert tcp any any -> any any (sid:99;)
+  content:"/second(a)"; regex:"/(a|b)#literal/";
+  msg:"second"; sid:7; rev:2;
+) alert http (content:"third /* literal */ # ( )";)
+/* final ( ) */

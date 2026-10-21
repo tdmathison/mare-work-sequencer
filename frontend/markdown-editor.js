@@ -1,3 +1,4 @@
+import {mountSnortTool} from './snort-editor';
 import {mountPythonExamples} from './python-example';
 import {mountTextTool} from './text-editor';
 import {Annotation, Compartment, EditorState, Transaction} from '@codemirror/state';
@@ -260,3 +261,5 @@ new MutationObserver(records => {
 if (document.querySelector('[data-text-tool]')) mountTextTool({theme, highlighting});
 
 mountPythonExamples({theme, highlighting});
+
+mountSnortTool({theme,highlighting});

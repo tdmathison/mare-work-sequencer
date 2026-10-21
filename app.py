@@ -406,6 +406,10 @@ def protect():
             session.clear()
     if request.endpoint == 'static':
         return
+    if request.endpoint == 'snort_jobs':
+        request.max_content_length = app.config['SNORT_UPLOAD_LIMIT']*2+300000
+    elif request.endpoint in ('snort_save','snort_normalize','snort_draft','snort_download'):
+        request.max_content_length = 600000
     if request.method == 'POST' and (not session.get('csrf') or not secrets.compare_digest(session['csrf'], request.form.get('csrf', ''))):
         abort(403)
     if request.endpoint not in ('login', 'static'):
@@ -1051,6 +1055,20 @@ def upload(cid):
     if not name:
         abort(400)
     relative_name = name
+    if folder == 'signatures' and name.lower().endswith('.rules'):
+        if not all(has_permission(g.user, p, db()) for p in ('cases:read','cases:assets','cases:update')): abort(403)
+        from signature_files import persist, LIMIT, Conflict
+        try:
+            result = persist(ensure_package(cid), name, f.read(LIMIT+1), db(), cid, request.form.get('description','').strip())
+        except (ValueError,OSError,sqlite3.Error) as error:
+            audit(f'Signature upload failed case {cid}: {name}: {error}')
+            if request.form.get('ajax') == '1': return {'error': str(error)}, 409 if isinstance(error,Conflict) else 400
+            flash(str(error)); return redirect(f'/cases/{cid}')
+        audit(f'Uploaded signatures case {cid}: {name} -> {result["paths"]}')
+        db().commit()
+        message = 'Created '+', '.join(result['paths'])+('. Splitting skipped: '+result['notice'] if result['notice'] else '')
+        if request.form.get('ajax') == '1': return {'saved':True,'path':result['paths'][0],'paths':result['paths'],'message':message}
+        flash(message); return redirect(f'/cases/{cid}')
     if folder == 'samples':
         raw = f.read(100*1024*1024+1)
         if len(raw) > 100*1024*1024:
@@ -1359,6 +1377,9 @@ register_api(app, db, run, case, package, ensure_package, now, audit, allocate_c
              mark_pending, readiness, review_issues, STAGES, safe_path, build_archive, report_helpers, asset_helpers, backup_helpers, metrics_data)
 
 register_tools(app, db)
+from analyst_tools import require_tool
+from snort_tool import register_snort
+register_snort(app, db, require_tool, ROOT, case, ensure_package, audit)
 register_navigation(app)
 
 register_search(app, ROOT, db, CASE_QUERY, STAGES)

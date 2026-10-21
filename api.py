@@ -655,6 +655,15 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         raw = upload.read(100*1024*1024+1)
         if len(raw) > 100*1024*1024:
             return jsonify(error='Files are limited to 100 MiB.'), 413
+        if category == 'signatures' and name.lower().endswith('.rules'):
+            from signature_files import persist, Conflict
+            try: result = persist(ensure_package(case_id),name,raw,db(),case_id,request.form.get('description','').strip())
+            except (ValueError,OSError,sqlite3.Error) as error:
+                audit(f'Signature upload failed case {case_id}: {name}: {error}')
+                return jsonify(error=str(error)),409 if isinstance(error,Conflict) else 400
+            audit(f'Uploaded signatures case {case_id}: {name} -> {result["paths"]}')
+            db().commit()
+            return jsonify(file={'path':result['paths'][0]},files=result['paths'],normalization_notice=result['notice']),201
         relative_name = name+'.zip' if category == 'samples' else name
         relative = category+'/'+relative_name
         target = safe_path(case_id, relative)
