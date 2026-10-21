@@ -1,5 +1,11 @@
 # Latest update
 
+- Fixed Snort signature boundary scanning for inline/multiline block comments, retaining exact byte spans and completed prefix rules when a later region is unsafe. Added filename/line/column/excerpt diagnostics for malformed quotes and option blocks, explicit partial-file review, and safe-prefix save checks. Added reported malformed-file fixtures and browser regressions for repeated middle-signature edits with unchanged surrounding content.
+
+- Improved Snort Construct controls with visible native action/protocol/direction selectors, editable address/port presets and categorized additive flow choices. Aligned checkbox labels and centralized official references in a searchable Docs tab. Corrected service-based full-header guidance and added browser regressions for controls, alignment and link placement.
+
+- Added an editor-first Snort Rule Builder with semantic match groups, source-range inspectors, selection highlighting, byte assistance and bounded offline jobs. Multi-rule files remain intact: searchable signature selection tracks snapshot byte ranges and saves only the selected rule with atomic version checks. Save As and download operate on the selected signature; uncertain files offer whole-file inspection. Removed automatic splitting from browser/web/API uploads, preserved earlier split files, and standardized scoped action spacing. Added byte-preservation, selection, concurrency and browser regressions plus deployment documentation.
+
 - Enabled the shared Show Preview control for MITRE ATT&CK and MBC editors, including unsaved content and expanded mode. Kept save/edit controls locked in read-only cases while allowing authenticated, CSRF-protected Markdown rendering through the existing safe preview endpoint.
 
 - Made MIP Dashboard metric tiles apply shared stage filters and added multi-stage checkboxes to the Filters drawer. In progress includes analysis and packaging; All MIPs and Clear Filters clear stage, search and tag filters. Preserved filters when sorting or switching views, and made stage/search filters available without tag permissions.

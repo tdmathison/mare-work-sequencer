@@ -1616,3 +1616,223 @@ Runtime conversion uses pinned `stix2==3.0.2` and `stix2-patterns==2.1.2` with t
 The browser test covers keyboard editing, format tabs, selected-section targeting,
 preview correction, additive CSV/STIX imports, round-trip deduplication, stale
 preview reset, saved/draft downloads and narrow layout without external requests.
+
+### Snort Rule Builder — editor-first match groups
+
+**Tools → Snort Rule Builder** is an authenticated, case-independent source editor
+with a persistent case signature browser. It uses the existing MARE CodeMirror 6
+theme, undo/redo, line numbers, syntax highlighting and word wrap. The editor stays
+visible above Construct, Request bytes, Option library, Review & test and Docs. Adjust
+Editor height with the accessible slider; only that layout preference is stored
+in browser local storage. The browser is collapsible on narrow screens.
+
+#### Source and semantic outline
+
+Source is authoritative. `frontend/snort-model.js` recognizes source ranges and
+relationships; `frontend/snort-editor.js` patches those ranges through native
+CodeMirror transactions. Inspectors cover full/service headers, flow, content,
+common modifiers, sticky buffers, identity and references. Header actions and
+directions use native selectors; protocol/service choices include custom entry.
+Address/port preset selectors populate editable fields, including `$HOME_NET`,
+`$EXTERNAL_NET` and common server/port variables. Presets do not certify that a
+variable or service exists in the configured profile. Flow options can be added
+from categorized choices and removed individually, combining one option per
+category. Apply preserves source ranges and validates incompatible combinations.
+All official documentation links are centralized in the searchable Docs tab;
+Construct and Option library no longer scatter links among editing actions. Unknown options remain
+source-editable components. Comments, unknown options, order and unrelated
+whitespace are retained. Caret movement selects outline components; outline
+selection highlights and scrolls source without taking editor focus. Gold marks
+the primary component; blue marks related buffer/match spans. Shared sticky
+buffers can govern several matches, rather than belonging exclusively to one.
+
+Add component and library insertion require an explicit location. Removal checks
+known relative-match dependencies and asks for confirmation. Only independent
+references can be moved through buttons in this version; detection constructs
+must be reordered deliberately in source because order can change meaning.
+Formatting is an explicit undoable action, never an implicit load-time rewrite.
+Incomplete source remains untouched; unsafe inspector operations are disabled
+until reparsing succeeds. This is a bounded lexical model, not a complete Snort
+compiler. Source files are limited to 100,000 UTF-8 bytes. Uniform LF/CRLF endings
+are preserved while editing; mixed line endings are retained on unchanged saves
+and normalized to the detected convention after an edit.
+
+The supplied ProxyBack example is loaded exactly, including its legacy HTTP
+modifiers and `alert http` full header. It is reference data, never a fetched URL
+or a claim of Snort 3 compatibility. Legacy trailing HTTP modifiers attach to the
+preceding content; Snort 3 sticky buffers attach to following matches. Standalone
+legacy modifiers provide dialect evidence. Ambiguous buffer-after-content source
+requires the analyst to choose Legacy or Snort 3 interpretation before content
+inspection is enabled. That choice changes interpretation, not source.
+
+Conversion is explicitly previewed before application. Conservative legacy
+conversions move per-content selectors before matches and convert supported
+standalone modifiers to comma modifiers. Unknown/context-sensitive options,
+advanced/relative modifiers and service-specific conversions outside the verified
+subset block automatic application. Service names are valid in full Snort 3
+headers; detected-service matching still requires the configured inspector.
+The example's `http` header is never silently changed
+to `tcp` or a two-field service header. Even an applied conversion requires actual
+engine validation and representative target/baseline tests. Parser success,
+compatibility findings, quality heuristics, engine validation and PCAP results are
+shown separately. SID warnings cover the selected case/current source, not global
+uniqueness.
+
+References: [official Snort 3 rule guide](https://docs.snort.org/rules/),
+[content syntax](https://docs.snort.org/rules/options/payload/content),
+[HTTP buffers](https://docs.snort.org/rules/options/payload/http/),
+[service headers](https://docs.snort.org/rules/headers/service_rules),
+[protocol headers](https://docs.snort.org/rules/headers/protocols),
+[legacy HTTP modifiers](https://www.snort.org/faq/readme-http_inspect),
+[CLI discovery](https://docs.snort.org/start/help), and
+[JSON alerts](https://docs.snort.org/start/alert_logging).
+
+#### Case files, signature selection and drafts
+
+Select a case by number/title and open an actual `.rules` file recursively under
+its `signatures/` directory. Save updates its original path; Save as selects a case
+and relative filename. Existing permissions, stage and active-owner restrictions
+remain authoritative. Content hashes detect concurrent changes; selected-rule
+overwrite is blocked, while separate Save As collisions require confirmation. Save/discard/cancel protects
+unsaved content before opening files, switching cases or creating a new rule.
+Download never counts as a completed save without explicit analyst confirmation.
+Drafts are autosaved per immutable user UUID in `MARE_DATA_DIR/snort-drafts/`, not
+browser storage or case tables. Separate tabs for one account use last-writer-wins
+drafts. Wait for the draft-saved status before closing/reloading; a pending
+network save cannot guarantee persistence after abrupt browser termination.
+
+Multi-rule `.rules` files now remain intact. Web and API asset uploads preserve
+original filenames and bytes (within the existing size/path/overwrite limits).
+Files previously split by older versions are left alone; no automatic combining
+or recovery-copy reconstruction occurs. The former normalization endpoint returns
+410 and never mutates files.
+
+Opening a multi-rule file displays a searchable **Select signature** dialog with
+message, SID, revision, header, source line range, source-order position and a
+preview. Missing/duplicate SIDs do not affect selection. The editor contains only
+the chosen rule; its complete UTF-8 file snapshot (including BOM where present)
+is retained separately. **Change signature** uses the same save/discard/cancel
+flow as changing files or cases. File context shows Signature X of Y.
+
+Save replaces the exact selected byte span under the per-case file lock, checked
+against the loaded file hash. The server revalidates the range against active
+rule boundaries and requires exactly one complete rule in the editor. All bytes
+outside that span remain unchanged, including other signatures, adjacent comments,
+disabled rules, directives and mixed LF/CRLF endings. SIDs/messages are metadata,
+never replacement identities. After saving, boundaries and the selected position
+are refreshed. A disk change blocks selected-rule overwrite; reload explicitly or
+Save As. The tool never guesses a relocated target.
+
+**Save As** writes only the selected rule to a separate destination, with explicit
+collision confirmation; it cannot replace the original selected file. **Download
+selected signature** downloads only the editor rule. Draft autosave does not mark
+a case file as saved. Files with no safely bounded rules offer whole-file source
+inspection with selected-rule saving/inspectors disabled. When a later region
+fails, a diagnostic gives the filename, line/column, reason, short excerpt and
+safe-signature count. The completed prefix remains selectable; scanning stops at
+the first uncertain region without guessing where subsequent rules begin.
+The open dialog offers safe-signature selection or whole-file inspection.
+Saving a safe prefix rule also verifies that the unchanged uncertain suffix has
+the same diagnostic at its adjusted source position.
+Whole-file inspection has an explicitly labeled source download for recovery.
+
+The shared `signature_files.py` scanner recognizes multiline/full/service headers,
+quoted escapes and punctuation, hex content, multiple rules per line, line comments,
+and Snort 3 `/* … */` inline/multiline comments (including parentheses/quotes),
+matched disabled blocks and common single-line directives (`include`, `var`,
+`ipvar`, `portvar`, `config`, `preprocessor`, `output`, `ruletype`). Unknown or
+multiline configuration syntax, unmatched disabled blocks, incomplete rules and
+unquoted nested parentheses fail closed for selected editing. Non-UTF-8 source
+requires deliberate conversion before inspection; the tool never guesses an
+encoding. Block comments crossing single-line directive boundaries remain
+unsupported and stop scanning. Typographic quote delimiters and missing opening
+quotes are reported; the tool never silently repairs them. For example, an
+unquoted regex parenthesis after `pcre:/...` needs the missing ASCII opening
+quote corrected, rather than relaxed boundary checks. Compare the
+[official Snort rule/comment syntax](https://docs.snort.org/rules/) and
+[PCRE syntax](https://docs.snort.org/rules/options/payload/pcre).
+Rule-file inspection is lexical, not Snort engine validation; recognizing a
+complete option block does not certify option spelling, semantics or compatibility.
+
+Inventory/open GETs never change files. Atomic writes preserve artifact metadata,
+set readiness Pending and use normal revision/search/audit mechanisms. Existing
+permissions, ownership and lifecycle restrictions apply. No complete file is
+regenerated from parsed rules, and no selected rule is appended as a duplicate.
+
+Request bytes accepts at most 4,096 whitespace-separated byte pairs. Select by
+mouse, arrows/Shift+arrows, or numeric range. Adding/replacing content imposes no
+positioning. Applying offset/depth is separate and requires the matching transport
+payload or exact application-buffer origin. Full-frame offsets are refused;
+this version performs no packet decoding or HTTP buffer normalization.
+
+#### Snort execution setup and isolation
+
+Editing, saving and downloads work without an engine. Install Snort **3** using its
+[official installation instructions](https://docs.snort.org/start/installation).
+No dependencies are downloaded at startup. Configure trusted absolute paths:
+
+```sh
+export MARE_SNORT_EXECUTABLE=/usr/local/bin/snort
+export MARE_SNORT_PROFILE=/etc/mare/snort-profile/snort.lua
+export MARE_SNORT_RUNNER=/usr/local/libexec/mare-snort-offline
+```
+
+Install `deploy/snort-offline-runner.py` at the runner path as an
+administrator-owned executable. The service user must not be able to modify the
+engine, runner or profile. Use a dedicated profile-only directory containing its
+required defaults/rules; configure HTTP/stream inspectors and HOME_NET/EXTERNAL_NET
+as appropriate. Do not include unrelated production rules, which would contaminate
+alert counts. The runner requires Linux, `/usr/bin/bwrap`, unprivileged user
+namespaces, and an engine installed below `/usr`. Never run MARE or Snort as root.
+The runner must terminate its sandbox if its parent dies (the supplied wrapper
+uses bubblewrap `--die-with-parent`). Process-group termination is preferred; a
+host denial falls back to direct-child termination under that contract.
+It creates private network/PID/mount namespaces, private `/tmp`, read-only runtime
+and profile mounts, read-only rule/capture inputs and a per-job writable `/work`.
+Control/ownership files remain outside that mount. Place application/job data
+outside `/usr`, `/bin`, `/sbin` and runtime library mounts. Mount only a dedicated
+profile directory; never include application secrets there. Site administrators
+must maintain the kernel/Snort, filesystem quotas and appropriate cgroup/OS policy.
+macOS supports the editor; execution needs an audited isolated runner implementing
+the same contract, rather than direct unsandboxed Snort execution.
+
+Version, `--help-options` and `--list-modules` discovery is cached for five minutes.
+Catalog labels distinguish discovered modules from curated help; they do not
+certify all plugin options. Jobs use `-T` validation, then fixed offline `-r` PCAP
+arguments with `alert_json`, bounded diagnostics and fixed logger fields. Ordinary
+users cannot supply executable/configuration/plugin paths or flags. The interface
+never enables live capture or executes uploaded artifacts. Target and optional
+baseline results remain separate; successful zero matches differ from errors.
+
+Optional environment settings (enforced bounds):
+
+- `MARE_SNORT_TIMEOUT`: 1–60 seconds per invocation, default 30.
+- `MARE_SNORT_UPLOAD_LIMIT`: 1,024–41,943,040 bytes per capture, default 20 MiB.
+- `MARE_SNORT_CONCURRENCY`: 1–4 cross-worker slots, default 2.
+- `MARE_SNORT_JOB_TTL`: 60–86,400 seconds for job metadata, default 3,600.
+- `MARE_SNORT_PCAPNG=1`: only after confirming support in the configured engine.
+
+Captures are checked by content, stored temporarily under private
+`MARE_DATA_DIR/snort-jobs/<id>/work/`, and removed on success/failure/cancellation.
+Abandoned jobs are cleaned at startup and subsequent tool/job requests. Bounded
+stdout/stderr are 64 KiB each; alert files are capped at 16 MiB with at most 200
+alerts displayed. Cross-worker file leases prevent cleanup of running jobs.
+Installation backups exclude transient jobs; drafts remain included. Captures
+are never automatically saved into a case or browser storage. Save them separately
+through the existing asset workflow only when intended.
+
+Verification:
+
+```sh
+npm run build:editors
+node tests/browser/snort-model.cjs
+.venv/bin/python -m pytest -q tests/test_snort.py tests/test_tools.py tests/test_navigation.py
+MARE_BROWSER_EXECUTABLE='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' node tests/browser/snort-builder.cjs
+```
+
+Fake-engine tests verify job lifecycle, never Snort compatibility. The separate
+real integration test skips unless all three engine/profile/runner variables are
+configured; it validates the rule and checks target versus baseline alerts using
+harmless synthetic fixtures under `tests/fixtures/snort/`. After deployment test
+real engine errors, PCAP/PCAPNG support, cancellation/cleanup, browser console,
+reverse proxy upload/time limits, narrow layouts and unchanged case permissions.

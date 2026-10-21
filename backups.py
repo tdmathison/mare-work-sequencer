@@ -276,7 +276,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     archive.write(snapshot, 'data/workflow.sqlite3')
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
-                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] == 'search-index' or file.name in ('.backup.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
+                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs') or file.name in ('.backup.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
                             continue
                         archive.write(file, Path('data')/rel)
             connection.commit()

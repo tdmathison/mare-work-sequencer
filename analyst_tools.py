@@ -47,6 +47,7 @@ def register_tools(app, db):
     app.extensions['analyst_tools'] = {}
     register_tool(app, CYBERCHEF)
     register_tool(app, AnalystTool('text-manipulation','Text Manipulation','One-shot text and IOC utilities','≡','tools_text_manipulation','native'))
+    register_tool(app, AnalystTool('snort-rule-builder','Snort Rule Builder','Editor-first match groups and offline testing','◇','tools_snort','native'))
     from text_manipulation import register_text_tool
     register_text_tool(app, db, require_tool)
     app.config.setdefault('CYBERCHEF_DIR', str(Path(app.root_path)/'vendor/cyberchef/dist'))

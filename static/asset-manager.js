@@ -84,11 +84,11 @@
     form.querySelector("fieldset").disabled = true;
     data.set("ajax", "1");
     try {
-      await request(form.action, data);
+      const uploaded = await request(form.action, data);
       form.elements.file.value = "";
       form.elements.description.value = "";
       status.textContent =
-        "Uploaded into " + data.get("category") + "/. Readiness needs review.";
+        uploaded.message || "Uploaded into " + data.get("category") + "/. Readiness needs review.";
       await load();
     } catch (e) {
       status.textContent = e.message;

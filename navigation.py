@@ -13,6 +13,7 @@ SECTION_ENDPOINTS = {
         "tools_cyberchef",
         "tools_text_manipulation",
         "tools_text_process",
+        "tools_snort", "snort_state", "snort_jobs", "snort_job", "snort_cancel", "snort_draft", "snort_download",
     },
     "users": {"users", "user_action"},
     "audit": {"audit_view", "audit_export_csv", "audit_export_all_zip"},
