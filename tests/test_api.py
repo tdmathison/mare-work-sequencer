@@ -179,7 +179,7 @@ def test_api_page_lists_endpoints_and_tokens(admin):
     response = client.post('/account/api-tokens', data={'csrf': 't', 'name': 'ui', 'expires_in_days': '7'})
     assert response.status_code == 302 and response.headers['Location'].endswith('/api#api-tokens')
     assert b'Reveal new token once' in client.get('/api').data
-    assert b'api-tokens' not in client.get('/account').data
+    assert b'api-tokens' not in client.get('/account', follow_redirects=True).data
 
 
 def test_case_name_gets_date_prefix(admin):

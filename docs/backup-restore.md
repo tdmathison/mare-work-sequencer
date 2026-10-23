@@ -1,7 +1,7 @@
 # Backup & Restore
 
 Administrators and roles granted `backups:manage` use **Backup & Restore** in the
-MARE navigation. The Export backup and Import archive tabs share the existing RAW,
+Settings → Import & Export. The Export backup and Import archive tabs share the existing RAW,
 installation-backup, family-report, and case synchronization services. The old
 Settings database download now links here. The former plaintext full-database API
 returns 410 with a link to the encrypted workspace; selective APIs remain supported. Individual case Backup shortcuts remain.
@@ -112,7 +112,7 @@ There is no unsafe whole-batch success claim or unsupported cancellation.
 1. Install the compatible application source and dependencies. Provision host
    services/configuration, environment secrets, service ownership and writable data
    **and parent directory**. Start a clean instance and create a bootstrap admin.
-2. Sign in, open Backup & Restore → Import archive, enter the backup passphrase and
+2. Sign in, open Settings → Import & Export → Import archive, enter the backup passphrase and
    select the complete archive. Wait for automatic validation.
 3. Review coverage, compatibility, file counts, restored administrator identity and
    replacement warning. Resolve blockers. Check the replacement acknowledgment and

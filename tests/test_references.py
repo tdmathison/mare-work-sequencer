@@ -48,6 +48,6 @@ def test_references_saved_then_rendered_in_manual_word(monkeypatch,tmp_path):
     page=client.get(base).data
     for removed in (b'Create AI draft',b'AI writing assistance',b'Use AI to populate Word template',b'Ingest indicators from report',b'name="appendices"',b'name="threat_overview"'):assert removed not in page
     assert b'Generate Word Report' in page and b'tab-references' in page and b'name="key_findings"' in page
-    assert b'OpenAI' not in client.get('/account').data
+    assert b'OpenAI' not in client.get('/account', follow_redirects=True).data
     with app.app_context():run('UPDATE cases SET stage=3 WHERE id=?',(cid,))
     assert post(base+'/references',rows='[]',revision='2').status_code==409

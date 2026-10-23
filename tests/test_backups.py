@@ -92,7 +92,7 @@ def test_invalid_backup_rejected_without_partial_import():
             archive.writestr(raw.namelist()[0].split('/')[0]+'/scripts/../../escape.txt',b'bad')
         data[entry['path']]=out.getvalue();entry['size']=len(out.getvalue());entry['sha256']=hashlib.sha256(out.getvalue()).hexdigest();data['backup.json']=json.dumps(index).encode()
     for value in [b'not zip',rewrite(malicious_path),rewrite(bad_hash),rewrite(traversal_inner)]:
-        assert post('/import-export/import',backup=(io.BytesIO(value),'invalid.zip')).location=='/import-export'
+        assert post('/import-export/import',backup=(io.BytesIO(value),'invalid.zip')).location=='/settings/import-export'
         with app.app_context():assert db().execute('SELECT count(*) FROM cases').fetchone()[0]==2
     # A late filesystem conflict rolls back database rows, numbering, and earlier moves.
     orphan=ROOT/'cases'/'3';orphan.mkdir();(orphan/'keep.txt').write_text('Existing orphan')
@@ -110,7 +110,7 @@ def test_invalid_backup_rejected_without_partial_import():
     assert not list(ROOT.glob('case-import-*'))
     assert client.post('/import-export/export',data={}).status_code==403
     with app.app_context():run("INSERT INTO report_jobs(id,case_id,status) VALUES('busy-backup',?,'running')",(cid,))
-    assert post('/import-export/export').location=='/import-export'
+    assert post('/import-export/export').location=='/settings/import-export'
 
 def test_single_raw_backup_restores_stage_owner_and_python_files():
     client,cid,uid,post=setup_backup_case()

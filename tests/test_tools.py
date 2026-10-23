@@ -38,7 +38,7 @@ def test_workspace_and_navigation(client):
     with app.app_context():
         run("UPDATE users SET role='Administrator'")
     html = client.get('/tools').data.decode()
-    assert html.index('METRICS') < html.index('TOOLS') < html.index('USERS')
+    assert html.index('METRICS') < html.index('TOOLS') < html.index('SETTINGS')
     assert b'TOOLS' not in app.test_client().get('/login').data
 
 
@@ -90,8 +90,8 @@ def test_local_assets_policy_and_no_database_changes(client, monkeypatch, tmp_pa
 def test_existing_session_restrictions(client):
     with app.app_context():
         run('UPDATE users SET forced=1')
-    assert client.get('/tools').location.endswith('/account')
-    assert client.get('/tools/cyberchef/app/assets/main.js').location.endswith('/account')
+    assert client.get('/tools').location.endswith('/settings/general')
+    assert client.get('/tools/cyberchef/app/assets/main.js').location.endswith('/settings/general')
     with app.app_context():
         run('UPDATE users SET forced=0,active=0')
     assert client.get('/tools').location.endswith('/login')
@@ -123,3 +123,32 @@ def test_installer_checksum_failure_preserves_assets(tmp_path):
     with pytest.raises(ValueError, match='checksum'):
         install(bad_archive, installed)
     assert (installed/'index.html').read_text() == 'existing installation'
+
+
+def test_dropdown_uses_available_registry_order_and_direct_tabs(client):
+    import html
+    import re
+    from analyst_tools import register_tool
+    tools=[AnalystTool('text-manipulation','Text Manipulation','Text utilities',endpoint='tools_text_manipulation',tool_type='native'),
+           AnalystTool('snort-rule-builder','Snort Rule Builder','Snort rules',endpoint='tools_snort',tool_type='native'),
+           AnalystTool('yara-rule-editor','YARA Rule Editor','YARA rules',endpoint='tools_yara',tool_type='native')]
+    for tool in tools:register_tool(app,tool)
+    def entries(page):
+        menu=page.split('id="tools-menu"',1)[1].split('</div>',1)[0]
+        return [(path,html.unescape(label)) for path,label in re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>',menu)]
+    page=client.get('/tools').text
+    assert entries(page)==[('/tools/'+tool.identifier,tool.name) for tool in [CYBERCHEF]+tools]
+    assert page.index('>API</a>')<page.index('>TOOLS</a>')<page.index('>SETTINGS</a>')
+    for tool in [CYBERCHEF]+tools:
+        response=client.get('/tools/'+tool.identifier)
+        assert response.status_code==200
+        assert 'data-navigation-tool="'+tool.identifier+'" aria-current="true"' in response.text
+        assert 'id="tool-tab-'+tool.identifier+'"' in response.text
+        assert 'data-url="/tools/'+tool.identifier+'"' in response.text
+    app.extensions['analyst_tools']['cyberchef']=replace(CYBERCHEF,enabled=False)
+    app.extensions['analyst_tools']['snort-rule-builder']=replace(tools[1],permission='users:manage')
+    page=client.get('/tools').text
+    assert entries(page)==[('/tools/text-manipulation','Text Manipulation'),('/tools/yara-rule-editor','YARA Rule Editor')]
+    assert 'href="/tools/text-manipulation" aria-current="page">TOOLS' in page
+    assert client.get('/tools/snort-rule-builder').status_code==403
+    assert client.get('/tools/snort-rule-builder/app/').status_code == 403

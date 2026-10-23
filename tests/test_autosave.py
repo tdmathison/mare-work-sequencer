@@ -11,7 +11,7 @@ def test_user_autosave_interval_is_private_and_validated():
     client=app.test_client()
     with client.session_transaction() as s:s.update(uid=uid,version=1,csrf='autosave-token')
     def post(value):return client.post('/account/autosave',data={'csrf':'autosave-token','autosave_minutes':value})
-    assert b'value="5"' in client.get('/account').data
+    assert b'value="5"' in client.get('/account', follow_redirects=True).data
     for value in ['1','7','60','1440']:
         assert post(value).status_code==302
         with app.app_context():

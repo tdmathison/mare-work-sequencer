@@ -1,7 +1,7 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block page_class %}backup-page{% endblock %}{% block content %}
+{% extends 'settings_shell.html' %}{% from 'base.html' import token %}{% block settings_page_class %}backup-page{% endblock %}{% block settings_content %}
 <link rel="stylesheet" href="{{url_for('static',filename='backup-workspace.css')}}"><script defer src="{{url_for('static',filename='backup-workspace.js')}}"></script>
 <div id="backup-workspace" data-create="{{url_for('backup_jobs_create')}}" data-jobs="{{url_for('backup_jobs_status',jid='JOB')}}" data-csrf="{{csrf}}" data-owner="{{user.user_uuid}}" data-resume-import="{{resume_import}}">
-<p class="backup-eyebrow">DATA OPERATIONS</p><h1>Backup &amp; Restore</h1><p class="muted">Recover the whole application or transfer selected data.</p>
+<p class="backup-eyebrow">DATA OPERATIONS</p><h2>Backup &amp; Restore</h2><p class="muted">Recover the whole application or transfer selected data.</p>
 <nav class="backup-tabs" role="tablist" aria-label="Backup workflow"><button type="button" role="tab" id="export-tab" aria-controls="export-panel" aria-selected="true" data-tab="export">Export backup</button><button type="button" role="tab" id="import-tab" aria-controls="import-panel" aria-selected="false" data-tab="import">Import archive</button></nav>
 <section class="backup-panel" id="export-panel" role="tabpanel" aria-labelledby="export-tab"><h2>Choose what to back up</h2>
 <form id="backup-export">{{token(csrf)}}<input type="hidden" name="kind" value="export"><label class="backup-complete"><input type="checkbox" name="complete" value="1" id="complete-backup"><span><strong>Complete application backup</strong><small>Includes all application data, users, settings, relationships, and uploaded files. Intended for full recovery after installation.</small></span></label>

@@ -404,7 +404,7 @@ class ImportSync:
             if self.api():
                 return jsonify(operation=operation, error=message), 400
             flash("Import failed; no cases were added. " + message)
-            return redirect("/import-export")
+            return redirect("/settings/import-export")
         except Exception:
             shutil.rmtree(directory, ignore_errors=True)
             raise

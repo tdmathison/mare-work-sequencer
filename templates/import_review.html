@@ -1,4 +1,4 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+{% extends 'settings_shell.html' %}{% from 'base.html' import token %}{% block settings_content %}
 <div class="sync-review">
 <h1>Case synchronization review</h1>
 {% if shared %}<p class="notice">{% if shared.legacy %}This backup predates the shared family library. Destination profiles and attached reports are preserved.{% else %}Shared library: {{shared.profiles}} malware-family profiles, {{shared.osint}} OSINT links and {{shared.reports}} attached reports (including actual file content). Shared identity conflicts must be resolved before import. Shared data is applied atomically; case results follow the existing per-case workflow.{% endif %}</p>{% endif %}

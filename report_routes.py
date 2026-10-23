@@ -1,3 +1,4 @@
+from settings_navigation import saved_destination
 import os
 from contextlib import nullcontext
 import json
@@ -73,7 +74,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         f = request.files.get('template')
         if not f or not f.filename.lower().endswith('.docx'):
             flash('Upload a DOCX Word template.')
-            return redirect('/account')
+            return redirect('/settings/general')
         directory = ROOT/'users'/str(g.user['id'])/'templates'
         directory.mkdir(parents=True, exist_ok=True)
         tid = secrets.token_hex(16)
@@ -91,14 +92,14 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
             path.unlink(missing_ok=True)
             flash(str(exc) if isinstance(exc, ValueError)
                   else 'The Word template could not be read.')
-            return redirect('/account')
+            return redirect('/settings/general')
         run('INSERT INTO word_templates VALUES(?,?,?,?)',
             (tid, g.user['id'], Path(f.filename).name[:200], now()))
         run('INSERT OR REPLACE INTO report_settings VALUES(?,?)',
             (g.user['id'], tid))
         audit('Uploaded own Word template')
         flash('Template saved and selected.')
-        return redirect('/account')
+        return redirect(saved_destination('/settings/general'))
 
     @app.get('/account/templates/<tid>')
     def download_template(tid):
@@ -120,7 +121,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         (ROOT/'users'/str(g.user['id'])/'templates' /
          (tid+'.docx')).unlink(missing_ok=True)
         flash('Template removed.')
-        return redirect('/account')
+        return redirect('/settings/general')
 
     @app.get('/cases/<int:cid>/report-data')
     def report_data(cid):

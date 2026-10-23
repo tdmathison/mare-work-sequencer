@@ -120,7 +120,7 @@ def test_user_documentation_does_not_grant_api_permissions():
     assert client.get('/api/v1/backups/review/not-an-operation', headers=headers).status_code == 403
     with app.app_context():
         run('UPDATE users SET forced=1 WHERE id=?', (uid,))
-    assert client.get('/api/openapi.json').headers['Location'].endswith('/account')
+    assert client.get('/api/openapi.json').headers['Location'].endswith('/settings/general')
 
 
 def test_representative_contracts_with_isolated_write_upload_download_and_errors(docs):

@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from flask import abort, g, make_response, render_template, send_from_directory, url_for
+from flask import abort, g, make_response, render_template, send_from_directory, url_for, request
 from authorization import has_permission
 
 
@@ -53,13 +53,25 @@ def register_tools(app, db):
     register_text_tool(app, db, require_tool)
     app.config.setdefault('CYBERCHEF_DIR', str(Path(app.root_path)/'vendor/cyberchef/dist'))
 
-    def allowed(tool):
-        return tool.enabled and (not tool.permission or has_permission(g.user, tool.permission, db()))
+    def available_tools():
+        if not g.user:return []
+        return [tool for tool in app.extensions['analyst_tools'].values()
+                if tool.enabled and (not tool.permission or has_permission(g.user,tool.permission,db()))]
+
+    @app.context_processor
+    def tools_navigation():
+        tools=available_tools()
+        selected=(request.view_args or {}).get('tool_id') if request.endpoint=='tools_workspace' else None
+        if request.endpoint=='tools_workspace' and not selected and tools:selected=tools[0].identifier
+        entries=[dict(identifier=tool.identifier,label=tool.name,
+                      url=url_for('tools_workspace',tool_id=tool.identifier),active=selected==tool.identifier)
+                 for tool in tools]
+        return dict(tool_navigation=entries,tools_home_url=entries[0]['url'] if entries else None)
 
     @app.get('/tools')
     @app.get('/tools/<tool_id>')
     def tools_workspace(tool_id=None):
-        available = [tool for tool in app.extensions['analyst_tools'].values() if allowed(tool)]
+        available = available_tools()
         selected = require_tool(app, db, tool_id) if tool_id else (available[0] if available else None)
         response = make_response(render_template('tools.html', tools=available, selected=selected))
         response.headers['Cache-Control'] = 'no-store'

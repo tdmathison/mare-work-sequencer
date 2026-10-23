@@ -57,17 +57,17 @@ def test_rendered_application_sections(role, monkeypatch):
         "/metrics": "/metrics",
         "/tags": "/tags",
         f"/tags/{tid}": "/tags",
-        "/tools": "/tools",
-        "/tools/text-manipulation": "/tools",
-        "/account": "/account",
+        "/tools": "/tools/cyberchef",
+        "/tools/text-manipulation": "/tools/cyberchef",
+        "/settings/general": "/settings/general",
         "/api": "/api",
-        "/import-export": "/import-export",
+        "/settings/import-export": "/settings/general",
     }
     if role == "User":
-        pages.pop("/import-export")
+        pages.pop("/settings/import-export")
         assert client.get("/import-export").status_code == 403
     if role == "Administrator":
-        pages.update({"/users": "/users", "/audit": "/audit"})
+        pages.update({"/settings/users": "/settings/general", "/settings/audit": "/settings/general"})
     for path, parent in pages.items():
         response = client.get(path)
         assert response.status_code == 200, (path, response.status_code)
@@ -75,10 +75,10 @@ def test_rendered_application_sections(role, monkeypatch):
         assert [
             link["href"] for link in links if link.get("aria-current") == "page"
         ] == [parent], path
-        assert ("/users" in [link["href"] for link in links]) == (
+        assert ("/settings/users" in [link["href"] for link in links]) == (
             role == "Administrator"
         )
-        assert ("/audit" in [link["href"] for link in links]) == (
+        assert ("/settings/audit" in [link["href"] for link in links]) == (
             role == "Administrator"
         )
     if role == "User":
@@ -103,7 +103,7 @@ def test_endpoint_mapping(section, endpoints):
         ("/search/findings/example", "GET", "search"),
         ("/cases/1/file", "GET", "board"),
         ("/cases/1/backup", "POST", "board"),
-        ("/import-export/import-raw", "POST", "import_export"),
+        ("/import-export/import-raw", "POST", "settings"),
         ("/tools/cyberchef/app/main.js", "GET", "tools"),
         ("/account?next=/users&section=search", "GET", "settings"),
         ("/login", "GET", None),

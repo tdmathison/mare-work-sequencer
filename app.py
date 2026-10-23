@@ -1,3 +1,4 @@
+from settings_navigation import legacy_redirect, saved_destination, register_settings
 from tagging import register_tags, assignments as tag_assignments, case_filter, prototype as tag_prototype
 from indicators import register_indicators
 from api import register_api
@@ -422,7 +423,7 @@ def protect():
         if not g.user:
             return redirect('/login')
         if g.user['forced'] and request.endpoint not in ('account', 'logout'):
-            return redirect('/account')
+            return redirect(url_for('account'))
 
 
 @app.before_request
@@ -520,7 +521,7 @@ def login():
             session.permanent = True
             run('DELETE FROM attempts WHERE username=?', (username,))
             run('UPDATE users SET last_login=? WHERE id=?', (now(), u['id']))
-            return redirect('/account' if u['forced'] else '/')
+            return redirect(url_for('account') if u['forced'] else '/')
         count = a['count']+1 if a and stamp-a['window'] < 900 else 1
         run('INSERT OR REPLACE INTO attempts VALUES(?,?,?)',
             (username, count, a['window'] if count > 1 else stamp))
@@ -533,7 +534,10 @@ def logout(): session.clear(); return redirect('/login')
 
 
 @app.route('/account', methods=['GET', 'POST'])
+@app.route('/settings/general', methods=['GET', 'POST'])
 def account():
+    if request.method == 'GET' and request.path == '/account':
+        return legacy_redirect('account')
     if request.method == 'POST':
         p = request.form.get('password', '')
         if not check_password_hash(g.user['password'], request.form.get('current', '')):
@@ -546,7 +550,7 @@ def account():
             session['version'] += 1
             audit('Changed own password')
             flash('Password changed.')
-            return redirect('/')
+            return redirect(saved_destination('/'))
     password = sample_archive_password(
     ) if g.user['role'] == 'Administrator' else None
     return render_template('account.html', sample_archive_password=password)
@@ -561,11 +565,11 @@ def save_autosave_settings():
             raise ValueError()
     except ValueError:
         flash('Enter a positive whole number of minutes.')
-        return redirect('/account')
+        return redirect(url_for('account'))
     run('UPDATE users SET autosave_minutes=? WHERE id=?',
         (minutes, g.user['id']))
     flash('Autosave interval saved. It applies when case pages are opened or refreshed.')
-    return redirect('/account')
+    return redirect(saved_destination(url_for('account')))
 
 
 @app.post('/account/board-view')
@@ -573,10 +577,10 @@ def save_board_view():
     view = request.form.get('board_view')
     if view not in ('cards', 'table'):
         flash('Choose a valid board view.')
-        return redirect('/account')
+        return redirect(url_for('account'))
     run('UPDATE users SET board_view=? WHERE id=?', (view, g.user['id']))
     flash('Default board view saved.')
-    return redirect('/account')
+    return redirect(saved_destination(url_for('account')))
 
 
 @app.post('/account/sample-password')
@@ -585,11 +589,11 @@ def save_sample_archive_password():
     password = request.form.get('sample_archive_password', '')
     if not password or len(password) > 256 or '\x00' in password:
         flash('Enter a sample archive password of 1–256 characters.')
-        return redirect('/account')
+        return redirect(url_for('account'))
     run("INSERT INTO site_settings(name,value) VALUES('sample_archive_password',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", (password,))
     audit('Changed the sample archive password')
     flash('Sample archive password saved. It applies to future uploads only.')
-    return redirect('/account')
+    return redirect(saved_destination(url_for('account')))
 
 
 BOARD_SORT_COLUMNS = ('number', 'title', 'owner', 'creator', 'stage', 'reviewed')
@@ -1248,8 +1252,11 @@ def build_archive(cid, archive_type, include_samples=False):
 
 
 @app.route('/users', methods=['GET', 'POST'])
+@app.route('/settings/users', methods=['GET', 'POST'])
 @admin
 def users():
+    if request.method == 'GET' and request.path == '/users':
+        return legacy_redirect('users')
     if request.method == 'POST':
         username = request.form.get('username', '').strip()
         role = request.form.get('role')
@@ -1261,9 +1268,10 @@ def users():
                 (username, generate_password_hash(pw), role))
             audit('Created user '+username)
             flash(f'Temporary password for {username}: {pw}')
+            return redirect(saved_destination(url_for('users')))
         except sqlite3.IntegrityError:
             flash('Username already exists.')
-        return redirect('/users')
+        return redirect(url_for('users'))
     return render_template('users.html', users=db().execute('SELECT * FROM users ORDER BY username').fetchall())
 
 
@@ -1279,7 +1287,7 @@ def user_action(uid, action):
         abort(404)
     if uid == g.user['id']:
         flash('Use Settings for your own account.')
-        return redirect('/users')
+        return redirect(url_for('users'))
     if u['role'] == 'Administrator' and u['active'] and action in ('toggle', 'delete') and db().execute("SELECT count(*) FROM users WHERE role='Administrator' AND active=1").fetchone()[0] <= 1:
         abort(400)
     if action == 'toggle':
@@ -1297,12 +1305,15 @@ def user_action(uid, action):
     else:
         abort(404)
     audit(f'{action} user {u["username"]}')
-    return redirect('/users')
+    return redirect(url_for('users'))
 
 
 @app.get('/audit')
+@app.get('/settings/audit')
 @admin
 def audit_view():
+    if request.path == '/audit':
+        return legacy_redirect('audit_view')
     actors = [row['actor'] for row in db().execute(
         "SELECT DISTINCT actor FROM audit WHERE actor IS NOT NULL AND actor!='' ORDER BY actor")]
     selected_actor = request.args.get('actor', '')
@@ -1400,6 +1411,7 @@ register_snort(app, db, require_tool, ROOT, case, ensure_package, audit)
 from yara_tool import register_yara
 register_yara(app, db, require_tool, ROOT, case, ensure_package, audit, safe_path)
 register_navigation(app)
+register_settings(app, db)
 
 register_search(app, ROOT, db, CASE_QUERY, STAGES)
 

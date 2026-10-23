@@ -1107,7 +1107,9 @@ class BackupWorkspace:
 
         @app.get("/backup-restore")
         def backup_workspace_page():
-            return self.page()
+            self.require()
+            from settings_navigation import legacy_redirect
+            return legacy_redirect('import_export_page')
 
         @app.post("/backup-restore/jobs")
         @serialized

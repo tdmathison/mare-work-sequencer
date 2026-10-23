@@ -108,8 +108,8 @@ def test_registry_permissions_csrf_and_deprecated_plaintext_export():
     assert selection([], True)[0] == ["cases", "families", "tags"]
     with pytest.raises(ValueError):
         selection(["actors"])
-    assert c.get("/import-export").status_code == 200
-    assert "Complete application backup" in c.get("/backup-restore").text
+    assert c.get("/import-export", follow_redirects=True).status_code == 200
+    assert "Complete application backup" in c.get("/backup-restore", follow_redirects=True).text
     assert c.post("/backup-restore/jobs", data={"kind": "export"}).status_code == 403
     assert post(c, "/account/database-backup").status_code == 302
     assert (
@@ -122,7 +122,7 @@ def test_registry_permissions_csrf_and_deprecated_plaintext_export():
     with app.app_context():
         db().execute("UPDATE users SET role='User' WHERE id=?", (uid,))
         db().commit()
-    assert c.get("/backup-restore").status_code == 403
+    assert c.get("/backup-restore", follow_redirects=True).status_code == 403
     assert (
         post(c, "/backup-restore/jobs", kind="export", areas=["tags"]).status_code
         == 403

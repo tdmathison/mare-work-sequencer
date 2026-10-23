@@ -32,6 +32,15 @@ SECTION_ENDPOINTS = {
     "api": {"api_page", "create_account_api_token", "revoke_account_api_token"},
     "import_export": {"backup_workspace_page", "backup_jobs_create", "backup_jobs_status", "backup_jobs_download", "backup_jobs_preview", "backup_jobs_apply", "import_export_page", "backup_export", "backup_import", "sync_import_review", "sync_import_apply", "sync_api_review", "sync_api_apply"},
 }
+SETTINGS_CATEGORY_ENDPOINTS = {
+    'general': set(SECTION_ENDPOINTS['settings']) | {'settings_home'},
+    'users': set(SECTION_ENDPOINTS['users']),
+    'audit': set(SECTION_ENDPOINTS['audit']),
+    'import-export': set(SECTION_ENDPOINTS['import_export']),
+}
+for category in ('users','audit','import_export'):
+    SECTION_ENDPOINTS['settings'].update(SECTION_ENDPOINTS.pop(category))
+SECTION_ENDPOINTS['settings'].add('settings_home')
 ENDPOINT_SECTION = {
     endpoint: section
     for section, endpoints in SECTION_ENDPOINTS.items()

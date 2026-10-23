@@ -22,7 +22,7 @@ let log='',browser;server.stderr.on('data',data=>log+=data);
   assert.deepEqual(style,{color:'rgb(217, 174, 88)',decoration:'underline',thickness:'2px'});
   await active.focus();assert.equal(await active.evaluate(link=>getComputedStyle(link).outlineStyle),'solid');
  }
- for(const [route,parent] of [['/','/'],['/cases/new','/'],['/cases/1','/'],['/metrics','/metrics'],['/tags','/tags'],['/tools','/tools'],['/users','/users'],['/audit','/audit'],['/account','/account'],['/api','/api'],['/import-export','/import-export']]){
+ for(const [route,parent] of [['/','/'],['/cases/new','/'],['/cases/1','/'],['/metrics','/metrics'],['/tags','/tags'],['/tools','/tools/cyberchef'],['/settings/users','/settings/general'],['/settings/audit','/settings/general'],['/settings/general','/settings/general'],['/api','/api'],['/settings/import-export','/settings/general']]){
   await page.goto(base+route);await checkNavigation(parent);
  }
  await page.getByRole('link',{name:'SEARCH',exact:true}).click();await checkNavigation('/search');

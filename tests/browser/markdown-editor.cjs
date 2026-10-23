@@ -30,7 +30,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const cid=fixture.cid;
  await page.goto(`${base}/account`);
  await page.locator('input[name=template]').setInputFiles(fixture.template);
- await Promise.all([page.waitForURL(base+'/account'),page.getByRole('button',{name:'Upload & select template',exact:true}).click()]);
+ await Promise.all([page.waitForURL(base+'/settings/general'),page.getByRole('button',{name:'Upload & select template',exact:true}).click()]);
  await page.goto(`${base}/cases/${cid}?tab=report`);
  const source='textarea[name=executive_summary]';
  const section=page.locator('.manual-section').filter({has:page.locator(source)});

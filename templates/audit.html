@@ -1,7 +1,7 @@
-{% extends 'base.html' %}{% block content %}
-<h1>Audit history</h1><br/>
+{% extends 'settings_shell.html' %}{% block settings_content %}
+<h2>Audit history</h2><br/>
 <section class="panel">
-  <form class="audit-toolbar" method="get" action="/audit">
+  <form class="audit-toolbar" method="get" action="{{url_for('audit_view')}}">
     <label
       >User<select name="actor">
         <option value="">All users</option>

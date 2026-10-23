@@ -1,3 +1,4 @@
+{% from 'navigation_components.html' import dropdown_navigation %}
 {% macro application_nav_link(label, href, section) -%}
 <a href="{{href}}"{% if active_navigation == section %} aria-current="page"{% endif %}>{{label}}</a>
 {%- endmacro %}
@@ -11,6 +12,8 @@
     <link rel="stylesheet" href="{{url_for('static',filename='vendor/codemirror/markdown-editor.css')}}" />
     <script defer src="{{url_for('static',filename='vendor/codemirror/markdown-editor.js')}}"></script>
     <script defer src="{{url_for('static',filename='autosave.js')}}"></script>
+    <link rel="stylesheet" href="{{url_for('static',filename='settings-navigation.css')}}" />
+    <script defer src="{{url_for('static',filename='settings-navigation.js')}}"></script>
   </head>
   <body data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
     <header class="topbar">
@@ -47,22 +50,17 @@
       {{application_nav_link('METRICS', '/metrics', 'metrics')}}
       {% if can_families_read %}{{application_nav_link('MALWARE FAMILIES', url_for('families_workspace'), 'families')}}{% endif %}
       {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
-      {{application_nav_link('TOOLS', url_for('tools_workspace'), 'tools')}}
-      {% if user.role=='Administrator' %}
-      {{application_nav_link('USERS', '/users', 'users')}}
-      {{application_nav_link('AUDIT', '/audit', 'audit')}}
-      {% endif %}
-      {{application_nav_link('SETTINGS', '/account', 'settings')}}
       {{application_nav_link('API', '/api', 'api')}}
-      {% if user.role=='Administrator' or can_backups_manage %}{{application_nav_link('BACKUP & RESTORE', '/import-export', 'import_export')}}{% endif %}
+      {% if tool_navigation %}{{dropdown_navigation('TOOLS', 'Tools', tools_home_url, tool_navigation, 'tools-menu', active_navigation=='tools')}}{% endif %}
+      {% if settings_tabs %}
+      {{dropdown_navigation('SETTINGS', 'Settings', settings_home_url, settings_tabs, 'settings-menu', active_navigation=='settings')}}
+      {% endif %}
     </nav>
     {% endif %}
     <main class="page {% block page_class %}{% endblock %}">
       {% for message in get_flashed_messages() %}
       <div class="notice" role="status">{{message}}</div>
-      {% endfor %}{% block content %}{% endblock %}{% if
-      request.endpoint=='account' and user and user.role=='Administrator' %}{%
-      include 'sample_archive_settings.html' %}{% endif %}
+      {% endfor %}{% block content %}{% endblock %}
     </main>
     <footer>MARE Work Sequencer // Case Lifecycle Management</footer>
   <script src="{{url_for('static', filename='tags.js')}}" defer></script>

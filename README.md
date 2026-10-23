@@ -277,7 +277,7 @@ Case-modifying endpoints follow the same stage rules as the web interface (owner
 
 ## Analyst Tools Workspace
 
-The authenticated **Tools** tab sits between Metrics and Users and opens a full-width,
+The authenticated **Tools** dropdown follows API and precedes Settings, opening a full-width,
 case-independent workspace. CyberChef is the first utility. It retains its operation
 search, draggable recipes, input/output tabs, settings, files, and recipe import/export.
 Tools are lazy-loaded into retained panels: switching secondary tabs or using
@@ -2100,3 +2100,13 @@ three-family investigation pages, bounded 24-profile library strip, pause contro
 reduced-motion alternative and 60-second snapshot refresh use actual library data.
 See [Public Malware Families dashboard](docs/family-dashboard.md) for eligibility,
 metric definitions, privacy boundaries, paging and verification.
+
+### Consolidated Settings administration
+
+Settings now contains General, Users, Audit, and Import & Export at stable
+`/settings/...` URLs. Its text opens General; hover or the adjacent accessible
+button opens authorized category links. Existing bookmarks redirect with their
+query strings, mutation/export endpoints remain supported, and backup jobs survive
+category navigation. The redundant General backup shortcut is removed; recovery
+remains in Import & Export. See [Settings navigation](docs/settings-navigation.md)
+for permissions, unsaved-form handling and verification.

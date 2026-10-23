@@ -11,10 +11,10 @@ def test_audit_filter_day_groups_and_csv_export():
         run('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',('alice','Previous day action','2026-10-05T10:00:00+00:00'))
     client=app.test_client()
     with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='audit-token')
-    page=client.get('/audit').data.decode()
+    page=client.get('/audit', follow_redirects=True).data.decode()
     assert '<th>User</th>' in page and '<th>Actor</th>' not in page
     assert '<summary>2026-10-06' in page and '<summary>2026-10-05' in page
-    filtered=client.get('/audit?actor=alice').data.decode()
+    filtered=client.get('/audit?actor=alice', follow_redirects=True).data.decode()
     assert 'Action, with comma' in filtered and 'Previous day action' in filtered and 'Other user action' not in filtered
     response=client.get('/audit/export.csv?actor=alice')
     assert response.status_code==200 and response.mimetype=='text/csv'
@@ -28,7 +28,7 @@ def test_audit_screen_limits_to_latest_500_and_zip_exports_all_events():
         db().commit()
     client=app.test_client()
     with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='audit-all-token')
-    page=client.get('/audit').data.decode()
+    page=client.get('/audit', follow_redirects=True).data.decode()
     assert 'Event 0504' in page and 'Event 0005' in page and 'Event 0004' not in page
     response=client.get('/audit/export-all.zip?actor=user-1')
     assert response.status_code==200 and response.mimetype=='application/zip'

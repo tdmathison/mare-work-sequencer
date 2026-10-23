@@ -14,7 +14,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'/login');await page.getByLabel('Username').fill('family-browser');await page.getByLabel('Password',{exact:true}).fill('family-browser-password');
  await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
- await page.getByRole('link',{name:'BACKUP & RESTORE',exact:true}).click();await page.getByRole('heading',{name:'Backup & Restore'}).waitFor();
+ await page.getByRole('link',{name:'SETTINGS',exact:true}).hover();await page.locator('#settings-menu').getByRole('link',{name:'Import & Export',exact:true}).click();await page.getByRole('heading',{name:'Backup & Restore'}).waitFor();
  const area=key=>page.locator(`#backup-export [name=areas][value=${key}]`);
  assert.equal(await page.locator('#export-action').isDisabled(),true);assert.equal(await area('actors').isDisabled(),true);
  await page.locator('#complete-backup').check();for(const key of ['cases','families','tags'])assert.ok(await area(key).isChecked());

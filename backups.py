@@ -11,7 +11,7 @@ import tempfile
 import zipfile
 import sqlite3
 from pathlib import Path, PurePosixPath
-from flask import request, g, render_template, send_file, flash, redirect
+from flask import url_for, request, g, render_template, send_file, flash, redirect
 from indicators import load_table, validate_sections, DEFAULT_COLUMNS
 from references import load_references
 from reporting import SECTIONS, is_backup
@@ -255,7 +255,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             from flask import abort
             abort(403)
         if request.endpoint in ('database_backup','api.api_database_backup') and not getattr(g,'backup_worker',False):
-            return redirect('/backup-restore')
+            return redirect(url_for('import_export_page'))
         connection = db()
         connection.execute('BEGIN IMMEDIATE')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
@@ -265,7 +265,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 out.close()
                 flash(
                     'Wait for report generation to finish before creating the database backup.')
-                return redirect('/account')
+                return redirect(url_for('account'))
             with tempfile.TemporaryDirectory(prefix='mare-database-') as directory:
                 snapshot = Path(directory)/'workflow.sqlite3'
                 # Read through a second connection while the write reservation prevents database changes.
@@ -319,22 +319,27 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             connection.rollback()
             out.close()
             flash(str(exc))
-            return redirect('/account')
+            return redirect(url_for('account'))
         except Exception:
             connection.rollback()
             out.close()
             raise
 
     @app.get('/import-export')
+    @app.get('/settings/import-export')
     def import_export_page():
-        return app.extensions['backup_workspace'].page()
+        workspace=app.extensions['backup_workspace'];workspace.require()
+        if request.path == '/import-export':
+            from settings_navigation import legacy_redirect
+            return legacy_redirect('import_export_page')
+        return workspace.page()
 
     @app.post('/import-export/export')
     def backup_export():
         areas = set(getattr(g, "backup_areas", ("cases","families","tags")))
         if db().execute("SELECT 1 FROM report_jobs WHERE status IN ('queued','running')").fetchone():
             flash('Wait for report generation to finish before exporting the backup.')
-            return redirect('/import-export')
+            return redirect(url_for('import_export_page'))
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
             index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
@@ -404,7 +409,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         except ValueError as exc:
             out.close()
             flash(str(exc))
-            return redirect('/import-export')
+            return redirect(url_for('import_export_page'))
         except Exception:
             out.close()
             raise

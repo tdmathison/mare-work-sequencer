@@ -27,7 +27,7 @@ def test_assignment_creator_metrics_and_settings():
     assert b'MARE performance overview' in metrics and b'Weekly MIP creation activity' in metrics
     assert b'Current case pipeline' in metrics and b'current-owner attribution' in metrics
     assert b'All-time creator and current completed ownership snapshot' in metrics
-    settings=client.get('/account').data
+    settings=client.get('/account', follow_redirects=True).data
     assert b'OpenAI configuration' not in settings and b'name="template_id"' not in settings
     assert post('/cases',name='Assigned on creation',owner_id=str(owner)).status_code==302
     assert post('/account/ai',model='new-model').status_code==404

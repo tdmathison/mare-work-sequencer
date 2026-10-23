@@ -1,5 +1,5 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block page_class %}settings-page{% endblock %}{% block content %}
-<h1>Settings</h1><br/>
+{% extends 'settings_shell.html' %}{% from 'base.html' import token %}{% block settings_page_class %}settings-page{% endblock %}{% block settings_content %}
+
 <div class="columns">
     <section class="panel"><h2>Password</h2>
         {% if user.forced %}
@@ -14,9 +14,7 @@
     </section>
 </div>
 
-{% if user.role=='Administrator' %}
-    <section class="panel"><h2>Backup & Restore</h2><p class="muted">Complete recovery and selective data transfer now share one workspace, with encrypted complete backups and reviewed imports.</p><a href="{{url_for('import_export_page')}}">Open Backup & Restore</a></section>
-{% endif %}
+
 
 <section class="panel">
     <h2>Autosave</h2>
@@ -76,4 +74,5 @@
         </div>
     </div>
 </section>
+{% if user.role=='Administrator' %}{% include 'sample_archive_settings.html' %}{% endif %}
 {% endblock %}
