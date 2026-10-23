@@ -8,6 +8,7 @@ import shutil
 import uuid
 from family_reports import verify_report, storage_transaction, MAX_REPORTS
 from malware_families import family_tag, safe_url
+from family_aliases import load_aliases, validate_aliases, save_aliases
 from tagging import create as create_tag, now
 
 SCHEMA = "mare-family-library/1"
@@ -53,6 +54,7 @@ def export_library(connection, root):
         "SELECT f.*,t.name AS tag,i.identity FROM malware_families f JOIN tags t ON t.id=f.tag_id JOIN family_tag_identities i ON i.tag_id=t.id ORDER BY f.id"
     ):
         record = {key: row[key] for key in FIELDS}
+        record["aliases"] = load_aliases(row["aliases"])
         record.update(
             tag=row["tag"],
             tag_identity=row["identity"],
@@ -125,7 +127,7 @@ def validate_library(data, root):
             raise ValueError("Invalid shared library user reference.")
 
     for record in data["families"]:
-        if not isinstance(record, dict) or set(record) != set(FIELDS) | {
+        if not isinstance(record, dict) or (set(record) - {"aliases"}) != set(FIELDS) | {
             "tag",
             "tag_identity",
             "created_by",
@@ -134,6 +136,9 @@ def validate_library(data, root):
             "reports",
         }:
             raise ValueError("Invalid family library record.")
+        if 'aliases' in record:
+            if validate_aliases(record['aliases']) != record['aliases']:
+                raise ValueError('Family library aliases must be trimmed.')
         identity(record["id"])
         if (
             record["id"] in profiles
@@ -238,7 +243,11 @@ def check_conflicts(connection, root, data):
             state = connection.execute(
                 "SELECT * FROM family_import_state WHERE family_id=?", (fid,)
             ).fetchone()
-            if incoming == local or (
+            comparison = dict(current[fid])
+            if 'aliases' not in record:
+                # Older exports make no assertion about aliases. Never clear them.
+                comparison.pop('aliases', None)
+            if incoming == fingerprint(comparison) or (
                 state
                 and state["incoming_hash"] == incoming
                 and state["local_hash"] == local
@@ -324,6 +333,7 @@ def restore_library(connection, root, staged, data, registry=None):
                     user(record["updated_by"]),
                 ],
             )
+            save_aliases(connection, record["id"], record.get("aliases", []))
             for entry in record["osint"]:
                 connection.execute(
                     "INSERT INTO family_osint VALUES(?,?,?,?,?)",

@@ -6,6 +6,7 @@ producer; portable case imports remain independent merges of case work.
 """
 
 import hashlib
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -143,6 +144,10 @@ def validate_database(path, modern):
             )
             ids, tag_ids = set(), set()
             for row in profiles:
+                if 'aliases' in row.keys():
+                    from family_aliases import load_aliases
+                    if load_aliases(row['aliases']) != json.loads(row['aliases']):
+                        raise ValueError('Invalid untrimmed malware-family aliases.')
                 for field, limit in (
                     ("name", 200),
                     ("short_description", 1000),
@@ -375,6 +380,12 @@ def restore_installation(archive_path, destination):
                     raise ValueError(
                         "Installation record counts do not match the snapshot."
                     )
+        if has_families:
+            # Additive upgrade only after the original snapshot's hashes/counts
+            # have been verified. This also permits pre-alias complete recovery.
+            from family_aliases import initialize as initialize_aliases
+            with closing(sqlite3.connect(stage / 'workflow.sqlite3')) as connection:
+                initialize_aliases(connection)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():

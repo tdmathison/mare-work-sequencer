@@ -161,6 +161,7 @@ def test_encrypted_complete_export_and_actual_replacement(tmp_path):
         c,
         "/malware-families/new",
         name="Recovered family",
+        aliases=["Recovery Alias", "Other Name"],
         tag="MAL_RECOVERY",
         short_description="Recovered description",
     )
@@ -247,6 +248,7 @@ with app.app_context():
     assert db().execute("SELECT 1 FROM reserved_case_numbers WHERE number='MARE-2026-000050'").fetchone()
     assert (ROOT/('cases/'+str(case['id'])+'/mip/scripts/test.py')).read_bytes()==b'print("recovery")'
     family=db().execute('SELECT * FROM malware_families').fetchone()
+    assert __import__('json').loads(family['aliases'])==['Recovery Alias','Other Name']
     assert family['name']=='Recovered family' and family['tag_id']==db().execute('SELECT tag_id FROM case_tags').fetchone()[0]
     assert family['created_by']==db().execute("SELECT id FROM users WHERE username='recovery-admin'").fetchone()[0]
     assert db().execute('SELECT title FROM family_osint WHERE family_id=? ORDER BY position',(family['id'],)).fetchone()[0]=='Recovery research'
@@ -295,6 +297,10 @@ def test_selective_cases_families_and_tags_round_trips(tmp_path):
         ).status_code
         == 302
     )
+    with app.app_context():
+        from family_aliases import save_aliases
+        save_aliases(db(), fid, ['First Alias', 'Second name'])
+        db().commit()
     for area in ("cases", "families", "tags"):
         archive, job = export(c, [area], password="")
         source = tmp_path / (area + ".zip")
@@ -330,6 +336,7 @@ with app.app_context():
         assert db().execute('SELECT count(*) FROM malware_families').fetchone()[0]==0
     elif 'AREA'=='families':
         f=db().execute('SELECT * FROM malware_families').fetchone();assert f['id']=='FID' and f['created_by'] is None
+        assert json.loads(f['aliases'])==['First Alias','Second name']
         assert db().execute('SELECT count(*) FROM cases').fetchone()[0]==0
         report=db().execute('SELECT * FROM family_reports').fetchone()
         result=c.get('/malware-families/'+f['id']+'/reports/'+report['id']+'/download')

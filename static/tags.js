@@ -1,5 +1,37 @@
 /* Small tag controls; server-confirmed POSTs use the existing session and CSRF. */
 (()=>{
+  // Local profile chips reuse the case-tag visual and Enter/remove interaction,
+  // but never call shared tag APIs or normalize the display capitalization.
+  document.querySelectorAll('[data-alias-entry]').forEach(entry => {
+    const input = entry.querySelector('[name=alias_draft]'), chips = entry.querySelector('.family-aliases'), status = entry.querySelector('[role=status]');
+    const aliases = () => [...chips.querySelectorAll('input[name=aliases]')].map(el => el.value);
+    // Match Unicode casefold for common multi-character folds as well as case.
+    const key = value => [...value].map(char => char === 'ı' ? char : char.toUpperCase().toLowerCase()).join('');
+    function add() {
+      const value = input.value.trim();
+      if (!value) { status.textContent = 'Enter an alias.'; return false; }
+      if ([...value].length > 200 || /[\x00-\x1f\x7f]/.test(value)) { status.textContent = 'Use 1–200 characters without control characters.'; return false; }
+      if (aliases().some(alias => key(alias) === key(value))) { status.textContent = 'This alias is already added.'; return false; }
+      if (aliases().length >= 50) { status.textContent = 'Use at most 50 aliases.'; return false; }
+      const chip = document.createElement('span'); chip.className = 'tag-chip family-alias-chip';
+      const text = document.createElement('span'); text.textContent = value;
+      const hidden = document.createElement('input'); hidden.type = 'hidden'; hidden.name = 'aliases'; hidden.value = value;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.dataset.removeAlias = ''; remove.setAttribute('aria-label', `Remove alias ${value}`); remove.textContent = '×';
+      chip.append(text, hidden, remove); chips.append(chip); input.value = ''; status.textContent = `Added alias ${value}.`; return true;
+    }
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); add(); }
+    });
+    chips.addEventListener('click', event => {
+      const button = event.target.closest('[data-remove-alias]'); if (!button) return;
+      const chip = button.closest('.family-alias-chip'), value = chip.querySelector('input').value;
+      const next = chip.nextElementSibling?.querySelector('button') || chip.previousElementSibling?.querySelector('button') || input;
+      chip.remove(); next.focus(); status.textContent = `Removed alias ${value}.`;
+    });
+    entry.closest('form').addEventListener('submit', event => {
+      if (input.value.trim() && !add()) {event.preventDefault(); event.stopImmediatePropagation(); input.focus();}
+    }, true);
+  });
   const search = async (query, signal) => {
     const response = await fetch(`/tags/search?q=${encodeURIComponent(query)}`, {signal});
     if (!response.ok) throw Error('Unable to load tags. Please try again.');
