@@ -2090,3 +2090,13 @@ Tags offers direct View/Create malware family actions with identity-checked
 prefilling. Installation backup format 2 and Export All format 3 include actual
 report bytes and verify their SHA-256 during restore; older formats remain
 supported. See [report storage and recovery details](docs/malware-families.md).
+
+### Public malware-family research wall
+
+`/dashboards/malware-families` adds the anonymous Family spotlight dashboard, linked
+from login and the Cases wall. It exposes only profile names, linked tags, short
+descriptions, update dates and approved aggregate counts. The deterministic focus,
+three-family investigation pages, bounded 24-profile library strip, pause controls,
+reduced-motion alternative and 60-second snapshot refresh use actual library data.
+See [Public Malware Families dashboard](docs/family-dashboard.md) for eligibility,
+metric definitions, privacy boundaries, paging and verification.

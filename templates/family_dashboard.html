@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Malware families dashboard · MARE</title>
+<link rel="stylesheet" href="{{url_for('static',filename='mare.css')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='cases-dashboard.css')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='family-dashboard.css')}}">
+<script defer src="{{url_for('static',filename='family-dashboard.js')}}"></script></head>
+<body class="cases-wall family-wall" data-source="{{url_for('family_dashboard_data')}}">
+<header class="wall-header"><div class="wall-brand">MARE <span>//</span> WORK SEQUENCER</div>
+<nav aria-label="Dashboards"><a href="{{url_for('cases_dashboard')}}">Cases</a><span aria-current="page">Malware families</span><span>Threat actors <small>· Coming later</small></span></nav><a class="wall-login" href="{{url_for('login')}}">Login</a></header>
+<main><div class="wall-heading"><div><p class="eyebrow">MALWARE RESEARCH</p><h1>Know the families. Connect the findings.</h1></div><span class="public-label">PUBLIC VIEW / READ ONLY</span></div>
+<section class="wall-metrics" aria-label="Research library summary"><div><strong id="tracked_families">—</strong><span>Tracked families</span></div><div><strong id="families_in_progress">—</strong><span>Families with work in progress</span></div><div><strong id="unique_linked_cases">—</strong><span>Unique linked cases</span></div><div><strong id="reports_collected">—</strong><span>Reports collected</span></div></section>
+<div class="wall-columns"><section class="spotlight" aria-labelledby="focus-label"><p class="eyebrow" id="focus-label">FAMILY IN FOCUS</p><div id="featured"><h2>Waiting for research data</h2></div></section>
+<section class="investigations" aria-labelledby="investigation-heading"><div class="section-heading"><h2 id="investigation-heading">Families under investigation</h2><button id="active-pause" type="button" aria-pressed="false">Pause rotation</button></div><p id="page-position">Three families per page · rotates every 25 seconds</p><div id="active"></div><div class="page-controls"><button id="previous" type="button">Previous page</button><button id="next" type="button">Next page</button></div></section></div>
+<section class="completed-section" aria-labelledby="library-heading"><div class="section-heading"><div><p class="eyebrow">RESEARCH LIBRARY</p><h2 id="library-heading">Tracked malware families</h2></div><button id="strip-pause" type="button" aria-pressed="false">Pause scrolling</button></div>
+<div class="strip-viewport" tabindex="0" aria-label="Tracked families; focus to pause. Use left and right arrow keys to browse."><div class="strip-track"><div class="strip-group" id="tracked"></div></div></div><p id="library-empty" hidden>No malware-family profiles have been added yet.</p><div class="library-controls"><span id="library-position"></span><div class="page-controls"><button id="library-previous" type="button">Previous library page</button><button id="library-next" type="button">Next library page</button></div></div></section>
+</main><footer class="wall-footer"><span id="update-status" role="status">Loading dashboard…</span><span>Refresh every 60 seconds · <span id="display-zone">UTC</span></span></footer>
+</body></html>

@@ -418,7 +418,7 @@ def protect():
         request.max_content_length = 600000
     if request.method == 'POST' and (not session.get('csrf') or not secrets.compare_digest(session['csrf'], request.form.get('csrf', ''))):
         abort(403)
-    if request.endpoint not in ('login', 'static', 'cases_dashboard', 'cases_dashboard_data'):
+    if request.endpoint not in ('login', 'static', 'cases_dashboard', 'cases_dashboard_data', 'family_dashboard', 'family_dashboard_data'):
         if not g.user:
             return redirect('/login')
         if g.user['forced'] and request.endpoint not in ('account', 'logout'):
@@ -1415,6 +1415,8 @@ with app.app_context():
 from cases_dashboard import register_dashboard
 app.config['DISPLAY_TIMEZONE'] = os.environ.get('MARE_DISPLAY_TIMEZONE', 'UTC')
 register_dashboard(app, db)
+from family_dashboard import register_family_dashboard
+register_family_dashboard(app, db)
 
 from backups import validate_metadata
 from import_sync import ImportSync
