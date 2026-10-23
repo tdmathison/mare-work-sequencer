@@ -32,6 +32,8 @@
           </button>
         </form>
       </div>
+      {% elif request.endpoint == 'login' %}
+      <a class="login-dashboard-link" href="{{url_for('cases_dashboard')}}">Cases dashboard</a>
       {% endif %}
     </header>
     {% if user %}

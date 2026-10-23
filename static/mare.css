@@ -1059,3 +1059,7 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 :where(#panel-workbench, #panel-tasks, .task-workspace-dialog, .settings-page) label {
     font-size: 14px;
 }
+
+/* Only the anonymous login header link. */
+.topbar:has(.login-dashboard-link) { flex-wrap: wrap; gap: 18px; }
+.login-dashboard-link { color: var(--accent); margin-left: auto; white-space: nowrap; }

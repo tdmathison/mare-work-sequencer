@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cases dashboard · MARE</title>
+<link rel="stylesheet" href="{{url_for('static', filename='mare.css')}}">
+<link rel="stylesheet" href="{{url_for('static', filename='cases-dashboard.css')}}">
+<script defer src="{{url_for('static', filename='cases-dashboard.js')}}"></script>
+</head>
+<body class="cases-wall" data-source="{{url_for('cases_dashboard_data')}}">
+<header class="wall-header"><div class="wall-brand">MARE <span>//</span> WORK SEQUENCER</div>
+<nav aria-label="Dashboards"><span aria-current="page">Cases</span><span>Malware families <small>· Coming later</small></span><span>Threat actors <small>· Coming later</small></span></nav><a class="wall-login" href="{{url_for('login')}}">Login</a></header>
+<main>
+<div class="wall-heading"><div><p class="eyebrow">RESEARCH OPERATIONS</p><h1>Investigation. Intelligence. Delivery.</h1></div><span class="public-label">PUBLIC VIEW / READ ONLY</span></div>
+<section class="wall-metrics" aria-label="Case summary">
+<div><strong id="in_progress">—</strong><span>In progress</span></div><div><strong id="preparing">—</strong><span>Preparing for delivery</span></div><div><strong id="completed_month">—</strong><span>Completed this month</span></div><div><strong id="not_started">—</strong><span>Not started</span></div>
+</section>
+<div class="wall-columns"><section class="spotlight" aria-labelledby="spotlight-label"><p class="eyebrow" id="spotlight-label">✓ LATEST COMPLETED CASE</p><div id="latest"><h2>Waiting for case data</h2></div></section>
+<section class="investigations" aria-labelledby="active-heading"><div class="section-heading"><h2 id="active-heading">Under investigation</h2><button id="active-pause" type="button">Pause rotation</button></div><p id="page-position">Four cases per page · rotates every 15 seconds</p><div id="active"></div><div class="page-controls"><button id="previous" type="button">Previous page</button><button id="next" type="button">Next page</button></div></section></div>
+<section class="completed-section" aria-labelledby="recent-heading"><div class="section-heading"><div><p class="eyebrow">DELIVERED INTELLIGENCE</p><h2 id="recent-heading">Recently completed</h2></div><button id="strip-pause" type="button">Pause scrolling</button></div><div class="strip-viewport" tabindex="0" aria-label="Recently completed cases; focus to pause"><div class="strip-track"><div class="strip-group" id="recent"></div></div></div><p id="recent-empty" hidden>No additional completed cases yet.</p></section>
+</main><footer class="wall-footer"><span id="update-status" role="status">Loading dashboard…</span><span>Refresh every 60 seconds · <span id="display-zone">UTC</span></span></footer>
+</body></html>

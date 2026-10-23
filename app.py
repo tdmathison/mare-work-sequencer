@@ -416,7 +416,7 @@ def protect():
         request.max_content_length = 600000
     if request.method == 'POST' and (not session.get('csrf') or not secrets.compare_digest(session['csrf'], request.form.get('csrf', ''))):
         abort(403)
-    if request.endpoint not in ('login', 'static'):
+    if request.endpoint not in ('login', 'static', 'cases_dashboard', 'cases_dashboard_data'):
         if not g.user:
             return redirect('/login')
         if g.user['forced'] and request.endpoint not in ('account', 'logout'):
@@ -1402,6 +1402,14 @@ register_navigation(app)
 register_search(app, ROOT, db, CASE_QUERY, STAGES)
 
 register_tags(app, db, case)
+
+with app.app_context():
+    db().execute('CREATE INDEX IF NOT EXISTS history_case_sequence ON history(case_id,id)')
+    db().commit()
+
+from cases_dashboard import register_dashboard
+app.config['DISPLAY_TIMEZONE'] = os.environ.get('MARE_DISPLAY_TIMEZONE', 'UTC')
+register_dashboard(app, db)
 
 from backups import validate_metadata
 from import_sync import ImportSync

@@ -2026,3 +2026,48 @@ recovery and narrow layouts. Also verify dock resize/collapse, keyboard completi
 case asset selection, permissions and concurrent disk edits under the production
 reverse proxy. Configure proxy request limits for two sample uploads plus source
 and multipart overhead; do not expose the temporary data directory through Nginx.
+
+### Public cases delivery wall
+
+`/dashboards/cases` is an anonymous, read-only display, linked from the login
+header. `/dashboards/cases/data?page=0` is its dedicated public JSON projection.
+Only system case number, title (up to 200 characters), description (up to 1,200
+characters), lifecycle state and completion timestamp are exposed, alongside
+aggregate counts, snapshot time, display timezone and pagination metadata.
+Descriptions are displayed as plain-text summaries. No workbench links or
+report/package delivery claims are included. Case deletion removes the case
+from this view; the existing case model has no additional visibility flag.
+
+In progress includes Malware Analysis and Packaging & Delivery; preparing for
+delivery is the latter subset. Not started counts stage zero. Completed this
+month counts currently completed cases whose terminal Packaging & Delivery exit
+falls in the display timezone's calendar month. This follows the executive
+scorecard's terminal-exit interpretation of legacy merged stage history.
+Reopened cases are excluded from completed results. Missing, invalid or future
+completion dates display “Completion date unavailable” and do not contribute to
+the monthly count. Dated completions sort first; system number breaks ties.
+The wall defaults to the application's UTC convention. Set
+`MARE_DISPLAY_TIMEZONE` to an IANA timezone to change wall dates and month
+boundaries together. Other application views retain their existing UTC behavior.
+
+Active cases show four per page, ordered by Packaging & Delivery first, then
+latest dated transition and system number. Pages rotate every 15 seconds, with
+pause and manual paging controls. Each page request supplies an atomic snapshot
+of metrics, active page and completions. The dashboard also refreshes every 60
+seconds and when a hidden tab becomes visible. Requests never overlap, time out
+after 20 seconds, and retain the last valid display on failure. Responses are
+not cached. Queries and public payloads return at most four active cards, one
+spotlight and 20 recent completions; a case/history index supports history lookup.
+
+Recent completions exclude the spotlight. When they overflow, a presentation
+copy creates a seamless loop at 20 CSS pixels/second. Resize measurements control
+the loop distance; unchanged snapshots preserve the animation and explicit pause
+state. Hover, keyboard focus and the pause control stop motion. Reduced motion
+uses native horizontal scrolling and manual active paging. Few cards remain
+stationary. Titles and descriptions use bounded line summaries for wall display.
+
+Checks: `.venv/bin/python -m pytest -q tests/test_cases_dashboard.py` and
+`node tests/browser/cases-dashboard.cjs`. The browser test uses disposable data
+and installed Google Chrome by default; `MARE_BROWSER_EXECUTABLE` overrides its
+path. It checks 1920×1080, 1366×768 and mobile layouts, safe text, motion and loop
+geometry, pause, pagination, reduced motion, refresh retention and recovery.
