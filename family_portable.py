@@ -289,7 +289,7 @@ def check_conflicts(connection, root, data):
     return skip
 
 
-def restore_library(connection, root, staged, data):
+def restore_library(connection, root, staged, data, registry=None):
     validate_library(data, staged)
 
     def user(source):
@@ -303,6 +303,9 @@ def restore_library(connection, root, staged, data):
         return row[0] if row else None
 
     with storage_transaction(connection, root) as changes:
+        if registry:
+            from backup_areas import merge_registry
+            merge_registry(connection,registry)
         skip = check_conflicts(connection, root, data)
         for record in data["families"]:
             if record["id"] in skip:

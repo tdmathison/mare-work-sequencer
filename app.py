@@ -39,6 +39,8 @@ configured_data = Path(os.environ.get('MARE_DATA_DIR') or 'data').expanduser()
 ROOT = (configured_data if configured_data.is_absolute()
         else APP_DIR/configured_data).resolve()
 ROOT.mkdir(parents=True, exist_ok=True)
+from backup_workspace import bootstrap_guard
+backup_bootstrap_fd = bootstrap_guard(ROOT)
 secret = ROOT/'session.key'
 if not secret.exists():
     fd = os.open(secret, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -371,7 +373,7 @@ def protect():
             os.close(fd)
             raise
         g.backup_lock_fd = fd
-    if request.endpoint in ('backup_import', 'api.api_import_backup'):
+    if request.endpoint in ('backup_import', 'api.api_import_backup', 'backup_jobs_create'):
         request.max_content_length = 1024*1024*1024
     g.user = None
     if request.path.startswith('/api/v1/'):
@@ -1418,6 +1420,10 @@ from backups import validate_metadata
 from import_sync import ImportSync
 case_sync = CaseSync(app, ROOT, db, backup_helpers['case_metadata'], validate_metadata)
 ImportSync(app, ROOT, db, case_sync, backup_helpers, allocate_case_number, now)
+
+os.close(backup_bootstrap_fd)
+from backup_workspace import BackupWorkspace
+BackupWorkspace(app, ROOT, db, backup_helpers)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)

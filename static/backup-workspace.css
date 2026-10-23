@@ -1,0 +1,15 @@
+.backup-page h1 { margin-bottom:8px; }.backup-page .backup-eyebrow { font-size:11px;letter-spacing:.18em;color:var(--accent); }
+.backup-page .backup-tabs { display:flex;gap:24px;border-bottom:1px solid var(--line);margin:28px 0; }
+.backup-page .backup-tabs button { background:transparent;color:var(--muted);border-radius:0;border-bottom:2px solid transparent;padding:16px 6px; }
+.backup-page .backup-tabs [aria-selected=true] { color:var(--accent);border-bottom-color:var(--accent); }
+.backup-page .backup-panel { max-width:1240px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:32px; }
+.backup-page .backup-panel h2 { margin-top:0; }.backup-page .backup-complete { display:flex;align-items:flex-start;gap:16px;padding:22px;background:var(--panel-2);border:1px solid var(--accent-dim);border-radius:6px;margin:24px 0; }
+.backup-page input[type=checkbox] { display:inline-block;width:18px;height:18px;flex:none;margin:2px 0;accent-color:var(--accent); }
+.backup-page .backup-complete small { display:block;margin-top:10px;color:var(--muted);line-height:1.6; }.backup-page td,.backup-page th { vertical-align:top; }.backup-page th small { display:block;font-size:11px;color:var(--muted);margin-top:8px; }
+.backup-page label { margin-top:24px; }.backup-page input[type=password] { max-width:520px; }.backup-page #selection-summary { margin:24px 0;color:var(--accent); }.backup-page .muted { line-height:1.7; }
+.backup-page .backup-job { margin-top:24px;padding:16px;border-left:2px solid var(--accent);background:var(--panel-2); }
+.backup-page .backup-summary { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:24px 0; }.backup-page .backup-summary>div { padding:14px;background:var(--panel-2);overflow-wrap:anywhere; }.backup-page .backup-summary dt { color:var(--muted);font-size:12px;margin-bottom:7px; }.backup-page .backup-summary dd { margin:0; }
+.backup-page .backup-conflict { padding:18px;border:1px solid var(--accent-dim);margin:16px 0; }.backup-page .backup-conflict select { margin:12px 0; }.backup-page .backup-ack { display:flex;gap:14px;align-items:flex-start;line-height:1.6; }
+.backup-page #import-action,.backup-page #export-action { margin-top:16px; }.backup-page button:disabled { opacity:.4;cursor:default; }.backup-page #import-error { color:var(--danger);overflow-wrap:anywhere; }.backup-page [hidden] { display:none!important; }
+.backup-page details { overflow-wrap:anywhere; }.backup-page .backup-actions { display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:20px; }
+@media(max-width:700px) { .backup-page .backup-panel { padding:20px; }.backup-page .backup-summary { grid-template-columns:1fr; }.backup-page .backup-complete { padding:16px; }.backup-page th,.backup-page td { padding:12px; } }

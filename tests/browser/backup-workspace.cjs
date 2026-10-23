@@ -1,0 +1,45 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const {spawn}=require('node:child_process'),{chromium}=require('playwright');
+const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'mare-backup-browser-'));
+const real=fs.realpathSync(temporary),jobs=path.join(path.dirname(real),'.mare-backup-work-'+crypto.createHash('sha256').update(real).digest('hex').slice(0,16));
+const base='http://127.0.0.1:8797';
+const server=spawn('.venv/bin/python',['tests/browser/malware-families-server.py'],{env:{...process.env,MARE_DATA_DIR:temporary,MARE_FAMILY_BROWSER_TEST:'1',MARE_FAMILY_TEST_PORT:'8797'},stdio:['ignore','ignore','pipe']});
+let browser,log='';server.stderr.on('data',d=>log+=d);
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+(async()=>{
+ for(let i=0;;i++){try{await fetch(base+'/login');break;}catch(e){if(i>100||server.exitCode!==null)throw Error(log);await delay(100);}}
+ browser=await chromium.launch({headless:true,executablePath:process.env.MARE_BROWSER_EXECUTABLE||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+ const page=await browser.newPage({viewport:{width:1440,height:1000}});page.setDefaultTimeout(20000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/login');await page.getByLabel('Username').fill('family-browser');await page.getByLabel('Password',{exact:true}).fill('family-browser-password');
+ await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
+ await page.getByRole('link',{name:'BACKUP & RESTORE',exact:true}).click();await page.getByRole('heading',{name:'Backup & Restore'}).waitFor();
+ const area=key=>page.locator(`#backup-export [name=areas][value=${key}]`);
+ assert.equal(await page.locator('#export-action').isDisabled(),true);assert.equal(await area('actors').isDisabled(),true);
+ await page.locator('#complete-backup').check();for(const key of ['cases','families','tags'])assert.ok(await area(key).isChecked());
+ await area('cases').uncheck();assert.equal(await page.locator('#complete-backup').isChecked(),false);
+ await area('cases').check();assert.equal(await page.locator('#complete-backup').isChecked(),false);
+ await area('families').uncheck();await area('cases').uncheck();
+ await page.locator('#export-action').click();await page.getByRole('link',{name:'Download archive',exact:true}).waitFor();
+ let pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download archive',exact:true}).click();let downloaded=await pending;const selective=fs.readFileSync(await downloaded.path());
+ const csrf=await page.locator('#backup-workspace').getAttribute('data-csrf');
+ assert.equal((await page.request.post(base+'/__backup_tag_conflict',{form:{csrf}})).status(),200);
+ await page.locator('#import-tab').click();await page.locator('#backup-inspect [name=archive]').setInputFiles({name:'tags.zip',mimeType:'application/zip',buffer:selective});
+ await page.getByRole('heading',{name:'Reviewed import plan'}).waitFor();assert.ok(await page.locator('#import-action').isDisabled());
+ await page.locator('.backup-conflict select').selectOption('reuse');await page.getByRole('button',{name:'Generate new preview'}).click();
+ await page.waitForFunction(()=>!document.getElementById('import-action').disabled);
+ await page.locator('#import-action').click();await page.locator('#import-result > p').filter({hasText:'Reviewed merge finished.'}).waitFor();
+ await page.locator('#export-tab').click();await page.locator('#complete-backup').check();await page.locator('#backup-export [name=passphrase]').fill('a browser recovery passphrase');
+ await page.locator('#export-action').click();await page.locator('#import-tab').click();await page.locator('#export-tab').click();
+ await page.getByRole('link',{name:'Download archive',exact:true}).waitFor();pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download archive',exact:true}).click();downloaded=await pending;const complete=fs.readFileSync(await downloaded.path());
+ await page.locator('#import-tab').click();await page.locator('#backup-inspect [name=passphrase]').fill('a browser recovery passphrase');
+ await page.locator('#backup-inspect [name=archive]').setInputFiles({name:'complete.zip',mimeType:'application/zip',buffer:complete});
+ await page.locator('#replacement-ack').waitFor();assert.ok(await page.locator('#import-action').isDisabled());await page.locator('#ack-replace').check();assert.equal(await page.locator('#import-action').isDisabled(),false);
+ await page.reload();await page.locator('#replacement-ack').waitFor();assert.ok(await page.locator('#import-action').isDisabled(),'Reload must require renewed acknowledgement');
+ if(process.env.MARE_BACKUP_SCREENSHOT)await page.screenshot({path:process.env.MARE_BACKUP_SCREENSHOT,fullPage:true});
+ for(const viewport of [{width:1366,height:768},{width:390,height:844}]){await page.setViewportSize(viewport);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
+ await page.locator('#backup-inspect [name=archive]').setInputFiles({name:'bad.zip',mimeType:'application/zip',buffer:Buffer.from('invalid archive')});
+ await page.locator('#import-error').waitFor();assert.ok(await page.locator('#import-action').isDisabled());
+ assert.deepEqual(errors,[]);console.log('Backup workspace browser checks passed: selection, dependencies, complete encryption, auto preview, conflict resolution, import, acknowledgement, reload, tabs and responsive layout.');
+})().catch(e=>{console.error(log.slice(-3000));console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill();fs.rmSync(temporary,{recursive:true,force:true});fs.rmSync(jobs,{recursive:true,force:true});});

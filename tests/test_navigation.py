@@ -63,6 +63,9 @@ def test_rendered_application_sections(role, monkeypatch):
         "/api": "/api",
         "/import-export": "/import-export",
     }
+    if role == "User":
+        pages.pop("/import-export")
+        assert client.get("/import-export").status_code == 403
     if role == "Administrator":
         pages.update({"/users": "/users", "/audit": "/audit"})
     for path, parent in pages.items():

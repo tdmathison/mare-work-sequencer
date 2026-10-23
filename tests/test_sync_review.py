@@ -131,7 +131,8 @@ def test_rendered_review_preserves_form_indices_and_escapes_labels():
     )
     assert 'id="sync-group-unchanged" data-sync-panel hidden' in text
     assert 'id="sync-group-review" data-sync-panel hidden' not in text
-    assert 'href="/import-export" aria-current="page"' in text
+    # Case review remains usable without privileged system-backup navigation.
+    assert 'BACKUP &amp; RESTORE' not in text
 
 
 def test_single_group_and_processed_decisions():

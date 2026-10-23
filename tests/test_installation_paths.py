@@ -16,4 +16,10 @@ def test_moved_installation_data_independent_of_launch_directory(tmp_path,overri
     assert Path(json.loads(result.stdout))==expected
     assert (expected/'workflow.sqlite3').is_file() and (expected/'session.key').is_file()
     assert not (launch/'data').exists()
-    assert sorted(p.name for p in tmp_path.iterdir())==sorted(['mare-work-sequencer','other-launch-directory']+(['explicit-data'] if override=='absolute' else []))
+    expected_entries=['mare-work-sequencer','other-launch-directory']
+    if override=='absolute':
+        import hashlib
+        workspace='.mare-backup-work-'+hashlib.sha256(str(expected).encode()).hexdigest()[:16]
+        expected_entries.extend(['explicit-data',workspace])
+        assert (tmp_path/workspace).is_dir()
+    assert sorted(p.name for p in tmp_path.iterdir())==sorted(expected_entries)

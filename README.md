@@ -199,27 +199,34 @@ Indicator sections have an Edit section action for changing the title and descri
 
 Settings → Autosave controls your personal interval in whole minutes (default 5, minimum 1). Reopen or refresh case pages after changing it. Report sections, all indicator sections, and references save automatically at that interval, even when their tabs are hidden. Manual save remains available. Autosave preserves edits made during a save and does not rerender table cells or move editor focus. The status beside each editor/table shows save confirmation or errors; failed saves retain unsaved edits and retry at the next interval. Keep the case page open for autosave to run; it is not a substitute for saving before closing the browser. Not-started/completed cases are read-only, and report autosave pauses during generation.
 
-## Import & Export: portable case backups
+## Backup & Restore
 
-The top navigation has Import & Export after Settings. Export all cases downloads one ZIP containing a nested RAW MIP ZIP for every case, including Not started and unfinished cases. Each RAW package contains the working files plus case metadata needed to restore saved notes (including internal notes), tasks, readiness, history, deferred work, indicator sections, references, image registrations, and figure numbering. Export All also includes one shared malware-family library with OSINT, stable tag relationships and actual attached research report files, including families without cases. Shared import requires profile management permission and rejects conflicting identities. Individual case backups remain case-only. Accounts, API keys, user settings, private drafts, and case report backup folders are excluded. Save pending changes first; wait for report-generation jobs to finish.
+The privileged **Backup & Restore** workspace has focused Export backup and Import
+archive tabs, selective cases/families/tags, encrypted complete recovery, automatic
+validation and an explicit reviewed Import plan. Complete snapshots include every
+persistent table and managed file, credentials, keys, historical case-number
+reservations, family reports and actual assets. Threat actor profiles remain disabled.
 
-Import backup accepts an archive produced by Export all cases. It validates paths, package manifests, checksums, size limits, and case metadata before adding anything. A failed import rolls back added case rows and files. Existing cases are never replaced. Importing again creates another set of cases with new unique system numbers. The shared case-number sequence and reserved-number list prevent reuse.
-
-Each imported case retains its exported stage. For new cases, creator and assigned owner are resolved by exact username in the destination, even when account UUIDs differ between installations. An unmatched creator falls back to the importing account; an unmatched or absent owner remains Unassigned: use Case details → Save assigned owner to resume at the retained stage. Completed cases can be assigned an owner without reopening them. Saved task states, history, notes, files, indicators, and references are retained. Existing Word documents are preserved byte-for-byte, so any source case number inside their content remains until the analyst edits or regenerates the report.
-
-Limits: 1 GiB upload, 2 GiB total expanded case data, 1,000 cases, 256 MiB per case ZIP or individual file, and 64 MiB per metadata document. For larger backups, adjust these limits and reverse-proxy upload limits together. This format supports the same application version or newer versions that recognize mare-case-backup/1; single RAW MIP ZIPs produced by this version also contain restorable case metadata. Older standalone archives without case-data.json cannot restore case state and must be re-exported with this version.
+See [Backup & Restore](docs/backup-restore.md) for the persistent-data inventory,
+passphrases, scope/dependencies, merge conflicts, archive compatibility, limits,
+host prerequisites, failure rollback, and clean-instance recovery instructions.
 
 ## User identities and single-case backups
 
 Every account receives an immutable random identifier on creation or upgrade. Database backups preserve these IDs; independently created accounts with the same username have different IDs. Case backups export creator and assigned-owner usernames and identifiers. Imports resolve these roles by exact username, including older backups without user UUIDs; source numeric IDs are never used for destination attribution. Existing-case updates preserve the local creator and owner unless incoming ownership is explicitly selected; selecting incoming ownership applies the same username lookup. Matching an inactive account does not bypass the existing active-owner editing restriction. Case stage is retained regardless of whether ownership matches, and fresh system numbers are allocated as before.
 
-The MIP board’s Backup button downloads one case’s RAW package with restorable metadata, regardless of stage. It converts .py filenames to _py.txt (decode.py → decode_py.txt). Import & Export → Import single RAW MIP restores _py.txt filenames to .py before adding the case; matching artifact descriptions are restored too. Filename collisions fail safely. Changing these names can help with extension-based email restrictions, but does not guarantee acceptance by every mail filter. The ordinary RAW download also includes case metadata and is importable; the Backup button performs the additional filename conversion.
+The MIP board’s Backup button downloads one case’s RAW package with restorable metadata, regardless of stage. It converts .py filenames to _py.txt (decode.py → decode_py.txt). Backup & Restore → Import archive restores _py.txt filenames to .py before adding the case; matching artifact descriptions are restored too. Filename collisions fail safely. Changing these names can help with extension-based email restrictions, but does not guarantee acceptance by every mail filter. The ordinary RAW download also includes case metadata and is importable; the Backup button performs the additional filename conversion.
 
 ## Full installation backup and restore
 
-Administrators have Settings → Back up database & all MIP content. This is a separate restore archive containing data/workflow.sqlite3 plus all persistent files: case directories (including report backups), templates, session/encryption keys, and saved account settings. Accounts, permanent user IDs, ownership, and metadata are restored exactly. Report jobs must finish before backup; active HTTP writes are serialized with the backup on Ubuntu/Linux.
-
-Full installation backups also include malware-family profiles, ordered OSINT links, attached research report metadata and actual bytes, and tag relationships, including families with no cases. Versioned installation metadata records checksums, schema requirements and record counts. Stop MARE and recover into an absent directory with `.venv/bin/python scripts/restore_installation.py BACKUP.zip --destination /path/to/data`, restore service-account ownership and deployment configuration, then start this application version or a newer compatible version. Recovery replaces a whole instance and refuses populated destinations; it never merges unrelated IDs. Legacy installation ZIPs remain supported. See [Malware Families and installation recovery](docs/malware-families.md) for permissions, formats, limits, replacement semantics, secrets/configuration exclusions and the clean-instance recovery workflow.
+Use **Backup & Restore → Complete application backup** to create an encrypted
+recovery archive, then import it through the same workspace on a clean compatible
+installation. Replacement requires acknowledgment, retains a temporary rollback
+copy and ends existing sessions; sign in using restored administrator credentials.
+Settings links to this consolidated workflow. The offline installation restore
+script continues to support legacy plaintext installation ZIPs, not the encrypted
+`mare-backup/1` envelope. Follow the [recovery procedure](docs/backup-restore.md)
+for secrets, schema compatibility, host prerequisites and limitations.
 
 ## Autosave countdowns
 
@@ -255,7 +262,7 @@ Each endpoint requires a role permission (see `GET /api/v1/permissions`). New pe
 | Report images | `GET/POST /cases/<id>/report/images` (multipart `section` and `image`), `GET/DELETE /cases/<id>/report/images/<name>` |
 | Word templates | `GET/POST /templates` (multipart `template`), `PUT /templates/selected` (`{"template_id": "..."}`), `GET/DELETE /templates/<id>` |
 | Export and archive | `POST /cases/<id>/archive`, `POST /cases/<id>/backup` |
-| Backups | `POST /backups/export` (all cases), `POST /backups/import` (multipart `backup`), `POST /backups/import-raw` (single RAW MIP), `POST /backups/database` (Administrator) |
+| Backups | `POST /backups/export` (all cases), `POST /backups/import` (multipart `backup`), `POST /backups/import-raw` (single RAW MIP), `POST /backups/database` (retired, 410; use Backup & Restore) |
 | Metrics | `GET /metrics` |
 
 Example:

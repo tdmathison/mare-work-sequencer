@@ -254,6 +254,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         if g.user['role'] != 'Administrator' or not has_permission(g.user, 'backups:manage', db()):
             from flask import abort
             abort(403)
+        if request.endpoint in ('database_backup','api.api_database_backup') and not getattr(g,'backup_worker',False):
+            return redirect('/backup-restore')
         connection = db()
         connection.execute('BEGIN IMMEDIATE')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
@@ -288,7 +290,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     expanded = add_file(archive, snapshot, 'data/workflow.sqlite3', files)
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
-                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging') or file.name in ('.backup.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
+                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging') or file.name in ('.backup.lock', '.case-sync.lock', '.maintenance.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
                             continue
                         expanded = add_file(archive, file, (Path('data')/rel).as_posix(), files, expanded=expanded)
                     # Keep the pre-feature installation format usable for an
@@ -324,11 +326,12 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             raise
 
     @app.get('/import-export')
-    def import_export_page(): return render_template('import_export.html',
-                                                     case_count=db().execute('SELECT count(*) FROM cases').fetchone()[0])
+    def import_export_page():
+        return app.extensions['backup_workspace'].page()
 
     @app.post('/import-export/export')
     def backup_export():
+        areas = set(getattr(g, "backup_areas", ("cases","families","tags")))
         if db().execute("SELECT 1 FROM report_jobs WHERE status IN ('queued','running')").fetchone():
             flash('Wait for report generation to finish before exporting the backup.')
             return redirect('/import-export')
@@ -337,11 +340,20 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
             from family_portable import export_library
             from authorization import has_permission
-            library = export_library(db(), ROOT)
+            library = export_library(db(), ROOT) if "families" in areas else {"schema":"mare-family-library/1","families":[]}
             if library['families'] and not has_permission(g.user,'tags:read',db()):
                 from flask import abort
                 abort(403)
             index['family_library'] = library
+            needed={f['tag'] for f in library['families']}
+            if 'cases' in areas:needed.update(r[0] for r in db().execute('SELECT DISTINCT t.name FROM tags t JOIN case_tags ct ON ct.tag_id=t.id'))
+            registry=[dict(r) for r in db().execute('SELECT t.name,i.identity,t.created_at FROM tags t JOIN family_tag_identities i ON i.tag_id=t.id ORDER BY t.name') if 'tags' in areas or r['name'] in needed]
+            index['tag_registry']=registry
+            index['tagging']['tags']=[r['name'] for r in registry]
+            index['included_areas']=sorted(areas)
+            if 'cases' in areas:
+                index['case_numbers']={'sequence':db().execute('SELECT value FROM case_sequence WHERE id=1').fetchone()[0], 'reserved':[r[0] for r in db().execute('SELECT number FROM reserved_case_numbers ORDER BY number')]}
+
             total = 0
             with zipfile.ZipFile(out, 'w', zipfile.ZIP_STORED) as outer:
                 from family_reports import storage_path
@@ -350,9 +362,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                         outer.write(storage_path(ROOT,report['id']), 'library/'+report['storage_ref'])
                         total += report['size']
                         if total>MAX_TOTAL:raise ValueError('Backup exceeds the 2 GiB expanded limit.')
-                for row in db().execute('SELECT id FROM cases ORDER BY id').fetchall():
+                for row in (db().execute('SELECT id FROM cases ORDER BY id').fetchall() if 'cases' in areas else []):
                     cid = row['id']
-                    inner, name = case_backup(cid)
+                    inner, name = case_backup(cid, include_samples=getattr(g,"backup_include_samples",False))
                     try:
                         inner.seek(0)
                         with zipfile.ZipFile(inner) as check:
@@ -420,6 +432,14 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             members, _ = checked_members(outer)
             index = read_json(outer, 'backup.json')
             tag_catalog = validate_tags(index.get('tagging'))
+            if 'case_numbers' in index:
+                numbers=index['case_numbers']
+                if not isinstance(numbers,dict) or set(numbers)!={'sequence','reserved'} or type(numbers['sequence']) is not int or not 0<=numbers['sequence']<2**63 or not isinstance(numbers['reserved'],list) or len(numbers['reserved'])>100000 or any(not isinstance(n,str) or not n or len(n)>200 for n in numbers['reserved']):raise ValueError('Invalid case allocation metadata.')
+                (temporary/'case-numbers.json').write_bytes(json_bytes(numbers))
+            if 'tag_registry' in index:
+                from backup_areas import validate_tags as validate_registry
+                registry=validate_registry(index['tag_registry'])
+                (temporary/'tag-registry.json').write_bytes(json_bytes(registry))
             entries = index.get('cases')
             if index.get('schema') not in (SCHEMA, 'mare-case-backup/2', 'mare-case-backup/1') or not isinstance(entries, list) or len(entries) > 1000:
                 raise ValueError(
@@ -566,9 +586,30 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     # Store logical restored record paths; the uploaded ZIP remains unchanged.
                     meta['records'] = validated[3]
                     plans.append((folder.parent, validated, meta))
+        if getattr(g,'backup_workspace',False) and not (temporary/'tag-registry.json').exists():
+            # Legacy archives have no permanent tag identity. Use an archive-bound
+            # transfer identity and require explicit verification of name reuse.
+            names=set((tag_catalog or {}).get('tags',[]))
+            for _,validated,meta in plans:names.update((meta.get('tagging') or {}).get('tags',[]))
+            shared_file=temporary/'family-library.json'
+            shared=json.loads(shared_file.read_text()) if shared_file.exists() else {'families':[]}
+            known={f['tag']:f['tag_identity'] for f in shared['families']}
+            names.update(known)
+            source=temporary/('single.zip' if single else 'backup.zip')
+            h=hashlib.sha256()
+            with source.open('rb') as file:
+                while chunk:=file.read(1024**2):h.update(chunk)
+            registry=[{'name':name,'identity':known.get(name) or hashlib.sha256((h.hexdigest()+':'+name).encode()).hexdigest()[:32],'created_at':''} for name in sorted(names)]
+            (temporary/'tag-registry.json').write_bytes(json_bytes(registry))
         return plans, tag_catalog
 
     def shared_preview(directory):
+        if getattr(g,'backup_workspace',False):
+            from backup_areas import resolve
+            conflicts,mappings,library=resolve(db(),ROOT,directory,getattr(g,'backup_choices',{}))
+            if conflicts:raise ValueError('Resolve shared data conflicts in Backup & Restore.')
+            (Path(directory)/'family-library.json').write_bytes(json_bytes(library))
+            (Path(directory)/'resolved-tags.json').write_bytes(json_bytes(mappings))
         path=Path(directory)/'family-library.json'
         if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0}
         from family_portable import validate_library,check_conflicts
@@ -589,7 +630,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0}
         shared_preview(directory)  # Recheck permissions/conflicts at apply time.
         from family_portable import restore_library
-        result=restore_library(db(),ROOT,Path(directory)/'library',json.loads(path.read_text()))
+        registry_path=Path(directory)/'resolved-tags.json'
+        registry=json.loads(registry_path.read_text()) if getattr(g,'backup_workspace',False) and registry_path.exists() else []
+        result=restore_library(db(),ROOT,Path(directory)/'library',json.loads(path.read_text()),registry=registry)
         db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared malware-family library restored: '+json.dumps(result),now()))
         db().commit()
         return result

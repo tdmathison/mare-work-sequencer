@@ -972,7 +972,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     @api.post('/backups/database')
     @require('backups:manage')
     def api_database_backup():
-        return web_result(backup_helpers['database']())
+        return jsonify(error='Complete backups require passphrase-protected export in Backup & Restore.', workspace='/backup-restore'), 410
 
     @api.get('/metrics')
     @require('metrics:read')

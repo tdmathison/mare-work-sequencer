@@ -33,7 +33,7 @@ def test_all_case_backup_round_trip_owners_ids_tables_and_files():
     assert post(f'/cases/{cid}/indicators',sections=json.dumps(sections),revision='0').status_code==200
     sections=client.get(f'/cases/{cid}/indicators').json['sections']
     assert post(f'/cases/{cid}/references',rows=json.dumps([['https://example.com/research','Background']]),revision='0').status_code==200
-    assert b'IMPORT &amp; EXPORT' in client.get('/').data
+    assert b'BACKUP &amp; RESTORE' not in client.get('/').data  # System backup UI is privileged.
     exported=post('/import-export/export');assert exported.status_code==200
     outer=zipfile.ZipFile(io.BytesIO(exported.data));index=json.loads(outer.read('backup.json'));assert len(index['cases'])==2
     raw=zipfile.ZipFile(io.BytesIO(outer.read(index['cases'][0]['path'])))
@@ -180,8 +180,10 @@ def test_installation_database_backup_restores_accounts_keys_and_content(tmp_pat
         run("UPDATE users SET role='Administrator' WHERE id=?",(uid,))
         original=dict(db().execute('SELECT * FROM users WHERE id=?',(uid,)).fetchone())
     template_dir=ROOT/'users'/str(uid)/'templates';template_dir.mkdir(parents=True);(template_dir/'saved.docx').write_bytes(b'template')
-    backup=post('/account/database-backup');assert backup.status_code==200
-    archive=zipfile.ZipFile(io.BytesIO(backup.data));names=archive.namelist()
+    assert post('/account/database-backup').status_code==302
+    from test_malware_families import make_backup
+    backup=make_backup(client)
+    archive=zipfile.ZipFile(io.BytesIO(backup));names=archive.namelist()
     assert 'data/workflow.sqlite3' in names and 'data/session.key' in names and 'data/api-keys.key' not in names
     assert f'data/cases/{cid}/mip/scripts/decode.py' in names
     assert f'data/users/{uid}/templates/saved.docx' in names

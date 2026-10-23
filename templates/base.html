@@ -50,7 +50,7 @@
       {% endif %}
       {{application_nav_link('SETTINGS', '/account', 'settings')}}
       {{application_nav_link('API', '/api', 'api')}}
-      {{application_nav_link('IMPORT & EXPORT', '/import-export', 'import_export')}}
+      {% if user.role=='Administrator' or can_backups_manage %}{{application_nav_link('BACKUP & RESTORE', '/import-export', 'import_export')}}{% endif %}
     </nav>
     {% endif %}
     <main class="page {% block page_class %}{% endblock %}">

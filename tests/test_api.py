@@ -164,7 +164,7 @@ def test_backup_import_export_and_metrics(admin):
     assert raw.status_code == 202, raw.json
     assert client.post(raw.json['apply_url'],headers=headers,json={}).status_code==200
     database = client.post('/api/v1/backups/database', headers=headers)
-    assert database.status_code == 200 and 'data/workflow.sqlite3' in zipfile.ZipFile(io.BytesIO(database.data)).namelist()
+    assert database.status_code == 410 and database.json['workspace'] == '/backup-restore'
     metrics = client.get('/api/v1/metrics', headers=headers).json
     assert {'users', 'stages', 'completed'} <= set(metrics) and metrics['users'][0]['username'] == 'apiadmin'
 

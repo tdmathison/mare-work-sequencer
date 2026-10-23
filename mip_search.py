@@ -351,7 +351,13 @@ class SearchIndex:
         os.chmod(self.directory / "index.sqlite3", 0o600)
 
     def connect(self):
+        self.directory.mkdir(mode=0o700, exist_ok=True)
+        missing = not (self.directory / "index.sqlite3").exists()
         con = sqlite3.connect(self.directory / "index.sqlite3", timeout=10)
+        if missing:
+            con.executescript("""CREATE TABLE IF NOT EXISTS documents(id TEXT PRIMARY KEY,key TEXT UNIQUE,payload TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS status(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT);
+            INSERT OR IGNORE INTO status VALUES(1,'{"state":"pending","updated":0,"skipped":[]}');""")
         con.execute("PRAGMA journal_mode=WAL")
         return con
 
@@ -498,8 +504,13 @@ class SearchIndex:
 
     def _background(self):
         try:
-            with self.app.app_context():
-                self.refresh()
+            from contextlib import nullcontext
+            workspace = self.app.extensions.get("backup_workspace")
+            if workspace:
+                from backup_workspace import lock
+            with (lock(workspace.maintenance, False) if workspace else nullcontext()):
+                with self.app.app_context():
+                    self.refresh()
         finally:
             self.lock.release()
 
