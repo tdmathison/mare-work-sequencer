@@ -201,7 +201,7 @@ Settings → Autosave controls your personal interval in whole minutes (default 
 
 ## Import & Export: portable case backups
 
-The top navigation has Import & Export after Settings. Export all cases downloads one ZIP containing a nested RAW MIP ZIP for every case, including Not started and unfinished cases. Each RAW package contains the working files plus case metadata needed to restore saved notes (including internal notes), tasks, readiness, history, deferred work, indicator sections, references, image registrations, and figure numbering. Accounts, API keys, user settings, private drafts, and report backup folders are excluded. Save pending changes first; wait for report-generation jobs to finish.
+The top navigation has Import & Export after Settings. Export all cases downloads one ZIP containing a nested RAW MIP ZIP for every case, including Not started and unfinished cases. Each RAW package contains the working files plus case metadata needed to restore saved notes (including internal notes), tasks, readiness, history, deferred work, indicator sections, references, image registrations, and figure numbering. Export All also includes one shared malware-family library with OSINT, stable tag relationships and actual attached research report files, including families without cases. Shared import requires profile management permission and rejects conflicting identities. Individual case backups remain case-only. Accounts, API keys, user settings, private drafts, and case report backup folders are excluded. Save pending changes first; wait for report-generation jobs to finish.
 
 Import backup accepts an archive produced by Export all cases. It validates paths, package manifests, checksums, size limits, and case metadata before adding anything. A failed import rolls back added case rows and files. Existing cases are never replaced. Importing again creates another set of cases with new unique system numbers. The shared case-number sequence and reserved-number list prevent reuse.
 
@@ -219,7 +219,7 @@ The MIP board’s Backup button downloads one case’s RAW package with restorab
 
 Administrators have Settings → Back up database & all MIP content. This is a separate restore archive containing data/workflow.sqlite3 plus all persistent files: case directories (including report backups), templates, session/encryption keys, and saved account settings. Accounts, permanent user IDs, ownership, and metadata are restored exactly. Report jobs must finish before backup; active HTTP writes are serialized with the backup on Ubuntu/Linux.
 
-Install the application, stop the service, and unzip this archive into its source directory to restore data/. If MARE_DATA_DIR points elsewhere, restore the contents into that configured directory instead. Restore ownership to the service account, retain the deployment environment/TLS configuration, and restart. Application source and deployment configuration are not included. This archive contains credentials and encryption keys and should be kept private. Use the same application version or a newer compatible version.
+Full installation backups also include malware-family profiles, ordered OSINT links, attached research report metadata and actual bytes, and tag relationships, including families with no cases. Versioned installation metadata records checksums, schema requirements and record counts. Stop MARE and recover into an absent directory with `.venv/bin/python scripts/restore_installation.py BACKUP.zip --destination /path/to/data`, restore service-account ownership and deployment configuration, then start this application version or a newer compatible version. Recovery replaces a whole instance and refuses populated destinations; it never merges unrelated IDs. Legacy installation ZIPs remain supported. See [Malware Families and installation recovery](docs/malware-families.md) for permissions, formats, limits, replacement semantics, secrets/configuration exclusions and the clean-instance recovery workflow.
 
 ## Autosave countdowns
 
@@ -2071,3 +2071,15 @@ Checks: `.venv/bin/python -m pytest -q tests/test_cases_dashboard.py` and
 and installed Google Chrome by default; `MARE_BROWSER_EXECUTABLE` overrides its
 path. It checks 1920×1080, 1366×768 and mobile layouts, safe text, motion and loop
 geometry, pause, pagination, reduced motion, refresh retention and recovery.
+
+### Malware Families
+
+The authenticated Malware Families tab provides a profile workspace with Overview, ordered OSINT links and live tag-derived case History. It uses existing MAL_ tags and preserves case assignments during relinking or profile deletion. `tags:read` permits viewing; `tags:manage` permits management; `cases:read` controls linked-case counts and links. The additive `malware-families-v1` migration stores profiles and OSINT in SQLite. [Feature and recovery documentation](docs/malware-families.md) covers edit conflicts, tag protections, full-system backup and offline clean-instance restore. Profiles are internal and are not exposed through anonymous dashboards.
+
+Malware Families now supports **OSINT & Reports** with PDF/DOC/DOCX multi-file
+uploads, authenticated downloads, editable report metadata and confirmed removal.
+Reports use durable family-owned storage under `MARE_DATA_DIR/family-reports/`.
+Tags offers direct View/Create malware family actions with identity-checked
+prefilling. Installation backup format 2 and Export All format 3 include actual
+report bytes and verify their SHA-256 during restore; older formats remain
+supported. See [report storage and recovery details](docs/malware-families.md).

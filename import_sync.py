@@ -301,6 +301,7 @@ class ImportSync:
         directory.mkdir(mode=0o700)
         try:
             plans, catalog = self.backups["stage_upload"](upload, single, directory)
+            shared = self.backups["shared_preview"](directory)
             items = []
             for folder, validated, meta in plans:
                 classified = self.classify(validated, meta, folder / "mip")
@@ -320,7 +321,7 @@ class ImportSync:
                     }
                 )
             source = directory / ("single.zip" if single else "backup.zip")
-            plan = {"items": items, "catalog": catalog}
+            plan = {"items": items, "catalog": catalog, "shared":shared}
             self.db().execute(
                 "INSERT INTO sync_imports(id,user_id,filename,checksum,user_uuid,created,stage,status,plan) VALUES(?,?,?,?,?,?,?,?,?)",
                 (
@@ -348,6 +349,7 @@ class ImportSync:
                     jsonify(
                         operation=operation,
                         cases=[item["preview"] for item in items],
+                        shared=shared,
                         apply_url="/api/v1/backups/apply/" + operation,
                     ),
                     202,
@@ -418,6 +420,7 @@ class ImportSync:
                 operation=operation,
                 status=row["status"],
                 cases=items,
+                shared=plan.get("shared"),
                 outcomes=outcomes,
             )
         return render_template(
@@ -427,6 +430,7 @@ class ImportSync:
             items=items,
             outcomes=outcomes,
             status=row["status"],
+            shared=plan.get("shared"),
             totals={
                 key: sum(item["classification"] == key for item in items)
                 for key in (
@@ -912,6 +916,17 @@ class ImportSync:
         plan = json.loads(row["plan"])
         outcomes = []
         prior = {item["index"]: item for item in json.loads(row["outcomes"])}
+        if not plan.get("shared_applied"):
+            try:
+                plan["shared"]=self.backups["shared_restore"](self.staging/operation)
+                plan["shared_applied"]=True
+                self.db().execute('UPDATE sync_imports SET plan=? WHERE id=?',(encoded(plan).decode(),operation))
+                sqlite3.Connection.commit(self.db())
+            except (ValueError,OSError,sqlite3.Error) as error:
+                self.db().rollback()
+                if self.api():return jsonify(error=str(error)),409
+                flash('Shared family import failed safely: '+str(error))
+                return redirect(url_for('sync_import_review',operation=operation))
         restore_tags(self.db(), plan["catalog"])
         choices = request.get_json(silent=True) or {}
         for index, item in enumerate(plan["items"]):
@@ -968,6 +983,7 @@ class ImportSync:
         if self.api():
             return jsonify(
                 operation=operation,
+                shared=plan.get("shared"),
                 outcomes=outcomes,
                 status="preview" if unresolved else "complete",
             )

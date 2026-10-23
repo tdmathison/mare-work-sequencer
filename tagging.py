@@ -199,7 +199,8 @@ def register_tags(app, db, case):
     @app.get('/tags')
     def tags_manager():
         require('tags:read')
-        return render_template('tags.html', tags=catalog(db(), request.args.get('q',''), request.args.get('sort','name')), invalid_tags=invalid_legacy(db()))
+        profiles = {row['tag_id']:dict(row) for row in db().execute('SELECT id,tag_id,name FROM malware_families')}
+        return render_template('tags.html', tags=catalog(db(), request.args.get('q',''), request.args.get('sort','name')), invalid_tags=invalid_legacy(db()), family_profiles=profiles)
 
     @app.get('/tags/search')
     def tags_search():
@@ -269,6 +270,7 @@ def register_tags(app, db, case):
                 if operation == 'rename':
                     display = name(request.form.get('name'))
                     db().execute('UPDATE tags SET name=?,normalized_name=? WHERE id=?',(display,normalized(display),tid))
+                    db().execute('UPDATE malware_families SET updated_by=? WHERE tag_id=?', (g.user['id'],tid))
                     event(f'Tag renamed: id={tid}, previous={source["name"]}, new={display}')
                 elif operation == 'merge':
                     destination = request.form.get('destination','')
@@ -285,7 +287,8 @@ def register_tags(app, db, case):
                     event(f'Tag deleted: id={tid}, name={source["name"]}')
                 else: abort(404)
             flash('Tag catalog updated.')
-        except sqlite3.IntegrityError: flash('That tag name already exists. Merge the tags instead.')
+        except sqlite3.IntegrityError as exc:
+            flash(str(exc) if 'malware family' in str(exc) or 'MAL_' in str(exc) else 'That tag name already exists. Merge the tags instead.')
         except ValueError as exc: flash(str(exc))
         return redirect(f'/tags/{tid}' if operation == 'rename' else '/tags')
 

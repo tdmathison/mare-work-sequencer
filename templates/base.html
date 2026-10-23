@@ -41,6 +41,7 @@
       {{application_nav_link('MIP BOARD', '/', 'board')}}
       {% if can_mip_search %}{{application_nav_link('SEARCH', url_for('mip_search'), 'search')}}{% endif %}
       {{application_nav_link('METRICS', '/metrics', 'metrics')}}
+      {% if can_families_read %}{{application_nav_link('MALWARE FAMILIES', url_for('families_workspace'), 'families')}}{% endif %}
       {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
       {{application_nav_link('TOOLS', url_for('tools_workspace'), 'tools')}}
       {% if user.role=='Administrator' %}

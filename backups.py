@@ -1,6 +1,7 @@
 from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
 """Portable case backups: nested RAW packages plus validated workbench metadata."""
 import hashlib
+from contextlib import closing
 import io
 import json
 import re
@@ -16,7 +17,7 @@ from references import load_references
 from reporting import SECTIONS, is_backup
 from mip import CATEGORIES
 from zip_metadata import copied_info, generated_info, restore_mtime
-SCHEMA = 'mare-case-backup/2'
+SCHEMA = 'mare-case-backup/3'
 MAX_TOTAL = 2*1024**3
 MAX_FILE = 256*1024**2
 MAX_METADATA = 64*1024**2
@@ -249,7 +250,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
 
     @app.post('/account/database-backup')
     def database_backup():
-        if g.user['role'] != 'Administrator':
+        from authorization import has_permission
+        if g.user['role'] != 'Administrator' or not has_permission(g.user, 'backups:manage', db()):
             from flask import abort
             abort(403)
         connection = db()
@@ -272,20 +274,50 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 finally:
                     source.close()
                     destination.close()
+                from installation_backup import add_file, record_counts, SCHEMA as INSTALLATION_SCHEMA, FAMILY_MIGRATION
+                files = {}
+                with closing(sqlite3.connect(snapshot)) as snapshot_connection:
+                    snapshot_connection.row_factory = sqlite3.Row
+                    from family_reports import verify_report
+                    if snapshot_connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='family_reports'").fetchone():
+                        for report in snapshot_connection.execute('SELECT * FROM family_reports'):
+                            verify_report(ROOT, report)
+                    counts = record_counts(snapshot_connection)
+                    family_schema = snapshot_connection.execute("SELECT 1 FROM schema_migrations WHERE name=?", (FAMILY_MIGRATION,)).fetchone() is not None
                 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as archive:
-                    archive.write(snapshot, 'data/workflow.sqlite3')
+                    expanded = add_file(archive, snapshot, 'data/workflow.sqlite3', files)
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
-                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs') or file.name in ('.backup.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
+                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging') or file.name in ('.backup.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
                             continue
-                        archive.write(file, Path('data')/rel)
+                        expanded = add_file(archive, file, (Path('data')/rel).as_posix(), files, expanded=expanded)
+                    # Keep the pre-feature installation format usable for an
+                    # instance awaiting the explicit prototype-tag migration.
+                    if family_schema:
+                        metadata = json_bytes({
+                            'schema': INSTALLATION_SCHEMA, 'required_migration': FAMILY_MIGRATION,
+                            'created': now(), 'counts': counts, 'files': files})
+                        if len(metadata) > MAX_METADATA:
+                            raise ValueError('Installation metadata exceeds the recovery limit.')
+                        archive.writestr(generated_info('installation.json'), metadata)
+                out.seek(0)
+                with zipfile.ZipFile(out) as archive:
+                    checked_members(archive)
             connection.commit()
             out.seek(0)
-            audit('Created full database and MIP content backup')
+            summary = ', '.join(f'{value} {key}' for key,value in counts.items())
+            audit('Created full database and MIP content backup: '+summary)
+            flash('Installation backup includes '+summary+'.')
             response = send_file(out, as_attachment=True, download_name='MARE-installation-backup-'+now()[
                                  :19].replace(':', '-')+'.zip', mimetype='application/zip')
+            response.headers['X-MARE-Backup-Counts'] = json.dumps(counts, separators=(',', ':'))
             response.call_on_close(out.close)
             return response
+        except ValueError as exc:
+            connection.rollback()
+            out.close()
+            flash(str(exc))
+            return redirect('/account')
         except Exception:
             connection.rollback()
             out.close()
@@ -303,8 +335,21 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
             index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
+            from family_portable import export_library
+            from authorization import has_permission
+            library = export_library(db(), ROOT)
+            if library['families'] and not has_permission(g.user,'tags:read',db()):
+                from flask import abort
+                abort(403)
+            index['family_library'] = library
             total = 0
             with zipfile.ZipFile(out, 'w', zipfile.ZIP_STORED) as outer:
+                from family_reports import storage_path
+                for family in library['families']:
+                    for report in family['reports']:
+                        outer.write(storage_path(ROOT,report['id']), 'library/'+report['storage_ref'])
+                        total += report['size']
+                        if total>MAX_TOTAL:raise ValueError('Backup exceeds the 2 GiB expanded limit.')
                 for row in db().execute('SELECT id FROM cases ORDER BY id').fetchall():
                     cid = row['id']
                     inner, name = case_backup(cid)
@@ -332,12 +377,14 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                             {'path': path, 'size': length, 'sha256': digest.hexdigest()})
                     finally:
                         inner.close()
-                outer.writestr(generated_info('backup.json', zipfile.ZIP_STORED), json_bytes(index))
+                metadata=json_bytes(index)
+                if len(metadata)>MAX_METADATA:raise ValueError('Shared backup metadata exceeds the import limit.')
+                outer.writestr(generated_info('backup.json', zipfile.ZIP_STORED), metadata)
             if out.tell() > 1024**3:
                 raise ValueError('Backup exceeds the 1 GiB upload limit.')
             out.seek(0)
             audit('Exported full RAW case backup: ' +
-                  str(len(index['cases']))+' cases')
+                  str(len(index['cases']))+' cases; '+str(len(library['families']))+' malware families; '+str(sum(len(f['reports']) for f in library['families']))+' attached reports')
             response = send_file(out, as_attachment=True, download_name='MARE-case-backup-'+now()[
                                  :19].replace(':', '-')+'.zip', mimetype='application/zip')
             response.call_on_close(out.close)
@@ -374,11 +421,39 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             index = read_json(outer, 'backup.json')
             tag_catalog = validate_tags(index.get('tagging'))
             entries = index.get('cases')
-            if index.get('schema') not in (SCHEMA, 'mare-case-backup/1') or not isinstance(entries, list) or len(entries) > 1000:
+            if index.get('schema') not in (SCHEMA, 'mare-case-backup/2', 'mare-case-backup/1') or not isinstance(entries, list) or len(entries) > 1000:
                 raise ValueError(
                     'Use an archive created by Export all cases.')
             paths = [e['path'] for e in entries]
-            if len(paths) != len(set(paths)) or set(members) != set(paths+['backup.json']):
+            shared = index.get('family_library')
+            library_files=[]
+            shared_seen=set()
+            if shared is not None:
+                if not isinstance(shared,dict) or not isinstance(shared.get('families'),list):raise ValueError('Invalid shared family section.')
+                from family_reports import reference, MAX_FILE as REPORT_FILE_LIMIT, MAX_REPORTS
+                if len(shared['families'])>10000:raise ValueError('Too many shared families.')
+                for family in shared['families']:
+                    if not isinstance(family,dict) or not isinstance(family.get('reports'),list):raise ValueError('Invalid shared report section.')
+                    if len(family['reports'])>MAX_REPORTS:raise ValueError('Too many reports in one family.')
+                    for report in family['reports']:
+                        # Derive every destination from a validated UUID; never use
+                        # an incoming storage path for extraction.
+                        rel=reference(report['id'])
+                        archive_path='library/'+rel
+                        if archive_path in shared_seen:raise ValueError('Duplicate report in shared archive.')
+                        library_files.append(archive_path);shared_seen.add(archive_path)
+                        info=members.get(archive_path)
+                        if info is None or info.file_size!=report['size'] or not 0<info.file_size<=REPORT_FILE_LIMIT:raise ValueError('Shared report bytes are missing or have the wrong size.')
+                        total+=info.file_size
+                        if total>MAX_TOTAL:raise ValueError('Backup exceeds the 2 GiB expanded limit.')
+                        target=temporary/'library'/rel;target.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+                        with outer.open(info) as src,target.open('xb') as dst:shutil.copyfileobj(src,dst)
+                from family_portable import validate_library
+                validate_library(shared,temporary/'library')
+                (temporary/'family-library.json').write_bytes(json_bytes(shared))
+            elif index.get('schema')==SCHEMA and not single:
+                raise ValueError('Modern Export All backup is missing its shared family library.')
+            if len(paths) != len(set(paths)) or set(members) != set(paths+library_files+['backup.json']):
                 raise ValueError(
                     'Unexpected or duplicate files in backup archive.')
             for n, entry in enumerate(entries):
@@ -493,6 +568,32 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     plans.append((folder.parent, validated, meta))
         return plans, tag_catalog
 
+    def shared_preview(directory):
+        path=Path(directory)/'family-library.json'
+        if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0}
+        from family_portable import validate_library,check_conflicts
+        from authorization import has_permission
+        data=json.loads(path.read_text())
+        if data['families'] and not (has_permission(g.user,'tags:manage',db()) and has_permission(g.user,'tags:read',db())):
+            from flask import abort
+            abort(403,'Shared malware-family import requires profile management permission.')
+        counts=validate_library(data,Path(directory)/'library')
+        check_conflicts(db(),ROOT,data)
+        if any(not db().execute('SELECT 1 FROM tags WHERE normalized_name=?',(f['tag'],)).fetchone() for f in data['families']) and not has_permission(g.user,'tags:create',db()):
+            from flask import abort
+            abort(403)
+        return counts
+
+    def shared_restore(directory):
+        path=Path(directory)/'family-library.json'
+        if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0}
+        shared_preview(directory)  # Recheck permissions/conflicts at apply time.
+        from family_portable import restore_library
+        result=restore_library(db(),ROOT,Path(directory)/'library',json.loads(path.read_text()))
+        db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared malware-family library restored: '+json.dumps(result),now()))
+        db().commit()
+        return result
+
     def restore_records(connection, cid, validated):
         c, sections, refs, rows, images, sequence, tags = validated
         for table in ('notes','tasks','history','deferred','readiness','artifacts','indicator_tables','indicator_sections','reference_tables','report_images','figure_sequence'):
@@ -533,4 +634,4 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
     def backup_import():
         return app.extensions['case_import_sync'].preview(request.files.get('backup'), request.path.endswith('/import-raw'))
 
-    return {'case_backup': case_backup, 'case_metadata': case_metadata, 'stage_upload': stage_upload, 'restore_records': restore_records, 'single': backup_single_export, 'export': backup_export, 'import': backup_import, 'database': database_backup}
+    return {'shared_preview':shared_preview,'shared_restore':shared_restore,'case_backup': case_backup, 'case_metadata': case_metadata, 'stage_upload': stage_upload, 'restore_records': restore_records, 'single': backup_single_export, 'export': backup_export, 'import': backup_import, 'database': database_backup}

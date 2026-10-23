@@ -7,6 +7,7 @@ SECTION_ENDPOINTS = {
     "board": {"dashboard", "create_case_page", "new_case", "save_board_sort"},
     "search": {"mip_search", "mip_search_results", "mip_search_finding"},
     "metrics": {"metrics"},
+    "families": {"families_workspace", "families_edit", "families_delete", "families_osint_edit", "families_osint_delete", "families_reports_upload", "families_reports_download", "families_reports_edit", "families_reports_delete"},
     "tags": {"tags_manager", "tag_detail", "tags_search", "tags_create", "tag_manage"},
     "tools": {
         "tools_workspace",

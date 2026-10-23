@@ -11,7 +11,7 @@
       Includes saved report Markdown, images, assets, indicator sections,
       references, saved notes, tasks, readiness, and history. Accounts, API
       keys, settings, private drafts, and report backups are excluded. Save
-      pending edits before exporting.
+      pending edits before exporting. Includes one shared malware-family library with profiles, OSINT links, tag identities and attached report files, even for families with no cases. Importing shared research requires profile management permission; identity conflicts stop import for explicit resolution. Single-case backups exclude the shared library. Administrators should use Settings → Database &amp; installation backup to recover accounts, settings and the complete installation.
     </p>
     <form method="post" action="/import-export/export">
       {{token(csrf)}}<button>Export all cases</button>
