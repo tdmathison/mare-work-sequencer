@@ -1,3 +1,4 @@
+from case_queries import CASE_QUERY, CASE_ELIGIBILITY, inventory, inventory_total
 from settings_navigation import legacy_redirect, saved_destination, register_settings
 from tagging import register_tags, assignments as tag_assignments, case_filter, prototype as tag_prototype
 from indicators import register_indicators
@@ -26,7 +27,7 @@ import csv
 import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
-from flask import Flask, request, session, redirect, render_template, abort, flash, send_file, g, url_for
+from flask import make_response, Flask, request, session, redirect, render_template, abort, flash, send_file, g, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
@@ -466,7 +467,7 @@ def admin(f):
     return wrapped
 
 
-CASE_QUERY = "SELECT c.*,COALESCE(cr.username,c.creator_username,'Unknown') AS creator_name,ow.username AS owner_name,ow.active AS owner_active,CASE WHEN c.stage IN (0,3) OR (c.owner_required=1 AND COALESCE(ow.active,0)=0) THEN 1 ELSE 0 END AS workspace_locked FROM cases c LEFT JOIN users cr ON cr.id=c.creator LEFT JOIN users ow ON ow.id=c.owner"
+
 
 
 def assigned_owner(form, current=None):
@@ -628,10 +629,10 @@ def dashboard():
     if selected and tag_prototype(db()): abort(503, 'Prototype tag migration required.')
     query = request.args.get('q', '').strip()
     sql, args = case_filter(selected, match)
-    cases = [dict(c) for c in db().execute(CASE_QUERY+" WHERE (instr(lower(c.name),?)>0 OR instr(lower(c.number),?)>0 OR instr(lower(coalesce(c.description,'')),?)>0)"+sql+' ORDER BY c.id DESC', [query.lower()]*3+args)]
+    cases = [dict(c) for c in db().execute(CASE_QUERY+" WHERE "+CASE_ELIGIBILITY+" AND (instr(lower(c.name),?)>0 OR instr(lower(c.number),?)>0 OR instr(lower(coalesce(c.description,'')),?)>0)"+sql+' ORDER BY c.id DESC', [query.lower()]*3+args)]
     stage_counts = {stage: sum(c['stage'] == stage for c in cases) for stage in range(len(STAGES))}
     metrics = [
-        {'label': 'All MIPs', 'count': db().execute('SELECT count(*) FROM cases').fetchone()[0],
+        {'label': 'All MIPs', 'count': inventory_total(db()),
          'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view']),
          'active': not selected_stages and not selected and not query},
     ]
@@ -672,18 +673,25 @@ def dashboard():
 
 
 def metrics_data():
-    users = db().execute('''SELECT u.id,u.username,u.active,
-      (SELECT count(*) FROM cases WHERE creator=u.id) AS created_count,
-      (SELECT count(*) FROM cases WHERE owner=u.id) AS assigned_count,
-      (SELECT count(*) FROM cases WHERE owner=u.id AND stage IN (1,2)) AS progress_count,
-      (SELECT count(*) FROM cases WHERE owner=u.id AND stage=3) AS completed_count
-      FROM users u ORDER BY u.username''').fetchall()
-    stage_counts = {row['stage']: row['count'] for row in db().execute(
-        'SELECT stage,count(*) AS count FROM cases GROUP BY stage')}
-    chart_data = {
-        'completed': [{'label': user['username'], 'value': user['completed_count']} for user in users if user['completed_count']],
-        'stages': [{'label': label, 'value': sum(stage_counts.get(stage, 0) for stage in stage_values)} for label, stage_values in [('Not started', (0,)), ('In progress', (1, 2)), ('Completed', (3,))]],
-    }
+    from collections import Counter
+    connection=db();connection.execute('SAVEPOINT api_metrics')
+    try:
+        cases=inventory(connection)
+        users=[dict(row) for row in connection.execute('SELECT id,username,active FROM users ORDER BY username')]
+    finally:connection.execute('RELEASE api_metrics')
+    creators=Counter(c['creator'] for c in cases)
+    owners=Counter(c['owner'] for c in cases)
+    progress=Counter(c['owner'] for c in cases if c['stage'] in (1,2))
+    completed=Counter(c['owner'] for c in cases if c['stage']==3)
+    for user in users:
+        user.update(created_count=creators[user['id']],assigned_count=owners[user['id']],progress_count=progress[user['id']],completed_count=completed[user['id']])
+    stage_counts=Counter(c['stage'] for c in cases)
+    labels={user['id']:user['username'] for user in users}
+    completed_chart=[{'label':labels.get(owner,'Unassigned' if owner is None else f'Deleted owner #{owner}'),'value':count}
+                     for owner,count in completed.items()]
+    chart_data={'completed':sorted(completed_chart,key=lambda item:item['label']),
+                'stages':[{'label':label,'value':sum(stage_counts.get(stage,0) for stage in values)}
+                          for label,values in [('Not started',(0,)),('In progress',(1,2)),('Completed',(3,))]]}
     return users, chart_data
 
 
@@ -692,7 +700,9 @@ def metrics():
     period = request.args.get('weeks', '12')
     if period not in {str(value) for value in PERIODS}:
         abort(400)
-    return render_template('metrics.html', performance=scorecard(db(), int(period)))
+    response=make_response(render_template('metrics.html', performance=scorecard(db(), int(period), timezone_name=app.config.get('DISPLAY_TIMEZONE','UTC'))))
+    response.headers['Cache-Control']='private, no-store'
+    return response
 
 
 def external_reference(form):

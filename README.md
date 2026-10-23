@@ -1132,16 +1132,25 @@ normal search requests do not wait for document extraction.
 
 ## Executive Metrics scorecard
 
-METRICS presents **MARE performance overview** with 4, 12 (default), 26, or 52
-full Monday–Sunday weeks. Reporting uses **UTC**, consistent with application
-timestamps; the current partial week is excluded. Legacy timestamps without an
-offset are interpreted as UTC. No server-local timezone or browser timezone is
-used. Changing the period affects activity and comparisons, not current snapshots.
+See [Metrics count definitions and verification](docs/metrics-counts.md) for the
+inventory/activity distinction and production comparison queries.
 
-- **MIPs created:** creation timestamps in the selected period, compared with the
+METRICS presents **MARE performance overview** with 4, 12 (default), 26, or 52
+full Monday–Sunday weeks for activity, alongside an all-time inventory. Reporting
+uses `MARE_DISPLAY_TIMEZONE` (UTC by default); the current partial week is excluded
+from activity. The inventory always includes existing cases regardless of dates.
+Legacy timestamps without an offset are interpreted as UTC. No server-local timezone or browser timezone is
+used; week boundaries follow the configured IANA display zone, including DST.
+Changing the period affects activity and comparisons, not current snapshots.
+
+- **Total MIPs:** distinct eligible existing cases, using the shared Board scope.
+  Imports/restores and missing timestamps do not remove cases from this inventory.
+- **Completed MIPs:** existing cases currently in Completed, independent of history
+  and reporting period. In-progress and pipeline cards likewise use current state.
+- **Created during period:** creation timestamps in the selected period, compared with the
   immediately preceding equal-length period. Missing, malformed, or future
   creation dates are excluded from activity or aging as appropriate.
-- **MIPs completed:** distinct cases with reliable completion history in the
+- **Completed during period:** distinct cases with reliable completion history in the
   period. The existing history records the stage being exited: the final
   Packaging & Delivery exit (stage 2, outcome Done, No applicable work, or
   Deferred), followed by a recorded Reopened event or remaining as the terminal

@@ -2,19 +2,24 @@
 <div class="performance-dashboard">
   <header class="heading dashboard-heading performance-header">
     <div><span class="eyebrow">EXECUTIVE SCORECARD</span><h1>MARE performance overview</h1>
-      <p>{{performance.start}} – {{performance.end}} · Monday–Sunday · {{performance.timezone}}</p>
+      <p>All-time inventory · all existing MIPs visible on the Board. Activity period: {{performance.start}} – {{performance.end}} · Monday–Sunday · {{performance.timezone}}</p>
     </div>
     <form method="get" action="{{url_for('metrics')}}" class="performance-period">
-      <label for="reporting-weeks">Reporting period</label>
+      <label for="reporting-weeks">Activity reporting period</label>
       <div><select id="reporting-weeks" name="weeks">{% for weeks in [4,12,26,52] %}<option value="{{weeks}}"{% if weeks==performance.weeks %} selected{% endif %}>Last {{weeks}} full weeks</option>{% endfor %}</select><button type="submit">Apply</button></div>
     </form>
   </header>
   <div class="performance-scorecards">
-    <section class="panel"><h2>MIPs created</h2><strong class="performance-number">{{performance.created}}</strong><p>{{performance.created_comparison}}</p></section>
-    <section class="panel performance-output"><h2>MIPs completed</h2><strong class="performance-number">{{performance.completed}}</strong><p>{{performance.completed_comparison}}</p></section>
+    <section class="panel"><h2>Total MIPs</h2><strong class="performance-number" id="metrics-total">{{performance.total}}</strong><p>All existing cases · All time · No owner, tag, search or stage filters</p></section>
+    <section class="panel performance-output"><h2>Completed MIPs</h2><strong class="performance-number" id="metrics-completed">{{performance.completed_current}}</strong><p>Current state is Completed · All time · Dates are not required</p></section>
     <section class="panel"><h2>In progress</h2><strong class="performance-number">{{performance.progress}}</strong><p>Current: {{performance.stages[1]}} Analysis · {{performance.stages[2]}} Packaging</p></section>
-    <section class="panel"><h2>Median cycle time</h2><strong class="performance-number{% if performance.median is none %} performance-unavailable{% endif %}">{% if performance.median is none %}Unavailable{% else %}{{'%.1f'|format(performance.median)}} <small>days</small>{% endif %}</strong><p>{{performance.median_comparison if performance.median is not none else 'No valid creation-to-completion timestamps'}}</p></section>
+    <section class="panel"><h2>Median cycle time</h2><p>Selected activity period</p><strong class="performance-number{% if performance.median is none %} performance-unavailable{% endif %}">{% if performance.median is none %}Unavailable{% else %}{{'%.1f'|format(performance.median)}} <small>days</small>{% endif %}</strong><p>{{performance.median_comparison if performance.median is not none else 'No valid creation-to-completion timestamps'}}</p></section>
   </div>
+  <section class="performance-period-activity" aria-label="Selected-period activity">
+    <h2>Activity during {{performance.start}} – {{performance.end}} · {{performance.timezone}}</h2>
+    <p><strong>Created during period: {{performance.created}}</strong> · {{performance.created_comparison}} · Valid case creation timestamps.</p>
+    <p><strong>Completed during period: {{performance.completed}}</strong> · {{performance.completed_comparison}} · Distinct cases with a qualifying completion transition; includes cases subsequently reopened.</p>
+  </section>
   <p class="performance-context">Activity comparisons: {{performance.previous_start}} – {{performance.previous_end}}. Current partial week excluded. Snapshots below are current as of {{performance.as_of}}.</p>
   <div class="performance-columns">
     <div class="performance-main">
@@ -31,24 +36,25 @@
               <g class="performance-point" role="button" tabindex="0" aria-label="{{w.start}} – {{w.end}}: {{w.created}} created, {{w.completed}} completed" data-week-detail="{{w.start}} – {{w.end}}: {{w.created}} created · {{w.completed}} completed"><title>{{w.start}} – {{w.end}}: {{w.created}} created, {{w.completed}} completed</title><circle class="performance-point-target" cx="{{x}}" cy="{{y}}" r="10"/><circle class="performance-point-dot" cx="{{x}}" cy="{{y}}" r="3"/></g>
               {% if loop.index0 % step == 0 or loop.last %}<text x="{{x}}" y="242" text-anchor="{{'start' if loop.first else 'end' if loop.last else 'middle'}}">{{w.start[5:]}}</text>{% endif %}
             {% endfor %}
-            <text x="515" y="265" text-anchor="middle">Week beginning (UTC)</text>
+            <text x="515" y="265" text-anchor="middle">Week beginning ({{performance.timezone}})</text>
           </svg>
         </div>
         <p class="performance-chart-detail" id="performance-week-detail" role="status">Hover, focus, or tap a point to inspect its week.</p>
-        <details><summary>Weekly activity table</summary><div class="performance-table-scroll"><table><thead><tr><th scope="col">Week (UTC)</th><th scope="col">Created</th><th scope="col">Completed</th></tr></thead><tbody>{% for w in performance.weekly %}<tr><th scope="row">{{w.start}} – {{w.end}}</th><td>{{w.created}}</td><td>{{w.completed}}</td></tr>{% endfor %}</tbody></table></div></details>
+        <details><summary>Weekly activity table</summary><div class="performance-table-scroll"><table><thead><tr><th scope="col">Week ({{performance.timezone}})</th><th scope="col">Created</th><th scope="col">Completed</th></tr></thead><tbody>{% for w in performance.weekly %}<tr><th scope="row">{{w.start}} – {{w.end}}</th><td>{{w.created}}</td><td>{{w.completed}}</td></tr>{% endfor %}</tbody></table></div></details>
       </section>
       <section class="panel">
         <h2>Analyst workload &amp; output</h2>
-        <p class="performance-context">Created and completed: selected period. Assigned and In Progress: current snapshot, all stages. Completed uses <strong>current-owner attribution</strong>; historical owners at completion are not recorded. These counts are not analyst rankings.</p>
-        <div class="performance-table-scroll"><table class="performance-analysts"><thead><tr><th scope="col">Analyst</th><th scope="col">Created</th><th scope="col">Assigned</th><th scope="col">In Progress</th><th scope="col">Completed</th></tr></thead><tbody>
+        <p class="performance-context">Created during period and Completed during period: selected activity period. Assigned and In Progress: current snapshot, all stages. Completed uses <strong>current-owner attribution</strong>; historical owners at completion are not recorded. These counts are not analyst rankings.</p>
+        <div class="performance-table-scroll"><table class="performance-analysts"><thead><tr><th scope="col">Analyst</th><th scope="col">Created during period</th><th scope="col">Assigned now</th><th scope="col">In Progress now</th><th scope="col">Completed during period</th></tr></thead><tbody>
           {% for person in performance.people %}<tr><th scope="row">{{person.username}}{% if person.active==0 %} <small>Disabled</small>{% endif %}</th><td>{{person.created}}</td><td>{{person.assigned}}</td><td>{{person.progress}}</td><td>{{person.completed}}</td></tr>{% else %}<tr><td colspan="5">No analysts or cases yet.</td></tr>{% endfor %}
         </tbody></table></div>
-        <details><summary>All-time creator and current completed ownership snapshot</summary><p class="performance-context">Retains the previous dashboard's all-time counts; current completed ownership is independent of event dates.</p><div class="performance-table-scroll"><table><thead><tr><th scope="col">Analyst</th><th scope="col">Created (all time)</th><th scope="col">Currently completed</th></tr></thead><tbody>{% for person in performance.people %}<tr><th scope="row">{{person.username}}</th><td>{{person.created_all}}</td><td>{{person.completed_snapshot}}</td></tr>{% endfor %}</tbody></table></div></details>
+        <details><summary>All-time creator and current completed ownership snapshot</summary><p class="performance-context">Every eligible existing case contributes once to creator totals and once to assigned-owner totals, including deleted/unknown accounts and Unassigned. Current completed ownership is independent of event dates.</p><div class="performance-table-scroll"><table><thead><tr><th scope="col">Analyst</th><th scope="col">Created (all time)</th><th scope="col">Currently completed</th></tr></thead><tbody>{% for person in performance.people %}<tr><th scope="row">{{person.username}}</th><td>{{person.created_all}}</td><td>{{person.completed_snapshot}}</td></tr>{% endfor %}</tbody></table></div></details>
       </section>
     </div>
     <aside class="performance-side">
       <section class="panel"><h2>Current case pipeline</h2><p class="performance-context">Current snapshot · independent of reporting period</p><strong class="performance-number">{{performance.total}} <small>total</small></strong><p>{{performance.unfinished}} not yet completed</p>
         <ul class="performance-pipeline">{% for label in ['Not Started','Malware Analysis','Packaging & Delivery','Completed'] %}<li class="{{'performance-output' if loop.last else ''}}"><span>{{label}}</span><strong>{{performance.stages[loop.index0]}}</strong></li>{% endfor %}</ul>
+        {% if performance.unknown_state %}<p>{{performance.unknown_state}} MIPs have an unrecognized current state; included in Total MIPs and reported separately.</p>{% endif %}
       </section>
       <section class="panel"><h2>Age of unfinished cases</h2><p class="performance-context">Current snapshot · whole elapsed days since creation</p><p><strong>{{performance.unfinished}}</strong> unfinished</p>
         <ul class="performance-ages">{% for label in ['0–7 days','8–14 days','15–30 days','31+ days'] %}<li><div><span>{{label}}</span><strong>{{performance.ages[loop.index0]}}</strong></div><meter min="0" max="{{performance.age_max}}" value="{{performance.ages[loop.index0]}}" aria-label="{{label}}: {{performance.ages[loop.index0]}} cases"></meter></li>{% endfor %}</ul>
@@ -56,7 +62,7 @@
       </section>
     </aside>
   </div>
-  <section class="panel performance-definitions"><h2>Data coverage &amp; definitions</h2><p>Completion is the final recorded Packaging &amp; Delivery stage exit leading to Completed, or preceding a recorded reopening. Each case counts once per reporting period, using its first qualifying completion in that period; recompletion in a later period can count again. Completed does not mean delivered.</p><p>Cycle time uses creation to that completion event ({{performance.timed_cases}} valid records). {{performance.timing_excluded}} selected-period completions have unavailable cycle time. {{performance.missing_completion}} currently completed cases have no usable completion history; no dates are guessed. {{performance.invalid_creation}} cases have missing, invalid, or future creation dates. Legacy naive timestamps are read as UTC. Imported history may predate creation; negative durations are excluded.</p></section>
+  <section class="panel performance-definitions"><h2>Data coverage &amp; definitions</h2><p>Total MIPs and current-state cards count existing cases once, including imports/restores and missing timestamps. Deleted cases are excluded. Board filters are independent of this unfiltered inventory. No completion dates are inferred from current state.</p><p>For activity periods, completion is the final recorded Packaging &amp; Delivery stage exit leading to Completed, or preceding a recorded reopening. Each case counts once per reporting period, using its first qualifying completion in that period; recompletion in a later period can count again. Completed does not mean delivered.</p><p>Cycle time uses creation to that completion event ({{performance.timed_cases}} valid records). {{performance.timing_excluded}} selected-period completions have unavailable cycle time. {{performance.missing_completion}} currently completed cases have no usable timestamp for their current completion; no dates are guessed. {{performance.invalid_creation}} cases have missing, invalid, or future creation dates. Legacy naive timestamps are read as UTC. Imported history may predate creation; negative durations are excluded.</p></section>
 </div>
 <script defer src="{{url_for('static',filename='performance-metrics.js')}}"></script>
 {% endblock %}

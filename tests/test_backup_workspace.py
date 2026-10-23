@@ -256,6 +256,9 @@ with app.app_context():
     asset=client.get('/cases/'+str(case['id'])+'/file?path=scripts/test.py&download=1')
     assert asset.status_code==200 and __import__('hashlib').sha256(asset.data).hexdigest()==__import__('hashlib').sha256(b'print("recovery")').hexdigest()
     assert (ROOT/'recovery-template.bin').read_bytes()==b'application customization'
+    from performance_metrics import scorecard
+    inventory=scorecard(db());assert inventory['total']==db().execute('SELECT count(*) FROM cases').fetchone()[0]
+    assert inventory['completed_current']==db().execute('SELECT count(*) FROM cases WHERE stage=3').fetchone()[0]
     from app import allocate_case_number
     next_number=allocate_case_number(db());assert next_number!='MARE-2026-000050';db().rollback()
 """.replace(

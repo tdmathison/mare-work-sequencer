@@ -20,13 +20,14 @@ with app.app_context():
   cid=run("INSERT INTO cases(number,name,created,stage,owner,creator) VALUES(?,?,?, ?,?,1)",('SCORE-'+str(stage),'Scorecard case',created.isoformat(),stage,uid if stage else None)).lastrowid
   if stage==3: run("INSERT INTO history(case_id,stage,outcome,created) VALUES(?,2,'Done',?)",(cid,(created+timedelta(days=2)).isoformat()))
  `);
- browser=await chromium.launch({headless:true,...(process.env.MARE_BROWSER_EXECUTABLE?{executablePath:process.env.MARE_BROWSER_EXECUTABLE}:{})});
+ browser=await chromium.launch({headless:true,executablePath:process.env.MARE_BROWSER_EXECUTABLE||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
  const page=await browser.newPage({viewport:{width:1440,height:1000}}), errors=[], external=[];
  page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(/^https?:/.test(r.url())&&!r.url().startsWith(base))external.push(r.url());});
  await page.goto(base+'/login');await page.locator('[name=username]').fill('editor-test');await page.locator('[name=password]').fill('temporary-editor-test-123');
  await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
  await page.goto(base+'/metrics');
  assert.equal(await page.locator('h1').textContent(),'MARE performance overview');
+ assert.equal(await page.locator('#metrics-total').textContent(),'5');assert.equal(await page.locator('#metrics-completed').textContent(),'1');assert.match(await page.locator('.performance-period-activity').innerText(),/Created during period: 5/);
  assert.equal(await page.locator('.admin-nav a[aria-current="page"]').getAttribute('href'),'/metrics');
  assert.equal(await page.locator('.performance-scorecards').innerText().then(t=>t.includes('2.0')),true);
  assert.equal(await page.locator('#reporting-weeks').inputValue(),'12');
@@ -50,9 +51,17 @@ with app.app_context():
  await page.screenshot({path:path.join(process.env.MARE_METRICS_SCREENSHOT_DIR||temporary,'metrics-mobile.png'),fullPage:true});
  seed(`from app import app,db
 with app.app_context():
+ db().execute('UPDATE cases SET stage=3')
+ for i in range(11):db().execute("INSERT INTO cases(number,name,created,stage) VALUES(?,?,'',3)",('UNDATED-'+str(i),'Restored completed case'))
+ db().commit()
+ `);
+ await page.goto(base+'/');assert.equal(await page.locator('.case-card').count()||await page.locator('tbody tr').count(),16);
+ await page.goto(base+'/metrics');assert.equal(await page.locator('#metrics-total').textContent(),'16');assert.equal(await page.locator('#metrics-completed').textContent(),'16');assert.match(await page.locator('.performance-period-activity').innerText(),/Created during period: 5/);
+ seed(`from app import app,db
+with app.app_context():
  db().commit();db().execute('PRAGMA foreign_keys=OFF');db().execute('DELETE FROM history');db().execute('DELETE FROM cases');db().execute('DELETE FROM users WHERE username LIKE "Long analyst%"');db().commit()
  `);
- await page.goto(base+'/metrics?weeks=4');assert.match(await page.locator('.performance-scorecards').innerText(),/Unavailable/);assert.match(await page.locator('.performance-scorecards').innerText(),/No change/);assert.equal(await page.locator('.performance-point').count(),4);
+ await page.goto(base+'/metrics?weeks=4');assert.match(await page.locator('.performance-scorecards').innerText(),/Unavailable/);assert.match(await page.locator('.performance-period-activity').innerText(),/No change/);assert.equal(await page.locator('.performance-point').count(),4);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
  console.log('PASS: populated and empty scorecards, all periods, desktop/mobile layout, long/disabled analysts, chart hover/focus/keyboard/touch details, zero weeks, local-only assets, active METRICS tab.');
 })().catch(error=>{console.error(error);console.error(log);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));fs.rmSync(temporary,{recursive:true,force:true});});

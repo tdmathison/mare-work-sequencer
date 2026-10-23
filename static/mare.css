@@ -1064,3 +1064,6 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 .topbar:has(.login-dashboard-links) { flex-wrap: wrap; gap: 18px; }
 .login-dashboard-links { display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-left:auto; max-width:100%; color:var(--muted); text-align:right; }
 .login-dashboard-link { color:var(--accent); }
+
+.performance-dashboard .performance-period-activity {margin:24px 0 16px;padding:18px 22px;border:1px solid var(--line);background:var(--panel);}
+.performance-dashboard .performance-period-activity p {margin:8px 0;color:var(--muted);font-size:13px;line-height:1.6;}

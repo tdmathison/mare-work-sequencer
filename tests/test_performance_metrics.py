@@ -215,3 +215,191 @@ def test_metrics_auth_period_validation_and_escaping(role):
     assert client.get("/metrics?weeks=4").status_code == 200
     assert client.get("/metrics?weeks=5").status_code == 400
     assert client.get("/metrics?weeks=garbage").status_code == 400
+
+
+def test_sixteen_current_completed_are_inventory_not_fourteen_fifteen_activity(
+    monkeypatch,
+):
+    from flask import template_rendered
+    from case_queries import inventory
+    from tagging import create
+
+    with app.app_context():
+        from authorization import initialize_roles
+
+        initialize_roles(db())
+        uid = user("Inventory viewer")
+        ids = []
+        for index in range(16):
+            cid = add_case(
+                "2026-09-20" if index < 14 else "2026-10-13" if index == 14 else "",
+                stage=3,
+                owner=uid,
+                creator=uid,
+            )
+            ids.append(cid)
+            if index < 15:
+                event(cid, "2026-10-01")
+        # Repeated related rows must not multiply the inventory or period counts.
+        first = create(db(), "METRICS_A")[0]
+        second = create(db(), "METRICS_B")[0]
+        for cid in ids:
+            for tid in (first, second):
+                db().execute(
+                    "INSERT INTO case_tags(case_id,tag_id,assigned_at) VALUES(?,?,?)",
+                    (cid, tid, "2026"),
+                )
+        event(ids[0], "2026-10-02", stage=3, outcome="Reopened")
+        event(ids[0], "2026-10-03")
+        data = result()
+        assert (
+            data["total"],
+            data["completed_current"],
+            data["created"],
+            data["completed"],
+        ) == (16, 16, 14, 15)
+        assert data["stages"] == [0, 0, 0, 16]
+        assert sum(p["assigned"] for p in data["people"]) == 16
+        assert sum(p["completed_snapshot"] for p in data["people"]) == 16
+        assert sum(w["created"] for w in data["weekly"]) == 14
+        assert sum(w["completed"] for w in data["weekly"]) == 15
+        assert data["invalid_creation"] == data["missing_completion"] == 1
+        assert {row["id"] for row in inventory(db())} == set(ids)
+        db().commit()
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session.update(uid=uid, version=1, csrf="metrics")
+    contexts = {}
+
+    def capture(sender, template, context, **extra):
+        contexts[template.name] = context
+
+    with template_rendered.connected_to(capture, app):
+        assert (
+            client.get(
+                "/?tag=" + str(first) + "&tag=" + str(second) + "&match=any"
+            ).status_code
+            == 200
+        )
+        response = client.get("/metrics?weeks=4")
+    assert {case["id"] for case in contexts["dashboard.html"]["cases"]} == set(ids)
+    assert contexts["metrics.html"]["performance"]["total"] == 16
+    assert contexts["metrics.html"]["performance"]["completed_current"] == 16
+    assert (
+        'id="metrics-total">16' in response.text
+        and 'id="metrics-completed">16' in response.text
+    )
+    assert "Total MIPs" in response.text and "Created during period" in response.text
+    assert response.headers["Cache-Control"] == "private, no-store"
+
+
+def test_inventory_remains_fresh_after_state_change_deletion_and_paginated_api():
+    from test_api import make_user
+    from app import metrics_data
+
+    uid, headers = make_user("inventory-api")
+    with app.app_context():
+        ids = [add_case("", stage=3, owner=None) for _ in range(31)]
+        before = result()
+        assert before["total"] == before["completed_current"] == 31
+        users, charts = metrics_data()
+        assert sum(row["value"] for row in charts["completed"]) == 31
+        assert charts["completed"] == [{"label": "Unassigned", "value": 31}]
+        db().commit()
+    c = app.test_client()
+    with c.session_transaction() as session:
+        session.update(uid=uid, version=1, csrf="metrics")
+    page = c.get("/api/v1/cases?limit=1&offset=2", headers=headers).json
+    assert len(page["cases"]) == 1 and page["total"] == 31
+    assert 'id="metrics-total">31' in c.get("/metrics").text
+    with app.app_context():
+        db().execute("UPDATE cases SET stage=1 WHERE id=?", (ids[0],))
+        db().execute("DELETE FROM cases WHERE id=?", (ids[1],))
+        db().commit()
+    updated = c.get("/metrics?weeks=52").text
+    assert 'id="metrics-total">30' in updated and 'id="metrics-completed">29' in updated
+    with app.app_context():
+        assert result()["progress"] == 1
+        assert len(__import__("case_queries").inventory(db())) == 30
+
+
+def test_local_week_and_dst_boundaries_and_current_completion_date_coverage():
+    with app.app_context():
+        # Four local weeks cross the US spring DST change (UTC span is 671 hours).
+        now = datetime(2026, 3, 11, 12, tzinfo=timezone.utc)
+        for created in [
+            "2026-02-09T07:59:59Z",
+            "2026-02-09T08:00:00Z",
+            "2026-03-09T06:59:59Z",
+            "2026-03-09T07:00:00Z",
+        ]:
+            add_case(created)
+        data = scorecard(db(), 4, now, "America/Los_Angeles")
+        assert data["timezone"] == "America/Los_Angeles"
+        assert (data["start"], data["end"]) == ("2026-02-09", "2026-03-08")
+        assert data["created"] == 2 and sum(w["created"] for w in data["weekly"]) == 2
+        cid = add_case("2026-09-20", stage=3)
+        event(cid, "2026-09-21")
+        event(cid, "2026-09-23", stage=3, outcome="Reopened")
+        event(cid, "invalid")
+        data = result()
+        assert data["completed_current"] == 1 and data["completed"] == 1
+        assert (
+            data["missing_completion"] == 1
+        )  # Earlier valid completion is not the current completion date.
+
+
+def test_actual_raw_import_with_missing_dates_counts_current_state():
+    import io
+    from test_backups import setup_backup_case
+    from sync_helpers import other_destination
+
+    c, cid, uid, post = setup_backup_case()
+    with app.app_context():
+        db().execute("UPDATE cases SET stage=3 WHERE id=?", (cid,))
+        db().commit()
+    archive = post(f"/cases/{cid}/backup")
+    assert archive.status_code == 200
+    other_destination()
+    response = post(
+        "/import-export/import-raw",
+        backup=(io.BytesIO(archive.data), "missing-dates.zip"),
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        data = result()
+        assert data["total"] == 3 and data["completed_current"] == 2
+        assert data["missing_completion"] == 2 and data["invalid_creation"] == 3
+
+
+@pytest.mark.parametrize("role", ["User", "Administrator"])
+def test_metrics_and_board_share_visibility_across_owners(role):
+    from case_queries import inventory
+    from flask import template_rendered
+
+    with app.app_context():
+        viewer = user("Scope viewer")
+        other = user("Disabled owner", active=0)
+        db().execute("UPDATE users SET role=? WHERE id=?", (role, viewer))
+        ids = {
+            add_case("", stage=3, owner=viewer),
+            add_case("invalid", stage=3, owner=other),
+            add_case("2099-01-01", stage=1, owner=None),
+        }
+        db().commit()
+    c = app.test_client()
+    with c.session_transaction() as session:
+        session.update(uid=viewer, version=1, csrf="metrics")
+    contexts = {}
+
+    def capture(sender, template, context, **extra):
+        contexts[template.name] = context
+
+    with template_rendered.connected_to(capture, app):
+        assert c.get("/").status_code == 200
+        assert c.get("/metrics?weeks=4").status_code == 200
+    assert {row["id"] for row in contexts["dashboard.html"]["cases"]} == ids
+    assert contexts["metrics.html"]["performance"]["total"] == 3
+    assert contexts["metrics.html"]["performance"]["completed_current"] == 2
+    with app.app_context():
+        assert {row["id"] for row in inventory(db())} == ids

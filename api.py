@@ -978,7 +978,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     @require('metrics:read')
     def metrics():
         users, charts = metrics_data()
-        return {'users': [dict(row) for row in users], 'stages': charts['stages'], 'completed': charts['completed']}
+        return {'users': [dict(row) for row in users], 'stages': charts['stages'], 'completed': charts['completed']}, 200, {'Cache-Control':'private, no-store'}
 
     @app.errorhandler(HTTPException)
     def api_unmatched_error(error):
