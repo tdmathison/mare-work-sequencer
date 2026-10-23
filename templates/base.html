@@ -37,21 +37,23 @@
       </div>
       {% elif request.endpoint == 'login' %}
       <nav class="login-dashboard-links" aria-label="Public dashboards">
+        <a class="login-dashboard-link" href="{{url_for('dashboards_directory')}}">Dashboards</a><span aria-hidden="true">|</span>
         <a class="login-dashboard-link" href="{{url_for('cases_dashboard')}}">Cases dashboard</a>
         <span aria-hidden="true">|</span>
         <a class="login-dashboard-link" href="{{url_for('family_dashboard')}}">Malware families dashboard</a>
       </nav>
+      {% elif request.endpoint == 'dashboards_directory' %}<a href="{{url_for('login')}}">Login</a>
       {% endif %}
     </header>
     {% if user %}
     <nav class="admin-nav">
       {{application_nav_link('MIP BOARD', '/', 'board')}}
       {% if can_mip_search %}{{application_nav_link('SEARCH', url_for('mip_search'), 'search')}}{% endif %}
-      {{application_nav_link('METRICS', '/metrics', 'metrics')}}
       {% if can_families_read %}{{application_nav_link('MALWARE FAMILIES', url_for('families_workspace'), 'families')}}{% endif %}
       {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
       {{application_nav_link('API', '/api', 'api')}}
       {% if tool_navigation %}{{dropdown_navigation('TOOLS', 'Tools', tools_home_url, tool_navigation, 'tools-menu', active_navigation=='tools')}}{% endif %}
+      {{dropdown_navigation('DASHBOARDS', 'Dashboards', url_for('dashboards_directory'), dashboard_navigation, 'dashboards-menu', active_navigation=='dashboards')}}
       {% if settings_tabs %}
       {{dropdown_navigation('SETTINGS', 'Settings', settings_home_url, settings_tabs, 'settings-menu', active_navigation=='settings')}}
       {% endif %}

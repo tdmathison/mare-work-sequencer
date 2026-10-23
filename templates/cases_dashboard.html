@@ -9,7 +9,7 @@
 </head>
 <body class="cases-wall" data-source="{{url_for('cases_dashboard_data')}}">
 <header class="wall-header"><div class="wall-brand">MARE <span>//</span> WORK SEQUENCER</div>
-<nav aria-label="Dashboards"><span aria-current="page">Cases</span><a href="{{url_for('family_dashboard')}}">Malware families</a><span>Threat actors <small>· Coming later</small></span></nav><a class="wall-login" href="{{url_for('login')}}">Login</a></header>
+{% include 'public_dashboard_navigation.html' %}<a class="wall-login" href="{{url_for('dashboard') if user else url_for('login')}}">{{'Return' if user else 'Login'}}</a></header>
 <main>
 <div class="wall-heading"><div><p class="eyebrow">RESEARCH OPERATIONS</p><h1>Investigation. Intelligence. Delivery.</h1></div><span class="public-label">PUBLIC VIEW / READ ONLY</span></div>
 <section class="wall-metrics" aria-label="Case summary">

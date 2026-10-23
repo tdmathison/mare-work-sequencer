@@ -31,6 +31,8 @@ def event(cid, created, stage=2, outcome="Done"):
 
 
 def user(name, active=1):
+    from authorization import initialize_roles
+    initialize_roles(db())
     return run(
         "INSERT INTO users(username,password,role,active,forced) VALUES(?,'unused','User',?,0)",
         (name, active),
@@ -196,6 +198,9 @@ def test_creator_current_owner_unassigned_disabled_deleted_attribution():
 
 @pytest.mark.parametrize("role", ["User", "Administrator"])
 def test_metrics_auth_period_validation_and_escaping(role):
+    from authorization import initialize_roles
+    with app.app_context():
+        initialize_roles(db())
     client = app.test_client()
     assert client.get("/metrics").status_code == 302
     with app.app_context():
@@ -211,7 +216,7 @@ def test_metrics_auth_period_validation_and_escaping(role):
     assert b"Last 12 full weeks" in response.data
     assert b"&lt;script&gt;label&lt;/script&gt;" in response.data
     assert b"<script>label</script>" not in response.data
-    assert b'href="/metrics" aria-current="page"' in response.data
+    assert b'href="/dashboards" aria-current="page"' in response.data
     assert client.get("/metrics?weeks=4").status_code == 200
     assert client.get("/metrics?weeks=5").status_code == 400
     assert client.get("/metrics?weeks=garbage").status_code == 400

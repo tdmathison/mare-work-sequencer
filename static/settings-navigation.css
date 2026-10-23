@@ -19,3 +19,6 @@
 .settings-shell .settings-dialog-actions {display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;}
 .settings-shell.backup-page .backup-tabs {margin-top:20px;}
 @media(max-width:600px) {.settings-shell .settings-categories a {padding:10px 12px;}}
+
+.dropdown-navigation .navigation-unavailable {display:block;padding:11px 12px;letter-spacing:normal;font-size:13px;color:var(--muted);}
+.dropdown-navigation .dropdown-navigation-menu hr {border:0;border-top:1px solid var(--line);margin:5px 6px;}

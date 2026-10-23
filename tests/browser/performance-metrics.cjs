@@ -28,7 +28,7 @@ with app.app_context():
  await page.goto(base+'/metrics');
  assert.equal(await page.locator('h1').textContent(),'MARE performance overview');
  assert.equal(await page.locator('#metrics-total').textContent(),'5');assert.equal(await page.locator('#metrics-completed').textContent(),'1');assert.match(await page.locator('.performance-period-activity').innerText(),/Created during period: 5/);
- assert.equal(await page.locator('.admin-nav a[aria-current="page"]').getAttribute('href'),'/metrics');
+ assert.equal(await page.locator('.admin-nav a[aria-current="page"]').getAttribute('href'),'/dashboards');
  assert.equal(await page.locator('.performance-scorecards').innerText().then(t=>t.includes('2.0')),true);
  assert.equal(await page.locator('#reporting-weeks').inputValue(),'12');
  assert.equal(await page.locator('.performance-point').count(),12);
@@ -63,5 +63,5 @@ with app.app_context():
  `);
  await page.goto(base+'/metrics?weeks=4');assert.match(await page.locator('.performance-scorecards').innerText(),/Unavailable/);assert.match(await page.locator('.performance-period-activity').innerText(),/No change/);assert.equal(await page.locator('.performance-point').count(),4);
  assert.deepEqual(errors,[]);assert.deepEqual(external,[]);
- console.log('PASS: populated and empty scorecards, all periods, desktop/mobile layout, long/disabled analysts, chart hover/focus/keyboard/touch details, zero weeks, local-only assets, active METRICS tab.');
+ console.log('PASS: populated and empty scorecards, all periods, desktop/mobile layout, long/disabled analysts, chart hover/focus/keyboard/touch details, zero weeks, local-only assets, active DASHBOARDS navigation.');
 })().catch(error=>{console.error(error);console.error(log);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));fs.rmSync(temporary,{recursive:true,force:true});});

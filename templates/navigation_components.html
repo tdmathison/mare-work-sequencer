@@ -5,7 +5,10 @@
     <svg class="navigation-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
   </button>
   <div id="{{menu_id}}" class="settings-dropdown dropdown-navigation-menu" hidden>
-    {% for entry in entries %}<a href="{{entry.url}}"{% if entry.identifier is defined %} data-navigation-tool="{{entry.identifier}}"{% endif %}{% if entry.active %} aria-current="true"{% endif %}>{{entry.label}}</a>{% endfor %}
+    {% for entry in entries %}
+    {% if entry.url %}<a href="{{entry.url}}"{% if entry.identifier is defined %} data-navigation-tool="{{entry.identifier}}"{% endif %}{% if entry.active %} aria-current="true"{% endif %}>{{entry.label}}</a>{% else %}<span class="navigation-unavailable" aria-disabled="true">{{entry.label}}</span>{% endif %}
+    {% if entry.divider_after %}<hr>{% endif %}
+    {% endfor %}
   </div>
 </div>
 {%- endmacro %}

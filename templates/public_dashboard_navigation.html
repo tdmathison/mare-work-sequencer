@@ -1,0 +1,1 @@
+<nav aria-label="Dashboards">{% for entry in dashboard_entries if entry.visibility == 'public' %}{% if entry.active %}<span aria-current="page">{{entry.name}}</span>{% elif entry.url %}<a href="{{entry.url}}">{{entry.name}}</a>{% else %}<span>{{entry.name}} <small>· Coming later</small></span>{% endif %}{% endfor %}</nav>

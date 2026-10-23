@@ -29,7 +29,7 @@ def test_workspace_and_navigation(client):
     page = client.get('/tools')
     assert page.status_code == 200
     html = page.data.decode()
-    assert html.index('METRICS') < html.index('TOOLS') < html.index('SETTINGS')
+    assert html.index('TOOLS') < html.index('DASHBOARDS') < html.index('SETTINGS')
     assert 'role="tab"' in html and 'tool-panel-cyberchef' in html
     assert 'data-src="/tools/cyberchef/app/"' in html
     assert 'allow-scripts allow-same-origin allow-downloads' in html
@@ -38,7 +38,7 @@ def test_workspace_and_navigation(client):
     with app.app_context():
         run("UPDATE users SET role='Administrator'")
     html = client.get('/tools').data.decode()
-    assert html.index('METRICS') < html.index('TOOLS') < html.index('SETTINGS')
+    assert html.index('TOOLS') < html.index('DASHBOARDS') < html.index('SETTINGS')
     assert b'TOOLS' not in app.test_client().get('/login').data
 
 

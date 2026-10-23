@@ -420,9 +420,11 @@ def protect():
         request.max_content_length = 600000
     if request.method == 'POST' and (not session.get('csrf') or not secrets.compare_digest(session['csrf'], request.form.get('csrf', ''))):
         abort(403)
-    if request.endpoint not in ('login', 'static', 'cases_dashboard', 'cases_dashboard_data', 'family_dashboard', 'family_dashboard_data'):
+    if request.endpoint not in ('login', 'static', 'dashboards_directory', 'cases_dashboard', 'cases_dashboard_data', 'family_dashboard', 'family_dashboard_data'):
         if not g.user:
-            return redirect('/login')
+            from dashboard_directory import safe_dashboard_return
+            destination = safe_dashboard_return(request.path)
+            return redirect(url_for('login', next=destination) if destination else url_for('login'))
         if g.user['forced'] and request.endpoint not in ('account', 'logout'):
             return redirect(url_for('account'))
 
@@ -507,6 +509,8 @@ def safe_path(cid, rel):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    from dashboard_directory import safe_dashboard_return
+    next_url = safe_dashboard_return(request.form.get('next') if request.method == 'POST' else request.args.get('next'))
     if request.method == 'POST':
         import time
         username = request.form.get('username', '').strip()
@@ -522,12 +526,12 @@ def login():
             session.permanent = True
             run('DELETE FROM attempts WHERE username=?', (username,))
             run('UPDATE users SET last_login=? WHERE id=?', (now(), u['id']))
-            return redirect(url_for('account') if u['forced'] else '/')
+            return redirect(url_for('account') if u['forced'] else (next_url or '/'))
         count = a['count']+1 if a and stamp-a['window'] < 900 else 1
         run('INSERT OR REPLACE INTO attempts VALUES(?,?,?)',
             (username, count, a['window'] if count > 1 else stamp))
         flash('Invalid username or password.')
-    return render_template('login.html')
+    return render_template('login.html', next_url=next_url)
 
 
 @app.post('/logout')
@@ -697,6 +701,8 @@ def metrics_data():
 
 @app.get('/metrics')
 def metrics():
+    if not has_permission(g.user, 'metrics:read', db()):
+        abort(403)
     period = request.args.get('weeks', '12')
     if period not in {str(value) for value in PERIODS}:
         abort(400)
@@ -1421,6 +1427,8 @@ register_snort(app, db, require_tool, ROOT, case, ensure_package, audit)
 from yara_tool import register_yara
 register_yara(app, db, require_tool, ROOT, case, ensure_package, audit, safe_path)
 register_navigation(app)
+from dashboard_directory import register_dashboard_directory
+register_dashboard_directory(app, db)
 register_settings(app, db)
 
 register_search(app, ROOT, db, CASE_QUERY, STAGES)

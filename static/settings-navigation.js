@@ -18,13 +18,13 @@
     window.addEventListener('resize',()=>{if(!menu.hidden)open(true);});
     group.addEventListener('focusout',()=>setTimeout(()=>{if(!hovering&&!pinned&&!group.contains(document.activeElement))open(false);},0));
     group.addEventListener('keydown',event=>{
-      if(event.key==='Escape'&&!menu.hidden){event.preventDefault();dismiss();ignoreHover=true;toggle.focus();}
+      if(event.key==='Escape'&&!menu.hidden){event.preventDefault();dismiss();ignoreHover=hovering;toggle.focus();}
       if(event.key==='ArrowDown'&&event.target===toggle){event.preventDefault();open(true);menu.querySelector('a')?.focus();}
     });
     document.addEventListener('pointerdown',event=>{if(!group.contains(event.target))dismiss();});
     document.addEventListener('keydown',event=>{
       if(event.key==='Escape'&&!event.defaultPrevented&&!menu.hidden&&!document.querySelector('dialog[open]')) {
-        event.preventDefault();dismiss();ignoreHover=true;toggle.focus();
+        event.preventDefault();dismiss();ignoreHover=hovering;toggle.focus();
       }
     });
   });

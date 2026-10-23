@@ -50,7 +50,7 @@ def test_anonymous_navigation_boundary_and_allowlist():
     assert b"Malware families dashboard" in c.get("/login").data
     assert b'href="/dashboards/malware-families"' in c.get("/dashboards/cases").data
     assert (
-        b'aria-current="page">Malware families'
+        b'aria-current="page">Malware Families'
         in c.get("/dashboards/malware-families").data
     )
     for route in [

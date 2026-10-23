@@ -1,12 +1,13 @@
 """Application navigation identifiers derived from Flask's matched routes."""
 
 from flask import request
+from dashboard_directory import DASHBOARDS
 
 
 SECTION_ENDPOINTS = {
     "board": {"dashboard", "create_case_page", "new_case", "save_board_sort"},
     "search": {"mip_search", "mip_search_results", "mip_search_finding"},
-    "metrics": {"metrics"},
+    "dashboards": {"dashboards_directory"} | {item.endpoint for item in DASHBOARDS if item.endpoint},
     "families": {"families_workspace", "families_edit", "families_delete", "families_osint_edit", "families_osint_delete", "families_reports_upload", "families_reports_download", "families_reports_edit", "families_reports_delete"},
     "tags": {"tags_manager", "tag_detail", "tags_search", "tags_create", "tag_manage"},
     "tools": {

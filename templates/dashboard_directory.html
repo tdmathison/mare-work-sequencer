@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% macro visibility_icon(visibility) %}<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false">{% if visibility == 'private' %}<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4"/>{% else %}<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/>{% endif %}</svg>{% endmacro %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='dashboard-directory.css')}}">
+<script defer src="{{url_for('static',filename='dashboard-directory.js')}}"></script>
+<section class="dashboard-directory" aria-labelledby="directory-heading">
+  <h1 id="directory-heading">Dashboards</h1>
+  <p>Operational views and research displays, in one place.</p>
+  <div class="directory-controls">
+    <label class="directory-search">Find a dashboard<input id="dashboard-search" type="search" placeholder="Find a dashboard" autocomplete="off"></label>
+    <div class="directory-filters" role="group" aria-label="Dashboard visibility">
+      {% for filter in ['All','Public','Private'] %}<button type="button" data-visibility="{{filter|lower}}" aria-pressed="{{'true' if loop.first else 'false'}}">{{filter}}</button>{% endfor %}
+    </div>
+  </div>
+  <p class="directory-result-count" role="status" aria-live="polite" aria-atomic="true">{{dashboard_entries|length}} dashboards</p>
+  {% for visibility, title, subtitle in [('private','Private dashboards','Authorized login required'),('public','Public displays','No login required')] %}
+  <section class="directory-group" aria-labelledby="directory-{{visibility}}">
+    <h2 id="directory-{{visibility}}">{{title}}</h2><p class="directory-subtitle">{{subtitle}}</p>
+    {% for entry in dashboard_entries if entry.visibility == visibility %}
+    <article class="directory-row" data-visibility="{{entry.visibility}}" data-search="{{entry.name}} {{entry.description}}">
+      <div class="directory-details"><h3>{{entry.name}}</h3><p>{{entry.description}}</p><span class="directory-badge">{{visibility_icon(visibility)}} {{visibility|title}}</span></div>
+      <div class="directory-action">{% if entry.availability != 'implemented' %}<span>Coming later</span>{% elif entry.restricted %}<span>Access restricted</span>{% else %}<a href="{{entry.url}}" aria-label="{{'Sign in to open' if entry.visibility == 'private' and not user else 'Open dashboard'}}: {{entry.name}}">{{'Sign in to open' if entry.visibility == 'private' and not user else 'Open dashboard'}}</a>{% endif %}</div>
+    </article>
+    {% endfor %}
+  </section>
+  {% endfor %}
+  <p class="directory-empty" hidden>No dashboards match your search and visibility filter.</p>
+</section>
+{% endblock %}

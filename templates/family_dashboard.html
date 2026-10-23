@@ -7,7 +7,7 @@
 <script defer src="{{url_for('static',filename='family-dashboard.js')}}"></script></head>
 <body class="cases-wall family-wall" data-source="{{url_for('family_dashboard_data')}}">
 <header class="wall-header"><div class="wall-brand">MARE <span>//</span> WORK SEQUENCER</div>
-<nav aria-label="Dashboards"><a href="{{url_for('cases_dashboard')}}">Cases</a><span aria-current="page">Malware families</span><span>Threat actors <small>· Coming later</small></span></nav><a class="wall-login" href="{{url_for('login')}}">Login</a></header>
+{% include 'public_dashboard_navigation.html' %}<a class="wall-login" href="{{url_for('dashboard') if user else url_for('login')}}">{{'Return' if user else 'Login'}}</a></header>
 <main><div class="wall-heading"><div><p class="eyebrow">MALWARE RESEARCH</p><h1>Know the families. Connect the findings.</h1></div><span class="public-label">PUBLIC VIEW / READ ONLY</span></div>
 <section class="wall-metrics" aria-label="Research library summary"><div><strong id="tracked_families">—</strong><span>Tracked families</span></div><div><strong id="families_in_progress">—</strong><span>Families with work in progress</span></div><div><strong id="unique_linked_cases">—</strong><span>Unique linked cases</span></div><div><strong id="reports_collected">—</strong><span>Reports collected</span></div></section>
 <div class="wall-columns"><section class="spotlight" aria-labelledby="focus-label"><p class="eyebrow" id="focus-label">FAMILY IN FOCUS</p><div id="featured"><h2>Waiting for research data</h2></div></section>
