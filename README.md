@@ -2129,6 +2129,16 @@ associations, OSINT links, attached PDF/DOC/DOCX reports and current tag-derived
 case History. It reuses `tags:read` / `tags:manage`; case links require
 `cases:read`. Deleting/relinking profiles preserves tags and case assignments.
 Backup & Restore supports selective actors with required family/tag dependencies
-and complete recovery including report bytes. The anonymous Threat Actors display
-remains a future feature. See [Threat Actors](docs/threat-actors.md) for association
+and complete recovery including report bytes. See [Threat Actors](docs/threat-actors.md) for association
 identity rules, migrations, backup compatibility and verification.
+
+
+### Public Threat Actors dashboard
+
+`/dashboards/threat-actors` and `/dashboards/threat-actors/data` provide an anonymous,
+read-only spotlight wall. Login, the dashboard directory, dropdown and public
+navigation now link to it. Only names, TA_ tags, short descriptions, update dates
+and aggregate counts are public. The wall shares the Family dashboard layout,
+bounded paging, accessible scrolling and 60-second snapshot refresh. See
+[Public Threat Actors dashboard](docs/actor-dashboard.md) for counting definitions,
+privacy, selection, motion and verification.

@@ -1,7 +1,7 @@
 # Dashboards directory
 
 `/dashboards` is a public directory. It renders static dashboard metadata without
-loading Metrics, Cases or Malware Families datasets. Search matches names and
+loading Metrics, Cases, Malware Families or Threat Actors datasets. Search matches names and
 descriptions, combines with visibility filters, and hides empty groups. Result
 announcements are debounced; filtering leaves the existing controls in place.
 
@@ -18,7 +18,7 @@ adds a Dashboards link.
   roles have this permission. Custom roles without it receive HTTP 403.
 - Cases: `/dashboards/cases`, public.
 - Malware Families: `/dashboards/malware-families`, public.
-- Threat Actors: public visibility, coming later; no URL or launch action.
+- Threat Actors: `/dashboards/threat-actors`, public.
 
 Anonymous Metrics launch links use `/login?next=/metrics`. Both the GET parameter
 and posted hidden field are validated against exact registered private dashboard

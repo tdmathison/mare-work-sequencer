@@ -14,7 +14,7 @@ let browser,log='';server.stderr.on('data',d=>log+=d);const delay=ms=>new Promis
  await page.goto(base+'/login');await page.getByRole('link',{name:'Dashboards',exact:true}).click();await page.waitForURL(base+'/dashboards');
  assert.equal(await page.locator('.admin-nav').count(),0);
  assert.equal(await page.locator('.directory-row:visible').count(),4);
- assert.equal(await page.locator('.directory-row').filter({hasText:'Threat Actors'}).getByRole('link').count(),0);
+ assert.equal(await page.locator('.directory-row').filter({hasText:'Threat Actors'}).getByRole('link').getAttribute('href'),'/dashboards/threat-actors');
  assert.deepEqual(datasetRequests,[]);
  const search=page.getByRole('searchbox',{name:'Find a dashboard'});
  await search.fill('RESEARCH');assert.equal(await page.locator('.directory-row:visible').count(),2);assert.ok(await search.evaluate(el=>el===document.activeElement));
@@ -31,12 +31,12 @@ let browser,log='';server.stderr.on('data',d=>log+=d);const delay=ms=>new Promis
  await text().click();await page.waitForURL(base+'/dashboards');
  const height=()=>page.locator('.admin-nav').evaluate(el=>el.getBoundingClientRect().height);
  assert.equal(await height(),52);await text().hover();assert.ok(await menu().isVisible());assert.equal(await height(),52);
- assert.deepEqual((await menu().locator('a').allTextContents()).map(x=>x.trim()),['All dashboards','Metrics — Private','Cases — Public','Malware Families — Public']);
+ assert.deepEqual((await menu().locator('a').allTextContents()).map(x=>x.trim()),['All dashboards','Metrics — Private','Cases — Public','Malware Families — Public','Threat Actors — Public']);
  await menu().getByRole('link',{name:'Cases — Public'}).hover();assert.ok(await menu().isVisible());
  const bounds=await menu().boundingBox();assert.ok(bounds.x>=0&&bounds.x+bounds.width<=1366);
  await page.keyboard.press('Escape');assert.equal(await menu().isVisible(),false);assert.ok(await toggle().evaluate(el=>el===document.activeElement));
  await page.mouse.move(0,0);await toggle().focus();await page.keyboard.press('ArrowDown');assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'All dashboards');
- await page.keyboard.press('Escape');await page.keyboard.press('Enter');assert.ok(await menu().isVisible());await page.locator('h1').click();assert.equal(await menu().isVisible(),false);
+ await page.keyboard.press('Escape');await page.keyboard.press('Enter');assert.ok(await menu().isVisible());await page.mouse.click(10,700);assert.equal(await menu().isVisible(),false);
  await text().hover();await menu().getByRole('link',{name:'Metrics — Private'}).click();await page.waitForURL(base+'/metrics');
  await page.goto(base+'/dashboards');await page.getByRole('button',{name:'Open Settings menu'}).focus();await page.keyboard.press('ArrowDown');assert.ok(await page.locator('#settings-menu').isVisible());assert.equal(await menu().isVisible(),false);await page.keyboard.press('Escape');
  const top=await page.locator('.admin-nav').evaluate(nav=>[...nav.children].map(el=>(el.matches('.dropdown-navigation')?el.querySelector(':scope > a'):el).textContent.trim()));assert.equal(top[top.indexOf('TOOLS')-1],'API');

@@ -112,10 +112,10 @@ records remain idempotent without a new missing-link choice.
 
 ## Privacy and verification
 
-This feature is authenticated management only. The anonymous Threat Actors display
-remains **Coming later** in the dashboard registry. No new public actor endpoint is
-registered, and neither public dashboard API adds actor descriptions, aliases,
-reports or case data.
+Management routes remain authenticated. The separate [public Threat Actors
+dashboard](actor-dashboard.md) exposes only approved profile summaries and aggregate
+counts through its dedicated projection. Aliases, associations, private research,
+report metadata/bytes, OSINT URLs and case details remain private.
 
 Run relevant server coverage with:
 

@@ -2,9 +2,9 @@
 
 `/dashboards/malware-families` and its dedicated JSON endpoint
 `/dashboards/malware-families/data?page=0&library_page=0` are anonymous, read-only.
-The login header links to both public dashboards; Cases and Malware families link
-to each other, and Login stays at the far right. Threat actors is a noninteractive
-Coming later label. Internal profile, case, OSINT, attachment and API permissions
+The login header and public navigation link to Cases, Malware Families and Threat
+Actors. Login stays at the far right for anonymous visitors; authenticated visitors
+see Return to the MIP Board. Internal profile, case, OSINT, attachment and API permissions
 are unchanged. Deployment operators should understand that all existing eligible
 profile names, MAL_ tags and short descriptions are intentionally public here.
 
@@ -65,7 +65,8 @@ snapshot for those pages; out-of-range pages clamp after deletion.
 
 Hover, keyboard focus and explicit pause stop strip motion. While focused, left
 and right arrow keys browse overflowing cards without waiting for animation. Pauses and valid page
-positions survive data refresh. Nonoverflowing content is stationary. Reduced
+positions survive data refresh. Nonoverflowing content is stationary; a short final page in a multi-page library
+automatically advances on the 25-second rotation timer. Reduced
 motion disables automatic scrolling and investigation rotation, removes duplicate
 cards, and uses native horizontal scrolling plus manual paging. The screen has
 intentional empty and single-profile states. Wide screens use side-by-side main

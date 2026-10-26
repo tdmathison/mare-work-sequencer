@@ -3,6 +3,11 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
+  const actorWall=document.body.dataset.profileKind==='actor';
+  const plural=actorWall?'actors':'families';
+  const emptyHeadline=actorWall?'Research starts with an actor.':'Research starts with a family.';
+  const emptyDescription=actorWall?'No threat-actor profiles have been added yet.':'No malware-family profiles have been added yet.';
+  const emptyWorkload=actorWall?'No threat actor investigations currently in progress':'No family investigations currently in progress';
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let zone='UTC', snapshot=null, stopped=false, busy=false, pending=null, serial=0;
   let controller, refreshTimer, rotationTimer, frame, lastSuccess=null;
@@ -34,7 +39,7 @@
     if(kind!=='completed-card' && date(item.updated_at))el.append(node('p','case-date','Profile updated '+date(item.updated_at)));
     return el;
   }
-  class FamilyStrip {
+  class ProfileStrip {
     constructor() {
       this.viewport=document.querySelector('.strip-viewport');this.track=document.querySelector('.strip-track');this.group=$('tracked');
       this.paused=false;this.offset=0;this.last=0;this.width=0;this.moving=false;
@@ -50,7 +55,7 @@
     }
     controls() {
       $('strip-pause').textContent=this.paused?'Resume scrolling':'Pause scrolling';
-      $('strip-pause').setAttribute('aria-pressed',String(this.paused));$('strip-pause').disabled=!this.moving;
+      $('strip-pause').setAttribute('aria-pressed',String(this.paused));$('strip-pause').disabled=reduced.matches||(!this.moving&&libraryPages<=1);
     }
     update(items,changedPage) {
       if(reconcile(this.group,items,()=>items.map(i=>card(i,'completed-card')))) {
@@ -81,10 +86,10 @@
       }
     }
   }
-  const strip=new FamilyStrip();
+  const strip=new ProfileStrip();
   function pageControls() {
     const count=snapshot?.pagination.total||0;
-    $('page-position').textContent=`${count} families · Page ${page+1} of ${pages} · ${reduced.matches?'Manual paging':'Rotates every 25 seconds'}`;
+    $('page-position').textContent=`${count} ${plural} · Page ${page+1} of ${pages} · ${reduced.matches?'Manual paging':'Rotates every 25 seconds'}`;
     $('previous').disabled=$('next').disabled=pages<=1;
     $('active-pause').disabled=pages<=1||reduced.matches;
     $('active-pause').textContent=rotationPaused?'Resume rotation':'Pause rotation';
@@ -115,8 +120,8 @@
       snapshot=data;zone=data.timezone;page=data.pagination.page;pages=data.pagination.pages;
       libraryPage=data.library_pagination.page;libraryPages=data.library_pagination.pages;
       for(const [key,value] of Object.entries(data.metrics))$(key).textContent=value;
-      reconcile($('featured'),data.featured,()=>data.featured?[card(data.featured,'spotlight-content')]:[node('h2','','Research starts with a family.'),node('p','case-description','No malware-family profiles have been added yet.')]);
-      reconcile($('active'),data.investigations,()=>data.investigations.length?data.investigations.map(i=>card(i,'active-card')):[node('p','case-description','No family investigations currently in progress')]);
+      reconcile($('featured'),data.featured,()=>data.featured?[card(data.featured,'spotlight-content')]:[node('h2','',emptyHeadline),node('p','case-description',emptyDescription)]);
+      reconcile($('active'),data.investigations,()=>data.investigations.length?data.investigations.map(i=>card(i,'active-card')):[node('p','case-description',emptyWorkload)]);
       strip.update(data.tracked,changedLibrary);pageControls();lastSuccess=new Date(data.updated_at);$('display-zone').textContent=zone;status(false);
     } catch(error) {if(!stopped&&token===serial)status(true);}
     finally {
@@ -133,7 +138,14 @@
     load();refreshTimer=setInterval(()=>load(),60000);
     rotationTimer=setInterval(()=>{
       const section=document.querySelector('.investigations');
-      if(!busy&&pages>1&&!rotationPaused&&!reduced.matches&&!document.hidden&&!section.matches(':hover')&&!section.contains(document.activeElement))load((page+1)%pages,libraryPage);
+      if(reduced.matches||document.hidden)return;
+      let nextPage=page,nextLibrary=libraryPage;
+      if(pages>1&&!rotationPaused&&!section.matches(':hover')&&!section.contains(document.activeElement))nextPage=(page+1)%pages;
+      const library=document.querySelector('.completed-section');
+      // A short final library page cannot complete a scrolling loop. Give it a
+      // readable dwell time, then continue through the entire library instead.
+      if(!strip.moving&&libraryPages>1&&!strip.paused&&!library.matches(':hover')&&!library.contains(document.activeElement))nextLibrary=(libraryPage+1)%libraryPages;
+      if(nextPage!==page||nextLibrary!==libraryPage)load(nextPage,nextLibrary);
     },25000);
     frame=requestAnimationFrame(animate);
   }

@@ -41,6 +41,8 @@
         <a class="login-dashboard-link" href="{{url_for('cases_dashboard')}}">Cases dashboard</a>
         <span aria-hidden="true">|</span>
         <a class="login-dashboard-link" href="{{url_for('family_dashboard')}}">Malware families dashboard</a>
+        <span aria-hidden="true">|</span>
+        <a class="login-dashboard-link" href="{{url_for('actor_dashboard')}}">Threat actors dashboard</a>
       </nav>
       {% elif request.endpoint == 'dashboards_directory' %}<a href="{{url_for('login')}}">Login</a>
       {% endif %}

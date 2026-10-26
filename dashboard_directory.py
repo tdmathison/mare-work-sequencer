@@ -20,7 +20,7 @@ DASHBOARDS = (
     Dashboard('metrics', 'Metrics', 'Case totals, lifecycle trends, workload, and completion metrics.', 'metrics', 'private', 'implemented', 'metrics:read', 10),
     Dashboard('cases', 'Cases', 'Completed work, ongoing investigations, and recent deliveries.', 'cases_dashboard', 'public', 'implemented', None, 20),
     Dashboard('families', 'Malware Families', 'Tracked families, research coverage, and investigations in progress.', 'family_dashboard', 'public', 'implemented', None, 30),
-    Dashboard('actors', 'Threat Actors', 'Threat actor research and profile coverage.', None, 'public', 'coming later', None, 40),
+    Dashboard('actors', 'Threat Actors', 'Threat actor research and profile coverage.', 'actor_dashboard', 'public', 'implemented', None, 40),
 )
 
 

@@ -18,8 +18,8 @@ def login_client(role='User'):
 
 
 def test_anonymous_directory_and_shared_registry(monkeypatch):
-    # Directory rendering must not invoke either public dashboard dataset.
-    for endpoint in ('cases_dashboard_data', 'family_dashboard_data'):
+    # Directory rendering must not invoke any public dashboard dataset.
+    for endpoint in ('cases_dashboard_data', 'family_dashboard_data', 'actor_dashboard_data'):
         monkeypatch.setitem(app.view_functions, endpoint, lambda: pytest.fail('dataset fetched'))
     monkeypatch.setattr('app.scorecard', lambda *args, **kwargs: pytest.fail('Metrics dataset fetched'))
     client = app.test_client()
@@ -33,8 +33,9 @@ def test_anonymous_directory_and_shared_registry(monkeypatch):
     assert 'Sign in to open' in html and '/login?next=/metrics' in html
     assert html.count('class="directory-row"') == len(DASHBOARDS)
     assert 'href="None"' not in html
-    assert 'Coming later' in html and 'Threat Actors' in html
-    for path in ('/dashboards/cases', '/dashboards/malware-families'):
+    assert 'Coming later' not in html and 'Threat Actors' in html
+    assert 'href="/dashboards/threat-actors"' in html
+    for path in ('/dashboards/cases', '/dashboards/malware-families', '/dashboards/threat-actors'):
         wall = client.get(path)
         assert wall.status_code == 200
         assert b'admin-nav' not in wall.data
@@ -51,10 +52,10 @@ def test_authorized_menu_and_active_section():
     assert [link['href'] for link in links if link.get('aria-current') == 'page'] == ['/dashboards']
     assert 'METRICS</a>' not in html
     assert 'Metrics — Private' in html
-    assert 'Threat Actors — Coming later</span>' in html
+    assert 'Threat Actors — Public</a>' in html
     assert 'aria-label="Open dashboard: Metrics"' in html
     assert client.get('/metrics').status_code == 200
-    for path in ('/dashboards/cases', '/dashboards/malware-families'):
+    for path in ('/dashboards/cases', '/dashboards/malware-families', '/dashboards/threat-actors'):
         wall = client.get(path)
         assert 'class="wall-login" href="/">Return</a>' in wall.text
         assert 'class="wall-login" href="/login"' not in wall.text
