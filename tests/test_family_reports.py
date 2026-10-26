@@ -406,7 +406,7 @@ def test_report_bytes_recovery_real_clean_instance_and_tags(tmp_path):
     archive.write_bytes(make_backup(client))
     with zipfile.ZipFile(archive) as z:
         manifest = json.loads(z.read("installation.json"))
-        assert manifest["schema"] == "mare-installation-backup/2"
+        assert manifest["schema"] == "mare-installation-backup/3"
         assert manifest["counts"]["family_reports"] == 4
         for row in rows:
             assert z.read("data/" + row["storage_ref"]) == original[row["id"]]
@@ -657,6 +657,8 @@ def test_corrupt_attachment_restore_and_v1_installation_compatibility(tmp_path):
                 m["schema"] = "mare-installation-backup/1"
                 m["required_migration"] = "malware-families-v1"
                 m["counts"].pop("family_reports")
+                for key in ("threat_actors","actor_osint","actor_reports","actor_families"):
+                    m["counts"].pop(key, None)
                 m["files"] = {
                     k: v
                     for k, v in m["files"].items()

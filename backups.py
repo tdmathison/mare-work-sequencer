@@ -276,7 +276,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 finally:
                     source.close()
                     destination.close()
-                from installation_backup import add_file, record_counts, SCHEMA as INSTALLATION_SCHEMA, FAMILY_MIGRATION
+                from installation_backup import add_file, record_counts, SCHEMA as INSTALLATION_SCHEMA, FAMILY_MIGRATION, ACTOR_MIGRATION
                 files = {}
                 with closing(sqlite3.connect(snapshot)) as snapshot_connection:
                     snapshot_connection.row_factory = sqlite3.Row
@@ -284,20 +284,24 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     if snapshot_connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='family_reports'").fetchone():
                         for report in snapshot_connection.execute('SELECT * FROM family_reports'):
                             verify_report(ROOT, report)
+                    from profile_types import ACTOR
+                    if snapshot_connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='actor_reports'").fetchone():
+                        for report in snapshot_connection.execute('SELECT * FROM actor_reports'):
+                            verify_report(ROOT, report, spec=ACTOR)
                     counts = record_counts(snapshot_connection)
                     family_schema = snapshot_connection.execute("SELECT 1 FROM schema_migrations WHERE name=?", (FAMILY_MIGRATION,)).fetchone() is not None
                 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as archive:
                     expanded = add_file(archive, snapshot, 'data/workflow.sqlite3', files)
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
-                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging') or file.name in ('.backup.lock', '.case-sync.lock', '.maintenance.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
+                        if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging','actor-report-staging') or file.name in ('.backup.lock', '.case-sync.lock', '.maintenance.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
                             continue
                         expanded = add_file(archive, file, (Path('data')/rel).as_posix(), files, expanded=expanded)
                     # Keep the pre-feature installation format usable for an
                     # instance awaiting the explicit prototype-tag migration.
                     if family_schema:
                         metadata = json_bytes({
-                            'schema': INSTALLATION_SCHEMA, 'required_migration': FAMILY_MIGRATION,
+                            'schema': INSTALLATION_SCHEMA, 'required_migration': ACTOR_MIGRATION,
                             'created': now(), 'counts': counts, 'files': files})
                         if len(metadata) > MAX_METADATA:
                             raise ValueError('Installation metadata exceeds the recovery limit.')
@@ -336,7 +340,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
 
     @app.post('/import-export/export')
     def backup_export():
-        areas = set(getattr(g, "backup_areas", ("cases","families","tags")))
+        areas = set(getattr(g, "backup_areas", ("cases","families","tags","actors")))
         if db().execute("SELECT 1 FROM report_jobs WHERE status IN ('queued','running')").fetchone():
             flash('Wait for report generation to finish before exporting the backup.')
             return redirect(url_for('import_export_page'))
@@ -345,12 +349,12 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
             from family_portable import export_library
             from authorization import has_permission
-            library = export_library(db(), ROOT) if "families" in areas else {"schema":"mare-family-library/1","families":[]}
-            if library['families'] and not has_permission(g.user,'tags:read',db()):
+            library = export_library(db(), ROOT, include_families="families" in areas, include_actors="actors" in areas)
+            if (library['families'] or library.get('actors')) and not has_permission(g.user,'tags:read',db()):
                 from flask import abort
                 abort(403)
             index['family_library'] = library
-            needed={f['tag'] for f in library['families']}
+            needed={f['tag'] for f in library['families'] + library.get('actors',[])}
             if 'cases' in areas:needed.update(r[0] for r in db().execute('SELECT DISTINCT t.name FROM tags t JOIN case_tags ct ON ct.tag_id=t.id'))
             registry=[dict(r) for r in db().execute('SELECT t.name,i.identity,t.created_at FROM tags t JOIN family_tag_identities i ON i.tag_id=t.id ORDER BY t.name') if 'tags' in areas or r['name'] in needed]
             index['tag_registry']=registry
@@ -362,9 +366,10 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             total = 0
             with zipfile.ZipFile(out, 'w', zipfile.ZIP_STORED) as outer:
                 from family_reports import storage_path
-                for family in library['families']:
+                from profile_types import FAMILY, ACTOR
+                for report_spec, family in [(FAMILY,f) for f in library['families']] + [(ACTOR,a) for a in library.get('actors',[])]:
                     for report in family['reports']:
-                        outer.write(storage_path(ROOT,report['id']), 'library/'+report['storage_ref'])
+                        outer.write(storage_path(ROOT,report['id'],spec=report_spec), 'library/'+report['storage_ref'])
                         total += report['size']
                         if total>MAX_TOTAL:raise ValueError('Backup exceeds the 2 GiB expanded limit.')
                 for row in (db().execute('SELECT id FROM cases ORDER BY id').fetchall() if 'cases' in areas else []):
@@ -457,13 +462,15 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 if not isinstance(shared,dict) or not isinstance(shared.get('families'),list):raise ValueError('Invalid shared family section.')
                 from family_reports import reference, MAX_FILE as REPORT_FILE_LIMIT, MAX_REPORTS
                 if len(shared['families'])>10000:raise ValueError('Too many shared families.')
-                for family in shared['families']:
+                from profile_types import FAMILY, ACTOR
+                if not isinstance(shared.get('actors',[]),list) or len(shared.get('actors',[]))>10000:raise ValueError('Invalid shared actor section.')
+                for report_spec, family in [(FAMILY,f) for f in shared['families']] + [(ACTOR,a) for a in shared.get('actors',[])]:
                     if not isinstance(family,dict) or not isinstance(family.get('reports'),list):raise ValueError('Invalid shared report section.')
                     if len(family['reports'])>MAX_REPORTS:raise ValueError('Too many reports in one family.')
                     for report in family['reports']:
                         # Derive every destination from a validated UUID; never use
                         # an incoming storage path for extraction.
-                        rel=reference(report['id'])
+                        rel=reference(report['id'],spec=report_spec)
                         archive_path='library/'+rel
                         if archive_path in shared_seen:raise ValueError('Duplicate report in shared archive.')
                         library_files.append(archive_path);shared_seen.add(archive_path)
@@ -620,12 +627,12 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         from family_portable import validate_library,check_conflicts
         from authorization import has_permission
         data=json.loads(path.read_text())
-        if data['families'] and not (has_permission(g.user,'tags:manage',db()) and has_permission(g.user,'tags:read',db())):
+        if (data['families'] or data.get('actors')) and not (has_permission(g.user,'tags:manage',db()) and has_permission(g.user,'tags:read',db())):
             from flask import abort
             abort(403,'Shared malware-family import requires profile management permission.')
         counts=validate_library(data,Path(directory)/'library')
         check_conflicts(db(),ROOT,data)
-        if any(not db().execute('SELECT 1 FROM tags WHERE normalized_name=?',(f['tag'],)).fetchone() for f in data['families']) and not has_permission(g.user,'tags:create',db()):
+        if any(not db().execute('SELECT 1 FROM tags WHERE normalized_name=?',(f['tag'],)).fetchone() for f in data['families']+data.get('actors',[])) and not has_permission(g.user,'tags:create',db()):
             from flask import abort
             abort(403)
         return counts
@@ -638,7 +645,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         registry_path=Path(directory)/'resolved-tags.json'
         registry=json.loads(registry_path.read_text()) if getattr(g,'backup_workspace',False) and registry_path.exists() else []
         result=restore_library(db(),ROOT,Path(directory)/'library',json.loads(path.read_text()),registry=registry)
-        db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared malware-family library restored: '+json.dumps(result),now()))
+        db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared research profile library restored: '+json.dumps(result),now()))
         db().commit()
         return result
 

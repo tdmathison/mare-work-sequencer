@@ -30,8 +30,10 @@ def load_aliases(value):
         raise ValueError('Invalid malware-family aliases collection.') from exc
 
 
-def save_aliases(connection, fid, values):
-    connection.execute('UPDATE malware_families SET aliases=? WHERE id=?',
+def save_aliases(connection, fid, values, *, table="malware_families"):
+    if table not in ("malware_families", "threat_actors"):
+        raise ValueError("Unknown profile type.")
+    connection.execute(f'UPDATE {table} SET aliases=? WHERE id=?',
                        (json.dumps(validate_aliases(values), ensure_ascii=False), fid))
 
 

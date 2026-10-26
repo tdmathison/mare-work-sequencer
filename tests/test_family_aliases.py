@@ -64,9 +64,9 @@ def test_failed_saves_conflicts_and_drafts_preserve_aliases(monkeypatch):
     assert edit(client, fid, aliases=['Draft'], alias_draft='Pending name').status_code == 302
     assert aliases(fid) == ['Draft','Pending name']
     import malware_families
-    def unavailable(*args):
+    def unavailable(*args, **kwargs):
         raise sqlite3.OperationalError('busy')
-    monkeypatch.setattr(malware_families, 'save_aliases', unavailable)
+    monkeypatch.setattr('profile_workspace.save_aliases', unavailable)
     failed = edit(client, fid, aliases=['Retry later'])
     assert failed.status_code == 503 and 'value="Retry later"' in failed.text
     assert aliases(fid) == ['Draft','Pending name']

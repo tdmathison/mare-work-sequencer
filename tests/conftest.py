@@ -12,9 +12,12 @@ def isolated_state(monkeypatch):
         connection=db();connection.commit();connection.execute('PRAGMA foreign_keys=OFF')
         # Remove profile children/parents before protected shared tags.
         tables=connection.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()
-        for row in sorted(tables,key=lambda row: {'family_reports':0,'family_osint':0,'malware_families':1,'family_tag_identities':1}.get(row[0],2)):
+        for row in sorted(tables,key=lambda row: {'actor_reports':0,'actor_osint':0,'actor_families':0,'threat_actors':1,'family_reports':0,'family_osint':0,'malware_families':1,'family_tag_identities':1}.get(row[0],2)):
             connection.execute('DELETE FROM "'+row[0]+'"')
         connection.execute('INSERT INTO case_sequence VALUES(1,0)');connection.commit();connection.execute('PRAGMA foreign_keys=ON')
-    for directory in ('cases','users','report-jobs','sync-staging','sync-recovery','family-reports','family-report-staging'):shutil.rmtree(ROOT/directory,ignore_errors=True)
+    with app.app_context():
+        from threat_actors import initialize as initialize_actors
+        initialize_actors(db())
+    for directory in ('cases','users','report-jobs','sync-staging','sync-recovery','family-reports','family-report-staging','actor-reports','actor-report-staging'):shutil.rmtree(ROOT/directory,ignore_errors=True)
     for directory in ('sync-staging','sync-recovery'):(ROOT/directory).mkdir(mode=0o700,exist_ok=True)
     yield

@@ -57,7 +57,7 @@ AREAS = (
     Area(
         "tags", "Tags", "tags", "Shared tag definitions and permanent tag identities."
     ),
-    Area("actors", "Threat actor profiles", None, "Coming later", available=False),
+    Area("actors", "Threat actors", "threat_actors", "Profiles, aliases, TA_ tags, related Malware Family dependencies, ordered OSINT and attached report bytes; unrelated cases are excluded.", ("tags", "families")),
 )
 KEYS = {a.key for a in AREAS if a.available}
 
@@ -196,6 +196,44 @@ def resolve(con, root, staged, choices):
             )
         retained.append(record)
     library["families"] = retained
+    actor_retained = []
+    from family_portable import check_profile_conflicts, profile_data
+    from profile_types import ACTOR
+    from threat_actors import check_dependencies
+    for record in library.get('actors', []):
+        actor_skip = set()
+        actor_conflicts = []
+        record['tag_identity'] = rewrites.get(record['tag_identity'], record['tag_identity'])
+        for link in record['known_families']:
+            link['tag_identity'] = rewrites.get(link['tag_identity'], link['tag_identity'])
+            if link['available']:
+                link['target_tag_identity'] = rewrites.get(link['target_tag_identity'], link['target_tag_identity'])
+        try:
+            actor_skip = check_profile_conflicts(con, root, {'schema': FAMILY_SCHEMA, 'actors': [record]}, spec=ACTOR)
+            check_dependencies(con, [record], retained)
+        except ValueError as exc:
+            key = 'actor:' + record['id']
+            if choices.get(key) == 'keep':
+                continue
+            actor_conflicts.append(dict(key=key, label=str(exc), options=[['keep', 'Keep destination research; skip this incoming actor and its reports']]))
+        if record['id'] not in actor_skip:
+            skip_actor = False
+            for link in record['known_families']:
+                if link['available']:
+                    continue
+                key = 'actor-unavailable:' + record['id'] + ':' + link['family_uuid']
+                decision = choices.get(key)
+                if decision == 'skip':
+                    skip_actor = True
+                    break
+                if decision != 'retain':
+                    actor_conflicts.append(dict(key=key, label='Unavailable family association: ' + link['family_name'] + ' for ' + record['name'], options=[['retain', 'Retain this association explicitly as unavailable; do not attach a replacement'], ['skip', 'Skip the incoming actor and its reports']]))
+            if skip_actor:
+                continue
+        conflicts.extend(actor_conflicts)
+        actor_retained.append(record)
+    if 'actors' in library:
+        library['actors'] = actor_retained
     return conflicts, mapping, library
 
 

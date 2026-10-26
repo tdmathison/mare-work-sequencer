@@ -18,7 +18,9 @@ import uuid
 from backups import checked_members, read_json, MAX_TOTAL, MAX_FILE
 from zip_metadata import restore_mtime
 
-SCHEMA = "mare-installation-backup/2"
+SCHEMA = "mare-installation-backup/3"
+ACTOR_MIGRATION = "threat-actors-v1"
+ACTOR_TABLES = {"threat_actors", "actor_osint", "actor_reports", "actor_families"}
 FAMILY_MIGRATION = "family-reports-v1"
 BASE_FAMILY_MIGRATION = "malware-families-v1"
 COUNT_TABLES = (
@@ -29,6 +31,7 @@ COUNT_TABLES = (
     "malware_families",
     "family_osint",
     "family_reports",
+    "threat_actors", "actor_osint", "actor_reports", "actor_families",
 )
 FAMILY_COLUMNS = {
     "malware_families": {
@@ -198,6 +201,17 @@ def validate_database(path, modern):
                 safe_url(entry["url"])
                 seen.add(entry["id"])
                 positions.add((entry["family_id"], entry["position"]))
+        if 'threat_actors' in tables:
+            if not ACTOR_TABLES <= tables or not {'actor_import_state'} <= tables:
+                raise ValueError('Incomplete Threat Actors schema.')
+            if not connection.execute("SELECT 1 FROM schema_migrations WHERE name=?", (ACTOR_MIGRATION,)).fetchone():
+                raise ValueError('Missing Threat Actors migration marker.')
+            from family_portable import export_profiles, validate_profiles
+            from profile_types import ACTOR
+            from threat_actors import check_dependencies
+            data = export_profiles(connection, Path(path).parent, spec=ACTOR)
+            validate_profiles(data, Path(path).parent, spec=ACTOR)
+            check_dependencies(connection, data['actors'])
         if "family_reports" in tables:
             from family_reports import verify_report, MAX_REPORTS
 
@@ -293,9 +307,13 @@ def restore_installation(archive_path, destination):
             ):
                 raise ValueError("Unexpected installation archive content.")
             if manifest is not None:
-                modern_reports = manifest.get("schema") == SCHEMA
+                modern_actors = manifest.get("schema") == SCHEMA
+                modern_reports = manifest.get("schema") in (SCHEMA, "mare-installation-backup/2")
                 compatible = (
-                    modern_reports
+                    modern_actors
+                    and manifest.get("required_migration") == ACTOR_MIGRATION
+                ) or (
+                    manifest.get("schema") == "mare-installation-backup/2"
                     and manifest.get("required_migration") == FAMILY_MIGRATION
                 ) or (
                     manifest.get("schema") == "mare-installation-backup/1"
@@ -310,9 +328,9 @@ def restore_installation(archive_path, destination):
                         "Unsupported installation backup format or required schema version."
                     )
                 expected_counts = (
-                    set(COUNT_TABLES)
-                    if modern_reports
-                    else set(COUNT_TABLES) - {"family_reports"}
+                    set(COUNT_TABLES) if modern_actors else
+                    set(COUNT_TABLES) - ACTOR_TABLES if modern_reports else
+                    set(COUNT_TABLES) - ACTOR_TABLES - {"family_reports"}
                 )
                 if set(manifest["counts"]) != expected_counts or any(
                     type(value) is not int or value < 0
@@ -367,15 +385,12 @@ def restore_installation(archive_path, destination):
                             raise ValueError(
                                 "Missing attached-report schema in modern backup."
                             )
-                expected = (
-                    counts
-                    if modern_reports
-                    else {
-                        key: value
-                        for key, value in counts.items()
-                        if key != "family_reports"
-                    }
-                )
+                expected = {key: counts[key] for key in expected_counts}
+                if modern_actors:
+                    with closing(sqlite3.connect(stage / "workflow.sqlite3")) as actor_connection:
+                        present = {r[0] for r in actor_connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                        if not ACTOR_TABLES <= present:
+                            raise ValueError("Missing Threat Actors tables in modern backup.")
                 if manifest["counts"] != expected:
                     raise ValueError(
                         "Installation record counts do not match the snapshot."
@@ -386,6 +401,8 @@ def restore_installation(archive_path, destination):
             from family_aliases import initialize as initialize_aliases
             with closing(sqlite3.connect(stage / 'workflow.sqlite3')) as connection:
                 initialize_aliases(connection)
+                from threat_actors import initialize as initialize_actors
+                initialize_actors(connection)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():

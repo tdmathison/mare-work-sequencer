@@ -1,0 +1,7 @@
+<fieldset class="actor-family-entry" data-actor-family-entry data-search-url="{{url_for('actors_families_search')}}"><legend>Known Malware Families</legend>
+<p class="muted">Analyst-created associations only; they do not imply attribution confidence or add tags to cases. Deleted profiles remain explicitly unavailable; relinking a family keeps the association to that same profile.</p>
+<div class="family-aliases" role="group" aria-label="Selected Malware Families">{% for item in known_families %}<span class="tag-chip actor-family-chip"><span>{{item.current_name or item.family_name}} · {{item.current_tag or item.family_tag}}{% if not item.family_id %} · Unavailable{% endif %}</span><input type="hidden" name="known_families" value="{{item.family_uuid}}"><button type="button" data-remove-family aria-label="Remove family {{item.current_name or item.family_name}}">×</button></span>{% endfor %}</div>
+<label for="actor-family-search">Find a Malware Family</label><input id="actor-family-search" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="actor-family-options" aria-describedby="actor-family-feedback">
+<ul id="actor-family-options" role="listbox" aria-label="Malware Family choices" hidden></ul><p id="actor-family-feedback" role="status">Choose configured family profiles by name or MAL_ tag. Up to 100 families.</p>
+<script defer src="{{url_for('static',filename='actor-families.js')}}"></script>
+</fieldset>

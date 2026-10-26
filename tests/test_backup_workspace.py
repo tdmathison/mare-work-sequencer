@@ -105,9 +105,8 @@ def test_registry_permissions_csrf_and_deprecated_plaintext_export():
     c, uid, *_ = setup()
     assert selection(["cases"]) == (["cases"], ["tags"])
     assert selection(["cases", "families", "tags"])[1] == []
-    assert selection([], True)[0] == ["cases", "families", "tags"]
-    with pytest.raises(ValueError):
-        selection(["actors"])
+    assert selection([], True)[0] == ["actors", "cases", "families", "tags"]
+    assert selection(["actors"]) == (["actors"], ["families", "tags"])
     assert c.get("/import-export", follow_redirects=True).status_code == 200
     assert "Complete application backup" in c.get("/backup-restore", follow_redirects=True).text
     assert c.post("/backup-restore/jobs", data={"kind": "export"}).status_code == 403

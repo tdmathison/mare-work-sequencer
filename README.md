@@ -2119,3 +2119,16 @@ query strings, mutation/export endpoints remain supported, and backup jobs survi
 category navigation. The redundant General backup shortcut is removed; recovery
 remains in Import & Export. See [Settings navigation](docs/settings-navigation.md)
 for permissions, unsaved-form handling and verification.
+
+
+### Threat Actors
+
+The authenticated **Threat Actors** tab shares the Malware Families workspace:
+ordered aliases, a required `TA_` tag, descriptions, configured Malware Family
+associations, OSINT links, attached PDF/DOC/DOCX reports and current tag-derived
+case History. It reuses `tags:read` / `tags:manage`; case links require
+`cases:read`. Deleting/relinking profiles preserves tags and case assignments.
+Backup & Restore supports selective actors with required family/tag dependencies
+and complete recovery including report bytes. The anonymous Threat Actors display
+remains a future feature. See [Threat Actors](docs/threat-actors.md) for association
+identity rules, migrations, backup compatibility and verification.

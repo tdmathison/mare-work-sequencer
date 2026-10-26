@@ -1437,6 +1437,8 @@ register_tags(app, db, case)
 
 from malware_families import register_families
 register_families(app, db, ROOT)
+from threat_actors import register_actors
+register_actors(app, db, ROOT)
 
 with app.app_context():
     db().execute('CREATE INDEX IF NOT EXISTS history_case_sequence ON history(case_id,id)')

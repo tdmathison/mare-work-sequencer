@@ -11,19 +11,20 @@ returns 410 with a link to the encrypted workspace; selective APIs remain suppor
 A complete export snapshots every SQLite table, not just the selective areas:
 cases and UUID/revision state; lifecycle/history, tasks, notes, indicators,
 references, reports and asset metadata; tag identities/assignments; family profiles,
-ordered OSINT and research-report metadata; users, password hashes, roles,
+ordered OSINT and research-report metadata; threat actor profiles, aliases and
+stable Malware Family relationships; users, password hashes, roles,
 permissions, disabled state, user identities, API credentials, settings, audit;
 case sequence and historical number reservations; synchronization history and
 application migrations. Future tables are included automatically.
 
 All durable files below `MARE_DATA_DIR` are included, including case packages,
-samples, scripts, images, generated reports and backups, family-report bytes,
+samples, scripts, images, generated reports and backups, family and actor report bytes,
 user customizations and templates, private Snort/YARA drafts, `session.key`,
 application-managed key files, and synchronization staging/recovery data. Unknown
 persistent files are included. Symlinks fail export explicitly. Paths are relative.
 
 Excluded derived/transient directories: `search-index`, `report-jobs`, `snort-jobs`,
-`yara-jobs`, `family-report-staging`, temporary `case-import-*` directories, SQLite
+`yara-jobs`, `family-report-staging`, `actor-report-staging`, temporary `case-import-*` directories, SQLite
 journals and lock files. Active analysis/report jobs must finish first. Derived
 search indexes rebuild after replacement. In-flight jobs and browser sessions do
 not resume; application-managed recovery files remain available.
@@ -38,14 +39,15 @@ session key is included; environment variables are not copied into archives.
 
 Complete application backup checks all implemented rows and adds system data.
 Unchecking a row turns off complete mode; manually selecting every row stays
-selective. Unchecking complete retains the checked rows. Threat actor profiles are
-unavailable. Empty selection disables Export. Counts come from the database;
+selective. Unchecking complete retains the checked rows. Threat Actors is an
+implemented selective area. Empty selection disables Export. Counts come from the database;
 archive size is shown only after generation.
 
 | Selective area | Included content | Automatic dependency |
 | --- | --- | --- |
 | Cases | Full editable RAW state, stable case identities, samples and assets, user references, source number reservations | Referenced tag definitions and identities |
 | Malware families | All profiles, ordered OSINT, attached report bytes, including profiles without cases | Required tags and identities |
+| Threat actors | Profiles, ordered aliases/OSINT, report bytes and stable Malware Family associations | Required TA_ tags, referenced configured family profiles and their tags; no unrelated cases |
 | Tags | Definitions and stable identities | None |
 
 Selective archives exclude authentication credentials and unrelated cases. Shared
@@ -67,7 +69,8 @@ data volume and backups. Export downloads expire after 24 hours.
 New exports use `mare-backup/1`, one ZIP with `mare-backup.json` and `payload.zip`.
 The manifest records archive UUID, creation/application version, complete/selective
 scope, dependencies, counts, file sizes/hashes, payload SHA-256, schema contract,
-and exclusions. The payload reuses installation format 2 or selective format 3.
+and exclusions. The payload uses installation format 3 or selective case format 3; installation
+formats 1 and 2 remain supported for recovery.
 `MARE_APP_VERSION` may identify a deployment release; otherwise the workspace
 format identifies the application capability. Matching database schema is required
 for web replacement. Install a compatible release first; upgrade an isolated copy
@@ -153,3 +156,8 @@ isolated transfers, conflicts and repeated merges before enabling its checkbox.
 Complete snapshots already include every durable table/file even without a row.
 Do not enable Threat actor profiles until its persistence and portable handlers
 exist. Change the envelope version for incompatible format changes.
+
+Threat Actor dependency and unavailable-reference conflict handling is documented
+in [Threat Actors](threat-actors.md). Shared actor/family imports commit their
+records and report publications together. Older archives without actors do not
+clear destination actor data.

@@ -46,6 +46,7 @@ TRANSIENT = {
     "snort-jobs",
     "yara-jobs",
     "family-report-staging",
+    "actor-report-staging",
 }
 LOCKS = {".backup.lock", ".case-sync.lock", ".maintenance.lock"}
 OPERATIONAL = {"audit", "attempts", "sync_imports", "sync_dirty", "report_jobs"}
@@ -482,6 +483,8 @@ class BackupWorkspace:
                 counts = {
                     "cases": len(index["cases"]),
                     "malware_families": len(library["families"]),
+                    "threat_actors": len(library.get("actors", [])),
+                    "actor_reports": sum(len(a["reports"]) for a in library.get("actors", [])),
                     "tags": len(index["tag_registry"]),
                     "family_reports": sum(
                         len(f["reports"]) for f in library["families"]
@@ -682,6 +685,9 @@ class BackupWorkspace:
                 self.db(), self.root, probe, data.get("choices", {})
             )
             shared_actions = {
+                'incoming_actors': len(source_library.get('actors', [])),
+                'kept_destination_actors': len(source_library.get('actors', [])) - len(library.get('actors', [])),
+                'actor_additions': sum(not bool(self.db().execute('SELECT 1 FROM threat_actors WHERE id=?', (a['id'],)).fetchone()) for a in library.get('actors', [])),
                 "incoming_families": len(source_library["families"]),
                 "kept_destination": len(source_library["families"])
                 - len(library["families"]),
@@ -764,19 +770,22 @@ class BackupWorkspace:
             counts = {
                 "cases": len(plans),
                 "malware_families": len(library["families"]),
+                "threat_actors": len(library.get("actors", [])),
+                "actor_reports": sum(len(a["reports"]) for a in library.get("actors", [])),
                 "tags": (
                     len(mapping) if mapping else len((catalog or {}).get("tags", []))
                 ),
                 "family_reports": sum(len(f["reports"]) for f in library["families"]),
             }
             file_count = sum(item["file_count"] for item in case_choices) + sum(
-                len(f["reports"]) for f in library["families"]
+                len(f["reports"]) for f in library["families"] + library.get("actors",[])
             )
             areas = (manifest or {}).get("areas") or [
                 key
                 for key, n in [
                     ("cases", len(plans)),
                     ("families", len(library["families"])),
+                    ("actors", len(library.get("actors",[]))),
                     ("tags", len((catalog or {}).get("tags", []))),
                 ]
                 if n
@@ -1231,7 +1240,7 @@ class BackupWorkspace:
                 or len(choices) > 11000
                 or any(
                     not isinstance(k, str)
-                    or v not in ("keep", "replace", "new", "reuse")
+                    or v not in ("keep", "replace", "new", "reuse", "retain", "skip")
                     for k, v in choices.items()
                 )
             ):

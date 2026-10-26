@@ -50,6 +50,7 @@
       {{application_nav_link('MIP BOARD', '/', 'board')}}
       {% if can_mip_search %}{{application_nav_link('SEARCH', url_for('mip_search'), 'search')}}{% endif %}
       {% if can_families_read %}{{application_nav_link('MALWARE FAMILIES', url_for('families_workspace'), 'families')}}{% endif %}
+      {% if can_actors_read %}{{application_nav_link('THREAT ACTORS', url_for('actors_workspace'), 'actors')}}{% endif %}
       {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
       {{application_nav_link('API', '/api', 'api')}}
       {% if tool_navigation %}{{dropdown_navigation('TOOLS', 'Tools', tools_home_url, tool_navigation, 'tools-menu', active_navigation=='tools')}}{% endif %}

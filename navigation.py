@@ -9,6 +9,7 @@ SECTION_ENDPOINTS = {
     "search": {"mip_search", "mip_search_results", "mip_search_finding"},
     "dashboards": {"dashboards_directory"} | {item.endpoint for item in DASHBOARDS if item.endpoint},
     "families": {"families_workspace", "families_edit", "families_delete", "families_osint_edit", "families_osint_delete", "families_reports_upload", "families_reports_download", "families_reports_edit", "families_reports_delete"},
+    "actors": {"actors_workspace", "actors_edit", "actors_delete", "actors_osint_edit", "actors_osint_delete", "actors_reports_upload", "actors_reports_download", "actors_reports_edit", "actors_reports_delete", "actors_families_search"},
     "tags": {"tags_manager", "tag_detail", "tags_search", "tags_create", "tag_manage"},
     "tools": {
         "tools_workspace",
