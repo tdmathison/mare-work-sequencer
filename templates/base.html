@@ -60,6 +60,7 @@
       {% if settings_tabs %}
       {{dropdown_navigation('SETTINGS', 'Settings', settings_home_url, settings_tabs, 'settings-menu', active_navigation=='settings')}}
       {% endif %}
+      {% if can_data_explorer %}<a class="data-explorer-nav" href="{{url_for('data_explorer')}}"{% if active_navigation == 'explorer' %} aria-current="page"{% endif %}>DATA EXPLORER</a>{% endif %}
     </nav>
     {% endif %}
     <main class="page {% block page_class %}{% endblock %}">

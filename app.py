@@ -280,26 +280,13 @@ def package_files(cid):
 
 
 def raw_package_file(rel, include_samples=False):
-    # RAW includes working content in the MIP structure, never backups or symlinks.
-    is_sample = rel.startswith('samples/')
-    return rel.split('/')[0] in CATEGORIES and not is_backup(rel) and (not is_sample or (include_samples and Path(rel).suffix.lower() == '.zip'))
+    from standard_package import raw_file
+    return raw_file(rel, include_samples)
 
 
 def deliverable_file(cid, rel):
-    if not raw_package_file(rel):
-        return False
-    if rel.startswith('samples/'):
-        return False
-    if rel.startswith('reports/') and Path(rel).suffix.lower() == '.docx' and rel == current_report(case(cid), package(cid)):
-        return False
-    if rel.startswith('reports/sections/'):
-        return False
-    if rel.startswith('reports/') and Path(rel).suffix.lower() == '.md':
-        return False
-    p = package(cid)/rel
-    if rel in OPTIONAL_TEMPLATES and p.read_text(errors='replace').strip() == OPTIONAL_TEMPLATES[rel].strip():
-        return False
-    return True
+    from standard_package import standard_file
+    return standard_file(case(cid), package(cid), rel)
 
 
 def readiness(cid):
@@ -1205,14 +1192,8 @@ def build_archive(cid, archive_type, include_samples=False):
         'SELECT * FROM artifacts WHERE case_id=?', (cid,))]
     manifest = {'archive_type': archive_type, 'include_samples': include_samples, 'schema': 'mare-mip/2.0', 'package_id': name, 'title': c['name'], 'case_number': c['number'], 'external_reference': {
         'system': c['external_system'], 'number': c['external_number']}, 'description': c['description'], 'created_at': c['created'], 'packaged_at': now(), 'readiness': statuses, 'acknowledged_issues': issues, 'artifacts': metadata, 'files': []}
-    contents = {}
-    for p in sorted(root.rglob('*')):
-        rel = p.relative_to(root).as_posix()
-        # Deliverable allowlist excludes legacy sample payload directories and obsolete scaffold files.
-        if rel.split('/')[0] not in CATEGORIES or p.is_symlink() or is_backup(rel):
-            continue
-        if p.is_file() and (raw_package_file(rel, include_samples) if archive_type == 'raw' else deliverable_file(cid, rel) or (include_samples and rel.startswith('samples/') and p.suffix.lower() == '.zip')):
-            contents[rel] = p
+    from standard_package import selected_files
+    contents = selected_files(c, root, raw=archive_type=='raw', include_samples=include_samples)
     selected = db().execute(
         'SELECT * FROM notes WHERE case_id=? AND include_export=1 ORDER BY id', (cid,)).fetchall()
     if selected and archive_type == 'raw':
@@ -1439,6 +1420,8 @@ from malware_families import register_families
 register_families(app, db, ROOT)
 from threat_actors import register_actors
 register_actors(app, db, ROOT)
+from data_explorer import register_explorer
+register_explorer(app, db, ROOT)
 
 with app.app_context():
     db().execute('CREATE INDEX IF NOT EXISTS history_case_sequence ON history(case_id,id)')

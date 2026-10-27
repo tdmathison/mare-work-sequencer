@@ -2149,3 +2149,19 @@ same searchable chip picker. Both profile types edit one shared relationship;
 renames/tag changes retain it and deletion removes live links. Family exports
 include related actor dependencies. See [Shared actor–family associations](docs/threat-actors.md)
 for migration, conflict handling and backup compatibility.
+
+### Data Explorer
+
+The authenticated **Data Explorer** link at the far right of navigation opens
+`/data-explorer`: an interactive graph of cases, configured Malware Families and
+Threat Actors. Search includes aliases/tags and immediate connections; type filters,
+zoom/pan, dragging, Auto Arrange and a keyboard object list support exploration.
+Cases expand into permission-filtered Standard MIP category counts and read-only
+contents without generating an archive. The graph uses locally pinned Cytoscape.js
+and has an explicit 400-object view limit. See [Data Explorer](docs/data-explorer.md)
+for permissions, exact count definitions, exporter sharing and verification.
+
+Data Explorer now uses a **Focus Canvas**: full-width graph, floating search and
+filters, primary-object count chips, brighter connections, emphasized case nodes,
+and a compact selection tray with an overlay Details drawer. Existing permissions,
+relationships and Standard MIP inclusion rules remain unchanged.

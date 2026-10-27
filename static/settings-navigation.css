@@ -22,3 +22,6 @@
 
 .dropdown-navigation .navigation-unavailable {display:block;padding:11px 12px;letter-spacing:normal;font-size:13px;color:var(--muted);}
 .dropdown-navigation .dropdown-navigation-menu hr {border:0;border-top:1px solid var(--line);margin:5px 6px;}
+
+.admin-nav .data-explorer-nav {margin-left:auto;border-left:1px solid var(--line);padding-left:20px;white-space:nowrap;}
+@media(max-width:700px) {.admin-nav .data-explorer-nav {padding-left:12px;}}
