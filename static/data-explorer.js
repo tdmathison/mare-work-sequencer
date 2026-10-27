@@ -173,7 +173,17 @@
   detailRequest?.abort();detailRequest=new AbortController();const version=++detailSerial,body=$('explorer-detail-body');body.replaceChildren(element('h3',node.data('label')),element('p','Loading category…'));
   try{const data=await json(contentURL(node.data('caseId'))+'/'+node.data('category')+'?page='+page,detailRequest.signal);if(disposed||version!==detailSerial)return;
    body.replaceChildren(element('h3',data.label+' · '+data.count),element('p',node.data('parentLabel')),element('p',data.definition,'muted'));
-   if(data.columns.length){if(node.data('category')!=='references'){const wrapper=element('div',undefined,'explorer-table'),table=element('table'),head=element('tr');data.columns.forEach(name=>head.append(element('th',name)));const thead=element('thead');thead.append(head);table.append(thead);const tbody=element('tbody');data.items.forEach(item=>{const row=element('tr');item.cells.forEach(value=>row.append(element('td',value)));tbody.append(row);});table.append(tbody);wrapper.append(table);body.append(wrapper);}
+   if(data.columns.length){if(node.data('category')!=='references'){
+    const indicators=node.data('category')==='indicators',wrapper=element('div',undefined,'explorer-table'),table=element('table'),head=element('tr');
+    // Project only the details view; keep the authorized records and page intact.
+    const columns=indicators?['Type','Value']:data.columns;
+    const indexes=indicators?['type','value'].map((name,index)=>{const found=data.columns.findIndex(column=>column.trim().toLowerCase()===name);return found<0?index:found;}):data.columns.map((_,index)=>index);
+    if(indicators)table.className='explorer-indicator-table';
+    columns.forEach(name=>{const th=element('th',name);th.scope='col';head.append(th);});
+    const thead=element('thead');thead.append(head);table.append(thead);const tbody=element('tbody');
+    data.items.forEach(item=>{const row=element('tr');indexes.forEach(index=>row.append(element('td',item.cells[index]??'')));tbody.append(row);});
+    table.append(tbody);wrapper.append(table);body.append(wrapper);
+   }
     if(node.data('category')==='references'){const list=element('ul',undefined,'explorer-items');data.items.forEach(item=>{const row=element('li'),value=item.cells[0];try{const url=new URL(value);if(['http:','https:'].includes(url.protocol)&&!url.username&&!url.password){const a=link(value,url.href);a.target='_blank';a.rel='noopener noreferrer';row.append(a);}else row.append(element('span',value));}catch{row.append(element('span',value));}row.append(element('p',item.cells[1]||''));list.append(row);});body.append(list);}
    }else{const list=element('ul',undefined,'explorer-items');data.items.forEach(item=>{const row=element('li');row.append(element('span',item.filename));if(item.download)row.append(element('br'),link('Download',item.download));if(item.generated)row.append(element('p','Generated during export','muted'));list.append(row);});body.append(list);}
    if(!data.count)body.append(element('p','No items remain in this saved category. Refresh the graph to update its summary.'));

@@ -30,6 +30,29 @@ const base='http://127.0.0.1:8806',server=spawn('.venv/bin/python',['tests/brows
  assert.equal((await state()).nodes.length,10);if(process.env.MARE_EXPLORER_SCREENSHOT)await page.screenshot({path:process.env.MARE_EXPLORER_SCREENSHOT+'-expanded.png',fullPage:true});assert.equal(await page.locator('#explorer-detail-body img').count(),0);
  assert.equal(await page.locator('#explorer-count-case').textContent(),'3');assert.equal(await page.locator('#explorer-count-family').textContent(),'1');assert.equal(await page.locator('#explorer-count-actor').textContent(),'1');
  const positions=await state();await filters().click();await page.getByLabel('Show MIP contents',{exact:true}).uncheck();assert.equal(await graph(()=>document.querySelector('#explorer-canvas')._cyreg.cy.nodes('[kind="category"]:visible').length),0);assert.equal(await page.locator('#explorer-filter-count').textContent(),'1');await page.getByLabel('Show MIP contents',{exact:true}).check();await page.keyboard.press('Escape');assert.deepEqual((await state()).nodes,positions.nodes,'MIP visibility preserves positions');await choose('case:1:indicators');await page.getByRole('heading',{name:'Indicators · 1',exact:true}).waitFor();await page.getByRole('cell',{name:'example.test',exact:true}).waitFor();assert.ok(await page.getByRole('button',{name:'Close details',exact:true}).evaluate(el=>el===document.activeElement),'Category selection focuses its details drawer');
+
+ assert.deepEqual(await page.locator('.explorer-indicator-table th').allTextContents(),['Type','Value']);
+ assert.deepEqual(await page.locator('.explorer-indicator-table tbody tr').first().locator('td').allTextContents(),['domain','example.test']);
+ // Stress the presentation without changing saved indicators or graph counts.
+ const indicatorURL=`**/data-explorer/cases/1/contents/indicators?*`,originalIndicators=await (await page.request.get(base+'/data-explorer/cases/1/contents/indicators')).json();
+ const longHash='a'.repeat(128),longFilename='analysis_'+('long_filename_'.repeat(45))+'.exe',longURL='https://example.test/'+('path-segment/'.repeat(50));
+ await page.route(indicatorURL,route=>{const pageIndex=Number(new URL(route.request().url()).searchParams.get('page')||0);return route.fulfill({json:{...originalIndicators,columns:['type','value','description','section','section_description'],count:3,pages:2,page:pageIndex,items:pageIndex?[{cells:['url',longURL,'Hidden description','Hidden section','Hidden section description']}]:[{cells:['md5',longHash,'Hidden description','Hidden section','Hidden section description']},{cells:['filename',longFilename,'Hidden description','Hidden section','Hidden section description']}]}});});
+ await choose('case:1:indicators');await page.getByRole('heading',{name:'Indicators · 3',exact:true}).waitFor();
+ for(const width of [1366,768,390]){
+  await page.setViewportSize({width,height:900});
+  assert.deepEqual(await page.locator('.explorer-indicator-table th').allTextContents(),['Type','Value']);
+  assert.deepEqual(await page.locator('.explorer-indicator-table tbody tr').evaluateAll(rows=>rows.map(row=>[...row.cells].map(cell=>cell.textContent))),[['md5',longHash],['filename',longFilename]]);
+  assert.equal(await page.locator('.explorer-indicator-table').getByText('Hidden description',{exact:true}).count(),0);
+  const overflow=await page.locator('#explorer-details').evaluate(panel=>[panel,...panel.querySelectorAll('.explorer-table,.explorer-indicator-table,th,td')].filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.tagName));assert.deepEqual(overflow,[]);
+  const selectable=await page.locator('.explorer-indicator-table tbody tr').first().locator('td').last().evaluate(cell=>{const range=document.createRange();range.selectNodeContents(cell);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);return selection.toString();});assert.equal(selectable,longHash);
+ }
+ await page.getByRole('button',{name:'Next items',exact:true}).click();await page.getByText('Page 2 of 2',{exact:true}).waitFor();assert.equal(await page.locator('.explorer-indicator-table tbody td').last().textContent(),longURL);
+ await page.getByRole('button',{name:'Previous items',exact:true}).click();await page.getByText('Page 1 of 2',{exact:true}).waitFor();assert.equal(await page.locator('.explorer-indicator-table tbody tr').count(),2);
+ await page.unroute(indicatorURL);
+ await page.route(indicatorURL,route=>route.fulfill({json:{...originalIndicators,count:0,columns:[],items:[]}}));
+ await choose('case:1:indicators');await page.getByText('No items remain in this saved category. Refresh the graph to update its summary.',{exact:true}).waitFor();
+ await page.unroute(indicatorURL);await page.setViewportSize({width:1366,height:900});
+ assert.deepEqual(await (await page.request.get(base+'/data-explorer/cases/1/contents/indicators')).json(),originalIndicators);
  await page.getByRole('button',{name:'Close details',exact:true}).click();await choose('case:1:references');await page.getByRole('heading',{name:'References · 2',exact:true}).waitFor();assert.equal(await page.locator('#explorer-detail-body a[href^="javascript:"]').count(),0);assert.equal(await page.locator('#explorer-detail-body a[href="https://example.com/"]').count(),1);
  await page.getByRole('button',{name:'Close details',exact:true}).click();await choose('case:1:files');await page.getByRole('heading',{name:'Package files · 3',exact:true}).waitFor();await page.getByText('scripts/deliverable.py',{exact:true}).waitFor();
  const download=page.waitForEvent('download');await page.getByRole('link',{name:'Download',exact:true}).click();assert.equal((await download).suggestedFilename(),'deliverable.py');

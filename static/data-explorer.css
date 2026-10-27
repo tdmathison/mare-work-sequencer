@@ -68,9 +68,9 @@
 [data-relationship-kind=case] .explorer-relationship-icon {color:var(--explorer-blue);}
 .explorer-relationship-chevron {justify-self:center;width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);}
 .explorer-relationship-toggle[aria-expanded=false] .explorer-relationship-chevron {transform:rotate(-45deg);}
-.explorer-details .explorer-relationship-table {width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:12px;}
-.explorer-details .explorer-relationship-table th {background:var(--panel-2);color:var(--muted);font-size:11px;font-weight:600;}
-.explorer-details .explorer-relationship-table th,.explorer-details .explorer-relationship-table td {padding:7px 10px;vertical-align:top;white-space:normal;overflow-wrap:anywhere;border-bottom:1px solid var(--line);}
+.explorer-details :is(.explorer-relationship-table,.explorer-indicator-table) {width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:12px;}
+.explorer-details :is(.explorer-relationship-table,.explorer-indicator-table) th {background:var(--panel-2);color:var(--muted);font-size:11px;font-weight:600;}
+.explorer-details :is(.explorer-relationship-table,.explorer-indicator-table) th,.explorer-details :is(.explorer-relationship-table,.explorer-indicator-table) td {padding:7px 10px;vertical-align:top;white-space:normal;overflow-wrap:anywhere;border-bottom:1px solid var(--line);}
 .explorer-relationship-table tr:last-child td {border-bottom:0;}
 .explorer-relationship-table a {color:var(--accent);background:transparent;}
 .explorer-details .explorer-relationship-tag {color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;}
@@ -90,3 +90,5 @@
 @media(max-width:650px) {.explorer-shell:has(#explorer-status.error) .explorer-bottom-status {top:145px;}}
 /* Popovers must stay operable above a selected tray, including on short screens. */
 .explorer-popover {z-index:7;}
+
+.explorer-indicator-table th:first-child {width:25%;}
