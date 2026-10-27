@@ -11,6 +11,7 @@
  function button(text,action){const el=element('button',text);el.type='button';el.addEventListener('click',action);return el;}
  function link(text,href){const el=element('a',text);el.href=href;return el;}
  let cy,layout,graphRequest,detailRequest,serial=0,detailSerial=0,disposed=false,selectedId=null,originalViewport;
+ const relationshipGroupsOpen=new Map();
  const requests=new Map(),positions=new Map(),expanded=new Set(),summaries=new Map(),summaryTasks=new Map();
  const status=(text,error=false)=>{$('explorer-status').textContent=text;$('explorer-status').classList.toggle('error',error);};
  const contentURL=id=>shell.dataset.caseTemplate.replace('/0/','/'+id+'/');
@@ -41,10 +42,10 @@
  function arrange(){if(!cy||!cy.nodes(':visible').length)return;layout?.stop();layout=cy.elements(':visible').layout({name:'cose',animate:false,fit:false,randomize:false,nodeDimensionsIncludeLabels:true,nodeRepulsion:()=>100000,idealEdgeLength:()=>140,componentSpacing:110,numIter:600});layout.run();fitView();savePositions();originalViewport={zoom:cy.zoom(),pan:{...cy.pan()}};status('Layout settled. Objects stay in place until you drag them or Auto Arrange.');}
  function closePanel(name,restore=false){const panel=$('explorer-'+name);if(panel.hidden)return;panel.hidden=true;const toggle=$('explorer-'+(name==='details'?'details':name==='filters'?'filters':'help')+'-toggle');toggle.setAttribute('aria-expanded','false');if(restore)toggle.focus();}
  function openPanel(name){$('explorer-tooltip').hidden=true;for(const other of ['filters','help'])if(other!==name)closePanel(other);$('explorer-'+name).hidden=false;$('explorer-'+name+'-toggle').setAttribute('aria-expanded','true');const target=$('explorer-'+name).querySelector(name==='details'?'button':'input:not(:disabled),button');target?.focus();}
- function deselect(){detailRequest?.abort();detailSerial++;selectedId=null;cy?.elements().unselect().removeClass('muted related');$('explorer-tray').hidden=true;closePanel('details');$('explorer-objects').value='';$('explorer-tooltip').hidden=true;}
+ function deselect(){relationshipGroupsOpen.clear();detailRequest?.abort();detailSerial++;selectedId=null;cy?.elements().unselect().removeClass('muted related');$('explorer-tray').hidden=true;closePanel('details');$('explorer-objects').value='';$('explorer-tooltip').hidden=true;}
  function init(data){
   const viewport=cy&&!cy.destroyed()?{zoom:cy.zoom(),pan:{...cy.pan()}}:null;
-  savePositions();layout?.stop();cy?.destroy();requests.forEach(r=>r.abort());requests.clear();summaryTasks.clear();summaries.clear();expanded.clear();detailRequest?.abort();detailSerial++;selectedId=null;$('explorer-tray').hidden=true;closePanel('details');
+  savePositions();layout?.stop();cy?.destroy();requests.forEach(r=>r.abort());requests.clear();summaryTasks.clear();summaries.clear();expanded.clear();relationshipGroupsOpen.clear();detailRequest?.abort();detailSerial++;selectedId=null;$('explorer-tray').hidden=true;closePanel('details');
   const style=getComputedStyle(shell),token=name=>style.getPropertyValue(name).trim();
   const known=data.nodes.some(n=>positions.has(n.id));
   const elements=[...data.nodes.map((n,i)=>({data:{...n,caption:n.kind==='case'?n.number+'\n'+n.status:n.name},position:positions.get(n.id)||{x:(i%8)*190,y:Math.floor(i/8)*160}})),...data.edges.map(e=>({data:e}))];
@@ -84,6 +85,7 @@
   summary.title=data.note+(data.restricted.length?' Some categories are hidden by permissions.':'');
  }
  function select(node){
+  if(selectedId!==node.id())relationshipGroupsOpen.clear();
   selectedId=node.id();cy.elements().unselect().addClass('muted').removeClass('related');node.select();(node.isEdge()?node.union(node.connectedNodes()):node.closedNeighborhood()).removeClass('muted').addClass('related');objects();detailRequest?.abort();detailSerial++;
   const data=node.data(),kind=data.kind,tray=$('explorer-tray');tray.hidden=false;
   putIcon($('explorer-tray-icon'),kind==='category'?data.category:kind||'references');$('explorer-tray-icon').className=kind||'';
@@ -102,7 +104,47 @@
    body.append(element('p','Saved Standard package without optional malware samples. Counts describe composition, not export readiness.','muted'));
    summaryFor(node).then(result=>caseSummary(node,result)).catch(error=>{if(error.name!=='AbortError'&&selectedId===node.id())$('explorer-tray-summary').replaceChildren(element('span','MIP summary unavailable. Retry by refreshing data.'));});
   }
-  body.append(element('h4','Immediate relationships'));const list=element('ul',undefined,'explorer-relations');primaryEdges(node).forEach(edge=>{const other=edge.source().id()===node.id()?edge.target():edge.source();const row=element('li');row.append(button(other.data('label'),()=>select(other)),element('p',edge.data('explanation')));list.append(row);});if(!list.children.length)list.append(element('li','No configured relationships in this view.'));body.append(list);
+  immediateRelationships(node,body);
+ }
+ function immediateRelationships(node,body){
+  body.append(element('h4','Immediate relationships'));
+  const groups=new Map(['case','family','actor'].map(kind=>[kind,new Map()]));
+  primaryEdges(node).forEach(edge=>{
+   const other=edge.source().id()===node.id()?edge.target():edge.source(),group=groups.get(other.data('kind'));
+   if(!group)return;
+   if(!group.has(other.id()))group.set(other.id(),{node:other,explanations:new Set()});
+   group.get(other.id()).explanations.add(edge.data('explanation'));
+  });
+  if(![...groups.values()].some(group=>group.size)){body.append(element('p','No configured relationships in this view.','muted'));return;}
+  body.append(element('p','Links select objects in the graph. Use the selected object’s Open action to visit its page.','explorer-relationship-hint muted'));
+  for(const [kind,objects] of groups){
+   if(!objects.size)continue;
+   const label={case:'Cases',family:'Malware Families',actor:'Threat Actors'}[kind],group=element('section',undefined,'explorer-relationship-group');
+   group.dataset.relationshipKind=kind;
+   const heading=element('h5'),toggle=button('',()=>{
+    const open=toggle.getAttribute('aria-expanded')!=='true';
+    relationshipGroupsOpen.set(kind,open);toggle.setAttribute('aria-expanded',String(open));table.hidden=!open;
+   });
+   toggle.className='explorer-relationship-toggle';
+   const icon=element('span',undefined,'explorer-relationship-icon');icon.setAttribute('aria-hidden','true');putIcon(icon,kind);
+   const chevron=element('span',undefined,'explorer-relationship-chevron');chevron.setAttribute('aria-hidden','true');
+   toggle.append(icon,element('span',`${label} (${objects.size})`),chevron);heading.append(toggle);
+   const table=element('table',undefined,'explorer-relationship-table');table.id='explorer-relationships-'+kind;table.setAttribute('aria-label',label+' immediate relationships');
+   const open=relationshipGroupsOpen.get(kind)??true;table.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-controls',table.id);
+   const head=element('thead'),headers=element('tr');
+   for(const title of kind==='case'?['Case','Title']:['Object','Tag']){const th=element('th',title);th.scope='col';headers.append(th);}
+   head.append(headers);const rows=element('tbody');
+   for(const {node:other,explanations} of objects.values()){
+    const data=other.data(),row=element('tr'),object=element('td'),value=element('td',kind==='case'?data.name:data.tag);
+    if(kind!=='case')value.className='explorer-relationship-tag';
+    const selectLink=link(kind==='case'?data.number:data.name,data.url);
+    selectLink.title=`Select ${data.label} in graph. ${[...explanations].filter(Boolean).join(' ')}`;
+    selectLink.setAttribute('aria-label',`Select ${data.label} in graph`);
+    selectLink.addEventListener('click',event=>{if(event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;event.preventDefault();select(other);});
+    object.append(selectLink);row.append(object,value);rows.append(row);
+   }
+   table.append(head,rows);group.append(heading,table);body.append(group);
+  }
  }
  function childPosition(parent,index,total){
   const center=parent.position(),others=cy.nodes(':visible');let best,bestClearance=-Infinity;

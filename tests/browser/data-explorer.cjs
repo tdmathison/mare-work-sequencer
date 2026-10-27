@@ -13,7 +13,7 @@ const base='http://127.0.0.1:8806',server=spawn('.venv/bin/python',['tests/brows
  const graph=fn=>page.evaluate(fn);
  const state=()=>graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;return {zoom:cy.zoom(),pan:cy.pan(),nodes:cy.nodes().map(n=>({id:n.id(),position:n.position()})),edges:cy.edges().length};});
  const filters=()=>page.getByRole('button',{name:/^Filters, /});
- const choose=async id=>{await page.getByRole('button',{name:'Legend & objects',exact:true}).click();await page.locator('#explorer-objects').selectOption(id);};
+ const choose=async id=>{if(await page.locator('#explorer-details').isVisible())await page.getByRole('button',{name:'Close details',exact:true}).click();await page.getByRole('button',{name:'Legend & objects',exact:true}).click();await page.locator('#explorer-objects').selectOption(id);};
  const beforePanels=await state();await filters().click();assert.equal(await page.locator('#explorer-filters').isVisible(),true);if(process.env.MARE_EXPLORER_SCREENSHOT)await page.screenshot({path:process.env.MARE_EXPLORER_SCREENSHOT+'-filters.png',fullPage:true});assert.deepEqual(await state(),beforePanels,'Opening filters must preserve graph and viewport');await page.keyboard.press('Escape');assert.ok(await filters().evaluate(el=>el===document.activeElement));await filters().click();await page.getByRole('button',{name:'Auto Arrange',exact:true}).click();assert.ok(await page.locator('#explorer-filters').isHidden());
  const initial=await state();assert.equal(initial.nodes.length,5);assert.equal(initial.edges,5);assert.equal(await page.locator('.explorer-controls').count(),0);const emphasis=await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;return {line:parseFloat(cy.edges()[0].style('width')),caseWidth:parseFloat(cy.getElementById('case:1').style('width')),familyWidth:parseFloat(cy.nodes('[kind="family"]')[0].style('width')),halo:parseFloat(cy.getElementById('case:1').style('underlay-opacity'))};});assert.ok(emphasis.line>=2.4&&emphasis.caseWidth>emphasis.familyWidth&&emphasis.halo>0);await delay(400);assert.deepEqual((await state()).nodes,initial.nodes,'Settled layout must remain still');
  const bounds=await page.locator('#explorer-canvas').boundingBox(),pointer={x:bounds.x+bounds.width/2,y:bounds.y+bounds.height/2};
@@ -36,6 +36,57 @@ const base='http://127.0.0.1:8806',server=spawn('.venv/bin/python',['tests/brows
  await page.getByRole('button',{name:'Close details',exact:true}).click();await choose('case:1');await page.getByRole('button',{name:'Collapse Standard MIP',exact:true}).click();assert.equal((await state()).nodes.length,5);assert.equal((await state()).edges,5);
  assert.deepEqual((await state()).nodes,positions.nodes.filter(n=>!n.id.startsWith('case:1:')),'Expansion and collapse preserve primary positions');
  const selectedState=await state();await page.getByRole('button',{name:'Details',exact:true}).click();assert.ok(await page.locator('#explorer-details').isVisible());assert.deepEqual(await state(),selectedState,'Opening details must preserve graph and viewport');await page.keyboard.press('Escape');assert.ok(await page.locator('#explorer-details').isHidden());assert.ok(await page.getByRole('button',{name:'Details',exact:true}).evaluate(el=>el===document.activeElement));
+
+ // Immediate relationships use direct, unique, grouped neighbors for every primary type.
+ const primary=await graph(()=>document.querySelector('#explorer-canvas')._cyreg.cy.nodes().map(n=>({id:n.id(),kind:n.data('kind')})));
+ async function checkRelationships(id){
+  await choose(id);if(await page.locator('#explorer-details').isHidden())await page.getByRole('button',{name:'Details',exact:true}).click();
+  const expected=await page.evaluate(id=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy,n=cy.getElementById(id),groups={};n.connectedEdges().filter(e=>!e.data('categoryEdge')).forEach(e=>{const other=e.source().id()===id?e.target():e.source();(groups[other.data('kind')]??={})[other.id()]=other.data();});return groups;},id);
+  assert.equal(await page.locator('.explorer-relationship-group').count(),Object.keys(expected).length);
+  for(const [kind,objects] of Object.entries(expected)){
+   const group=page.locator(`[data-relationship-kind=${kind}]`),rows=group.locator('tbody tr'),values=Object.values(objects),label={case:'Cases',family:'Malware Families',actor:'Threat Actors'}[kind];
+   const toggle=group.getByRole('button',{name:`${label} (${values.length})`,exact:true});
+   assert.equal(await toggle.getAttribute('aria-expanded'),'true');assert.equal(await rows.count(),values.length);
+   assert.deepEqual(await group.locator('th').allTextContents(),kind==='case'?['Case','Title']:['Object','Tag']);
+   for(const data of values){const anchor=group.locator(`a[href="${data.url}"]`);assert.equal(await anchor.textContent(),kind==='case'?data.number:data.name);assert.equal(await anchor.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');}
+   const before=await state();await toggle.click();assert.equal(await toggle.getAttribute('aria-expanded'),'false');assert.ok(await group.locator('table').isHidden());assert.deepEqual(await state(),before);
+   // Reselecting the same object preserves collapse state; keyboard restores it.
+   await page.evaluate(id=>{document.querySelector('#explorer-canvas')._cyreg.cy.getElementById(id).emit('tap');},id);
+   const current=page.locator(`[data-relationship-kind=${kind}]`).getByRole('button');assert.equal(await current.getAttribute('aria-expanded'),'false');
+   await current.focus();await page.keyboard.press('Enter');assert.equal(await current.getAttribute('aria-expanded'),'true');
+   assert.equal(await current.evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
+   await page.keyboard.press('Space');assert.equal(await current.getAttribute('aria-expanded'),'false');await page.keyboard.press('Space');assert.deepEqual(await state(),before);
+  }
+ }
+ for(const item of primary)await checkRelationships(item.id);
+ if(process.env.MARE_EXPLORER_SCREENSHOT)await page.screenshot({path:process.env.MARE_EXPLORER_SCREENSHOT+'-relationships-desktop.png'});
+ await choose('case:1');if(await page.locator('#explorer-details').isHidden())await page.getByRole('button',{name:'Details',exact:true}).click();
+ const family=primary.find(n=>n.kind==='family'),actor=primary.find(n=>n.kind==='actor');
+ const beforeLink=await state(),oldURL=page.url();await page.locator('[data-relationship-kind=family] tbody a').click();
+ assert.equal(page.url(),oldURL);assert.equal(await graph(()=>document.querySelector('#explorer-canvas')._cyreg.cy.$(':selected').id()),family.id);assert.deepEqual(await state(),beforeLink);
+ assert.equal(await page.locator('#explorer-detail-body > a').getAttribute('href'),await graph(()=>document.querySelector('#explorer-canvas')._cyreg.cy.$(':selected').data('url')));
+ // A duplicate graph edge must not add a duplicate row/count.
+ await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy,e=cy.edges()[0];cy.add({data:{...e.data(),id:'duplicate-test-edge'}});});
+ await checkRelationships('case:1');await graph(()=>{document.querySelector('#explorer-canvas')._cyreg.cy.getElementById('duplicate-test-edge').remove();});
+ // A case linked only to a family must not infer the family's actor.
+ await checkRelationships('case:2');assert.equal(await page.locator('[data-relationship-kind=actor]').count(),0);
+ await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;window.removedRelationships=cy.getElementById('case:3').connectedEdges().remove();});
+ await choose('case:3');await page.getByRole('button',{name:'Details',exact:true}).click();assert.equal(await page.locator('.explorer-relationship-group').count(),0);assert.ok(await page.getByText('No configured relationships in this view.',{exact:true}).isVisible());
+ await graph(()=>{window.removedRelationships.restore();});
+ // Long authorized labels/tags remain safe text and wrap inside the existing drawer.
+ const originalData=await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;return cy.nodes().map(n=>({...n.data()}));});
+ await graph(()=>{document.querySelector('#explorer-canvas')._cyreg.cy.nodes().forEach(n=>{n.data('name','Long <img src=x onerror=alert(1)> '+('UnbrokenName'.repeat(22)));n.data('tag',(n.data('kind')==='actor'?'TA_':'MAL_')+'LONG'.repeat(25));});});
+ for(const width of [1366,768,390]){
+  await page.setViewportSize({width,height:900});
+  for(const id of ['case:1',family.id,actor.id]){
+   await choose(id);if(await page.locator('#explorer-details').isHidden())await page.getByRole('button',{name:'Details',exact:true}).click();
+   assert.equal(await page.locator('#explorer-detail-body img').count(),0);
+   const overflow=await page.locator('#explorer-details').evaluate(panel=>[panel,...panel.querySelectorAll('.explorer-relationship-table,th,td')].filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.tagName));assert.deepEqual(overflow,[]);
+   if(process.env.MARE_EXPLORER_SCREENSHOT && id===family.id)await page.screenshot({path:process.env.MARE_EXPLORER_SCREENSHOT+'-relationships-'+width+'.png'});
+  }
+ }
+ await page.evaluate(data=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;data.forEach(item=>cy.getElementById(item.id).data(item));},originalData);
+ await page.setViewportSize({width:1366,height:900});await choose('case:1');await page.keyboard.press('Escape');
  await page.getByLabel('Find connections').fill('Hidden search alias');await page.getByRole('button',{name:'Search',exact:true}).click();await page.locator('#explorer-tally').filter({hasText:'5 objects'}).waitFor();
  await filters().click();await page.getByLabel('Cases',{exact:true}).uncheck();await page.locator('#explorer-tally').filter({hasText:'2 objects'}).waitFor();await page.reload();await page.locator('#explorer-tally').filter({hasText:'2 objects'}).waitFor();await filters().click();assert.equal(await page.getByLabel('Cases',{exact:true}).isChecked(),false);assert.equal(await page.locator('#explorer-filter-count').textContent(),'1');await page.getByLabel('Show MIP contents',{exact:true}).uncheck();assert.equal(await page.locator('#explorer-filter-count').textContent(),'2');await page.getByRole('button',{name:'Reset Filters',exact:true}).click();await page.locator('#explorer-tally').filter({hasText:'5 objects'}).waitFor();assert.equal(await page.locator('#explorer-filter-count').textContent(),'0');assert.equal(await page.getByLabel('Find connections').inputValue(),'Hidden search alias');await page.getByLabel('Cases',{exact:true}).uncheck();await page.locator('#explorer-tally').filter({hasText:'2 objects'}).waitFor();await page.getByRole('button',{name:'Close filters',exact:true}).click();
  await page.getByLabel('Find connections').fill('NoSuchObject');await page.getByRole('button',{name:'Search',exact:true}).click();await page.locator('#explorer-status').filter({hasText:'No accessible objects'}).waitFor();
