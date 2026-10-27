@@ -142,3 +142,25 @@ def test_readonly_markdown_preview_preserves_stage_guards_and_safe_rendering():
         assert before=={str(path.relative_to(root)):path.read_bytes() for path in root.rglob('*') if path.is_file()}
     assert client.post(base+'/markdown-preview',data={'text':markdown}).status_code==403
     assert client.post(base+'/markdown-preview',data={'csrf':'preview-token','text':''}).json['html']==''
+
+
+def test_mitre_mappings_closed_and_reopened_preserve_content():
+    with app.app_context():
+        uid=run("INSERT INTO users(username,password,role,forced) VALUES('mapping-lock','unused','User',0)").lastrowid
+        cid=run("INSERT INTO cases(number,name,created,stage,owner,creator) VALUES('MAPPING-LOCK','Mapping lock','2026',1,?,?)",(uid,uid)).lastrowid
+        root=ensure_package(cid)
+    client=app.test_client()
+    with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='mapping-lock')
+    base=f'/cases/{cid}'
+    original={'mitre_attack_markdown':'### ATT&CK\nOriginal attack', 'mitre_mbc_markdown':'### MBC\nOriginal behavior'}
+    assert client.post(base+'/mitre-mappings',data={'csrf':'mapping-lock',**original}).status_code==200
+    with app.app_context():run('UPDATE cases SET stage=3 WHERE id=?',(cid,))
+    for automatic in ('0','1'):
+        response=client.post(base+'/mitre-mappings',data={'csrf':'mapping-lock','automatic':automatic,'mitre_attack_markdown':'Replacement','mitre_mbc_markdown':''})
+        assert response.status_code==409 and 'Reopen' in response.json['error']
+        assert (root/'mappings/mitre-attack.md').read_text()==original['mitre_attack_markdown']
+        assert (root/'mappings/mitre-mbc.md').read_text()==original['mitre_mbc_markdown']
+    assert client.post(base+'/reopen',data={'csrf':'mapping-lock','reason':'Continue mapping research'}).status_code==302
+    updated={key:value+'\nReopened edit' for key,value in original.items()}
+    assert client.post(base+'/mitre-mappings',data={'csrf':'mapping-lock',**updated}).status_code==200
+    assert client.get(base+'/report-data').json['mitre_mappings']=={'attack':updated['mitre_attack_markdown'],'mbc':updated['mitre_mbc_markdown']}

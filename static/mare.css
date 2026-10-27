@@ -1067,3 +1067,6 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 
 .performance-dashboard .performance-period-activity {margin:24px 0 16px;padding:18px 22px;border:1px solid var(--line);background:var(--panel);}
 .performance-dashboard .performance-period-activity p {margin:8px 0;color:var(--muted);font-size:13px;line-height:1.6;}
+
+.review-export-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.review-export-actions > form { margin: 0; min-width: 0; }

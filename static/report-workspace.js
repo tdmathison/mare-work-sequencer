@@ -280,7 +280,13 @@
     textarea.disabled = form.querySelector("fieldset").disabled;
     textarea.placeholder = placeholder;
     container.append(textarea);
-    section.append(heading, tabs, toolbar, pane, container);
+    // Use the report workspace lock for every editing control, including
+    // dynamically mounted CodeMirror toolbar buttons. Keep viewing outside it.
+    const controls = document.createElement("fieldset");
+    controls.className = "workflow-controls";
+    controls.disabled = form.querySelector("fieldset").disabled;
+    controls.append(container);
+    section.append(heading, tabs, toolbar, pane, controls);
     mappingEditors.append(section);
     return textarea;
   }
@@ -315,8 +321,19 @@
   promptPanel.insertBefore(mappingEditors, promptOutput.nextSibling);
   promptPanel.insertBefore(mappingActions, mappingEditors.nextSibling);
   window.MareEditors.init(mappingEditors);
+  // Disable mutation menus with the same fieldset semantics as report sections,
+  // leaving View, Preview and Expand available for reading.
+  mappingEditors.querySelectorAll(".markdown-menu-items").forEach((menu) => {
+    if (!menu.querySelector("[data-md]")) return;
+    const controls = document.createElement("fieldset");
+    controls.className = "workflow-controls";
+    controls.disabled = form.querySelector("fieldset").disabled;
+    controls.append(...menu.childNodes);
+    menu.append(controls);
+  });
   for (const textarea of [mitreAttack, mitreMbc])
     textarea.addEventListener("input", () => {
+      if (form.querySelector("fieldset").disabled) return;
       mitreMappingsDirty = true;
       mappingStatus.textContent = "Unsaved MITRE mappings";
     });
@@ -386,6 +403,7 @@
     saveMitreMappings();
   });
   promptButton.addEventListener("click", () => {
+    if (form.querySelector("fieldset").disabled) return;
     const labels = {
       executive_summary: "1. Executive Summary",
       key_findings: "2. Key Findings",

@@ -1,4 +1,4 @@
-/* Compact board layout and existing RAW backup, using isolated test data. */
+/* Board layout and relocated case backup, using isolated test data. */
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path');
 const {spawn, spawnSync} = require('node:child_process');
@@ -30,9 +30,11 @@ with app.app_context():
   await page.locator('[name=username]').fill('editor-test'); await page.locator('[name=password]').fill('temporary-editor-test-123');
   await Promise.all([page.waitForURL(base+'/'), page.getByRole('button',{name:'Sign in'}).click()]);
   const cardBefore = await page.locator('.mip-board').innerHTML();
+  assert.equal(await page.getByRole('button',{name:'Backup',exact:true}).count(),0);
   await page.goto(base+'/?view=table');
   assert.deepEqual(await page.locator('.mip-sort-label').allTextContents(), ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']);
-  assert.equal((await page.locator('.mip-table th').last().textContent()).trim(),'Actions');
+  assert.equal(await page.locator('.mip-table th').count(),6);
+  assert.equal(await page.getByRole('button',{name:'Backup',exact:true}).count(),0);
   assert.equal(await page.locator('h1').textContent(),'MIP Dashboard');
   assert.equal(await page.locator('.mip-table tbody tr').count(), 5);
   assert.match(await page.locator('.mip-table').innerText(), /Unassigned/);
@@ -45,20 +47,36 @@ with app.app_context():
   assert.equal(await title.getAttribute('title'), await title.textContent());
   assert.ok(await title.evaluate(e => e.scrollWidth > e.clientWidth && getComputedStyle(e).textOverflow === 'ellipsis'));
   await title.focus(); assert.equal(await title.evaluate(e => getComputedStyle(e).outlineStyle), 'solid');
-  const backup = page.locator('.mip-table form[action="/cases/1/backup"] button');
-  const geometry = await backup.evaluate(e => ({height:e.getBoundingClientRect().height, margin:getComputedStyle(e).marginTop, padding:getComputedStyle(e.closest('td')).padding}));
-  assert.equal(geometry.height, 29); assert.equal(geometry.margin, '0px'); assert.equal(geometry.padding, '7px 12px');
-  await backup.focus(); assert.equal(await backup.evaluate(e => getComputedStyle(e).outlineStyle), 'solid');
-  const urlBefore = page.url();
-  const [download] = await Promise.all([page.waitForEvent('download'), backup.click()]);
-  assert.equal(page.url(), urlBefore); assert.match(download.suggestedFilename(), /-backup\.zip$/);
-  const zipPath = path.join(temporary, 'download.zip'); await download.saveAs(zipPath);
-  const inspect = spawnSync(python, ['-c', 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert any(n.endswith("/scripts/decoder_py.txt") for n in z.namelist()),z.namelist()', zipPath]);
-  assert.equal(inspect.status, 0, inspect.stderr.toString());
   const caseHref = await title.getAttribute('href');
   await title.focus();
   await Promise.all([page.waitForURL(base+caseHref), title.press('Enter')]);
   assert.equal(await page.locator('.admin-nav a[aria-current="page"]').getAttribute('href'), '/');
+  await page.goto(base+'/cases/1');
+  await page.getByRole('tab',{name:'Review & Export',exact:true}).click();
+  const backup = page.locator('#panel-review form[action="/cases/1/backup"] button');
+  assert.deepEqual(await page.locator('.review-export-actions button').allTextContents(), ['Download Standard MIP Archive','Download RAW MIP Archive','Backup']);
+  await page.getByRole('tab',{name:'Review & Export',exact:true}).focus();
+  for(let i=0;i<20 && !await backup.evaluate(e => e === document.activeElement);i++)await page.keyboard.press('Tab');
+  assert.equal(await backup.evaluate(e => e === document.activeElement && getComputedStyle(e).outlineStyle === 'solid'),true);
+  const urlBefore = page.url();
+  const [download] = await Promise.all([page.waitForEvent('download'), backup.press('Enter')]);
+  assert.equal(page.url(), urlBefore); assert.match(download.suggestedFilename(), /-backup\.zip$/);
+  const zipPath = path.join(temporary, 'download.zip'); await download.saveAs(zipPath);
+  const inspect = spawnSync(python, ['-c', 'import sys,zipfile,json; z=zipfile.ZipFile(sys.argv[1]); assert any(n.endswith("/scripts/decoder_py.txt") for n in z.namelist()),z.namelist(); assert json.loads(z.read(next(n for n in z.namelist() if n.endswith("/case-data.json"))))["case"]["number"] == "CM-TEST"', zipPath]);
+  assert.equal(inspect.status, 0, inspect.stderr.toString());
+  // The same action targets the currently open case, including before Packaging.
+  await page.goto(base+'/cases/2');
+  await page.getByRole('tab',{name:'Review & Export',exact:true}).click();
+  assert.equal(await page.locator('#panel-review form[action="/cases/2/backup"] button').isEnabled(),true);
+  for (const width of [1440,390]) {
+    await page.setViewportSize({width,height:900});
+    const buttons = page.locator('.review-export-actions button');
+    assert.equal(await buttons.count(),3);
+    for (const button of await buttons.all()) assert.ok(await button.isVisible());
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    const boxes = await buttons.evaluateAll(nodes => nodes.map(e => {const r=e.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom};}));
+    for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++)assert.ok(boxes[i].right<=boxes[j].x || boxes[j].right<=boxes[i].x || boxes[i].bottom<=boxes[j].y || boxes[j].bottom<=boxes[i].y);
+  }
   await page.goto(base+'/?view=table');
   await page.setViewportSize({width:390,height:844});
   assert.ok(await page.locator('.mip-table-scroll').evaluate(e => e.scrollWidth > e.clientWidth));
@@ -120,7 +138,7 @@ with app.app_context():
     assert.deepEqual(await page.locator('.mip-board .case-card .eyebrow').allTextContents(),tableOrder);
   }
   await page.goto(base+'/?view=table&q=not-a-matching-case');
-  assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '7');
+  assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '6');
   assert.match(await page.locator('.mip-table tbody').innerText(), /No cases found/);
   // The stage-only drawer works for an account without tag-read permission.
   const revoke=spawnSync(python,['-c',"from app import app,run\nwith app.app_context():run(\"DELETE FROM role_permissions WHERE role_name='User' AND permission='tags:read'\");run(\"UPDATE users SET role='User' WHERE username='editor-test'\")"],{cwd:root,env});
@@ -132,7 +150,7 @@ with app.app_context():
   await page.locator('#tag-filter-drawer').getByRole('button',{name:'Apply',exact:true}).click();
   assert.equal(await page.locator('.mip-table tbody tr').count(),1);
   assert.deepEqual(errors, []);
-  console.log('PASS: compact dimensions, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, RAW backup/Python renaming, narrow and touch layouts, empty board, unchanged card markup.');
+  console.log('PASS: compact dimensions, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, relocated Review & Export backup/current case/Python renaming, no board Backup buttons, narrow and touch layouts, empty board.');
 })().catch(error => {console.error(error); console.error(log); process.exitCode=1;}).finally(async () => {
   if (browser) await browser.close(); server.kill('SIGTERM');
   await new Promise(r => server.once('exit',r)); fs.rmSync(temporary,{recursive:true,force:true});
