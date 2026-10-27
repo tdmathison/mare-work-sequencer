@@ -2142,3 +2142,10 @@ and aggregate counts are public. The wall shares the Family dashboard layout,
 bounded paging, accessible scrolling and 60-second snapshot refresh. See
 [Public Threat Actors dashboard](docs/actor-dashboard.md) for counting definitions,
 privacy, selection, motion and verification.
+
+
+Malware Family Create/Edit Profile also supports **Known Threat Actors** using the
+same searchable chip picker. Both profile types edit one shared relationship;
+renames/tag changes retain it and deletion removes live links. Family exports
+include related actor dependencies. See [Shared actor–family associations](docs/threat-actors.md)
+for migration, conflict handling and backup compatibility.

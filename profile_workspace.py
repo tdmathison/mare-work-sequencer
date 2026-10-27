@@ -17,18 +17,19 @@ def profile_tag(value, spec):
 def register_profiles(app, db, ROOT, spec):
 
     def render_profile(template, **context):
+        family = context.get('family')
+        from threat_actors import associations, choices, family_associations, actor_choices
         if spec.actor:
-            from threat_actors import associations, choices
-            family = context.get('family')
-            if template == 'malware_family_form.html':
-                if request.method == 'POST':
-                    selected = request.form.getlist('known_families')
-                    # Render malformed submissions safely too; validation reports errors below.
-                    context['known_families'] = choices(db(), list(dict.fromkeys(selected))[:100], family['id'] if family else None)
-                else:
-                    context['known_families'] = associations(db(), family['id']) if family else []
-            elif family:
-                context['known_families'] = associations(db(), family['id'])
+            if template == 'malware_family_form.html' and request.method == 'POST':
+                selected = request.form.getlist('known_families')
+                context['known_families'] = choices(db(), list(dict.fromkeys(selected))[:100], family['id'] if family else None)
+            else:
+                context['known_families'] = associations(db(), family['id']) if family else []
+        else:
+            if template == 'malware_family_form.html' and request.method == 'POST' and ('known_actors_present' in request.form or 'known_actors' in request.form):
+                context['known_actors'] = actor_choices(db(), list(dict.fromkeys(request.form.getlist('known_actors')))[:100])
+            else:
+                context['known_actors'] = family_associations(db(), family['id']) if family else []
         return render_template(template, profile_type=spec, **context)
 
     def allowed(permission):
@@ -188,8 +189,12 @@ def register_profiles(app, db, ROOT, spec):
                     save_aliases(db(), fid, saved_aliases, table=spec.table)
                     if spec.actor:
                         from threat_actors import save_associations
-                        if save_associations(db(), fid, request.form.getlist('known_families')):
+                        if save_associations(db(), fid, request.form.getlist('known_families'), g.user['id']):
                             event(f'Threat actor Malware Family associations changed: {fid}')
+                    elif 'known_actors_present' in request.form or 'known_actors' in request.form:
+                        from threat_actors import save_family_associations
+                        if save_family_associations(db(), fid, request.form.getlist('known_actors'), g.user['id']):
+                            event(f'Malware Family Threat Actor associations changed: {fid}')
                     if created:
                         event(f'Tag created: id={tid}, name={tag}')
                 flash(f'{spec.singular} saved. You can now attach research reports in OSINT & Reports.')
@@ -220,7 +225,7 @@ def register_profiles(app, db, ROOT, spec):
                     affected = db().execute('SELECT actor_id FROM actor_families WHERE family_id=?', (fid,)).fetchall() if not spec.actor else []
                     db().execute(f'DELETE FROM {spec.table} WHERE id=?', (fid,))
                     for row in affected:
-                        event(f'Threat actor association unavailable: actor={row[0]}, deleted Malware Family={fid}')
+                        event(f'Threat actor association removed: actor={row[0]}, deleted Malware Family={fid}')
                     event(f"{spec.singular} deleted: {fid} ({family['name']}); shared tag and case assignments preserved")
                 flash('Profile deleted. Its shared tag, case assignments, cases and assets were preserved.')
                 return redirect(url_for(f'{spec.key}_workspace'))

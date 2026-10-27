@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 from tagging import create
 with app.app_context():
     uid=db().execute('INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)',('actor-browser',generate_password_hash('actor-browser-password'),'Administrator')).lastrowid
+    create(db(),'TA_NO_PROFILE')
     ta=create(db(),'TA_APT_BROWSER')[0];mal=create(db(),'MAL_BROWSER')[0]
     for i,title in [(1,'Actor-tagged investigation'),(2,'Family-only investigation')]:
         cid=db().execute('INSERT INTO cases(number,name,stage,created,owner,creator) VALUES(?,?,?,?,?,?)',(f'MARE-ACTOR-{i}',title,1,now(),uid,uid)).lastrowid

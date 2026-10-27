@@ -36,7 +36,7 @@ paginated set of distinct existing cases **currently carrying the selected TA_
 tag**, with current lifecycle states. Refreshing reads current records; related
 MAL_ tags or family associations never add cases to this list.
 
-## Known Malware Families
+## Shared actor–family associations
 
 The searchable keyboard-operable picker offers configured family profiles, showing
 both name and current MAL_ tag. An unlinked MAL_ tag is not a configured family.
@@ -45,18 +45,31 @@ tag identity snapshots. The Overview links to the same internal family profiles.
 These are analyst-created relationships, without an implied attribution confidence.
 Selecting/removing one does not change any tag, case assignment or either History.
 
-A family tag relink preserves the association to that family UUID; the Overview
-shows its current tag and explains a change from the saved tag. Family deletion
-sets the relationship's live foreign key to NULL while retaining the original
-UUID/name/tag snapshot. The actor shows **Unavailable (profile deleted)**, and its
-edit version advances to protect stale forms. A reused name, tag, numeric ID or
-UUID does not silently reattach that unavailable association. Remove/save the old
-association before explicitly selecting a restored/replacement configured family.
+Malware Family Create/Edit Profile forms offer the corresponding **Known Threat
+Actors** picker, limited to existing configured actor profiles by name or TA_ tag.
+Standalone TA_ tags are excluded. Both controls edit `actor_families`; no separate
+reverse list is stored. Family Overview shows linked actor names/tags in a
+structured section after Long description, with an explicit empty state. Existing
+free-text descriptions and attribution notes are preserved.
 
-Deleting an actor removes only its owned relationships, OSINT and report files;
-it preserves shared tags, case assignments, cases and Malware Families. Profile,
-tag relink, association, OSINT and report changes are audited. Family deletion also
-audits affected actor relationships as unavailable.
+A rename or tag relink preserves the relationship to the same profile UUID, and
+both Overviews resolve current names/tags. Saving adds/removes the same edge on
+both sides immediately; duplicate submissions are rejected and changes are
+transactional. Family selections display in name order; an actor's family list
+keeps its saved order. New associations allow up to 100 distinct profiles per side.
+The other profile's edit version advances when membership changes, preventing an
+older open form from silently restoring or deleting a newer relationship.
+
+Deleting either profile removes its live associations and advances surviving
+profiles' versions. Related profiles, shared tags, case assignments and cases are
+preserved. Owned OSINT and reports follow existing deletion behavior. Profile,
+tag relink, association, OSINT and report changes are audited.
+
+Legacy unavailable references retained by older versions remain explicitly
+unavailable; migration does not discard them or silently attach a same-name/tag
+replacement. Remove/save an unavailable reference before deliberately selecting a
+restored profile. New family deletions remove live edges rather than creating new
+unavailable references.
 
 ## Reports and storage
 
@@ -77,6 +90,9 @@ new report files together.
 
 Startup adds `threat-actors-v1` (actor profiles, OSINT, associations and namespace /
 family-deletion triggers) and `actor-reports-v1` (report metadata and import state).
+`profile-associations-v2` adds the reverse lookup index and symmetric deletion
+triggers, retaining the existing relationship table and every live or legacy
+unavailable row. It does not rewrite profile descriptions, tags, or case records.
 Existing family, tag, case and alias data is retained. Aliases are ordered JSON
 collections; profile and attachment IDs are UUIDs. Numeric source user IDs are
 never used to identify destination users during selective imports.
@@ -92,8 +108,13 @@ account handoff and session invalidation behavior.
 Selective **Threat actors** exports include actors, aliases, TA_ tags, ordered
 OSINT, report bytes and only their referenced available configured family profiles
 and required tags. Those dependencies are named in the export summary; unrelated
-cases and unrelated families are excluded. Selecting Malware Families separately
-includes its complete library. Export All includes each global research profile
+cases and unrelated families are excluded. Selective **Malware families** exports
+include the full family library plus only its associated actors and their required
+family/tag dependencies, including those actor profiles' OSINT/report bytes.
+The preview identifies these dependencies and counts before export/import.
+Relationships retain their existing portable representation in each actor's
+`known_families` collection; no duplicate reverse collection or new archive format
+is needed. Export All includes each global research profile
 and report once; individual case archives never duplicate them.
 
 The existing shared-library format accepts an optional `actors` section. Older
@@ -105,7 +126,11 @@ resolve the difference before importing again. There is no silent overwrite.
 Incoming live family references require the exact family UUID and target tag
 identity, either already present or included in the planned family import. Missing,
 changed or ambiguous dependencies become preview conflicts; restore the matching
-family or skip the incoming actor. Incoming deliberately unavailable relationships
+family or skip the incoming actor. Separate archives work by importing the matching
+family profiles first, then retrying the actor import. If their research differs,
+the existing keep-destination/skip-incoming conflict choice still applies; identity
+matching is rechecked against the retained destination. Missing dependencies block
+that actor instead of inventing a placeholder or matching only by name/tag. Incoming deliberately unavailable relationships
 require an explicit preview choice to retain them as unavailable or skip that
 actor. They never bind to a same-name/tag replacement. Existing identical actor
 records remain idempotent without a new missing-link choice.
@@ -120,7 +145,7 @@ report metadata/bytes, OSINT URLs and case details remain private.
 Run relevant server coverage with:
 
 ```sh
-PYTHONPATH=. .venv/bin/pytest -q tests/test_threat_actors.py tests/test_malware_families.py tests/test_family_reports.py tests/test_family_aliases.py tests/test_backup_workspace.py tests/test_navigation.py tests/test_tagging.py tests/test_tag_names.py tests/test_settings_navigation.py tests/test_tools.py tests/test_dashboard_directory.py tests/test_cases_dashboard.py tests/test_family_dashboard.py
+PYTHONPATH=. .venv/bin/pytest -q tests/test_profile_associations.py tests/test_threat_actors.py tests/test_malware_families.py tests/test_family_reports.py tests/test_family_aliases.py tests/test_backup_workspace.py tests/test_navigation.py tests/test_tagging.py tests/test_tag_names.py tests/test_settings_navigation.py tests/test_tools.py tests/test_dashboard_directory.py tests/test_cases_dashboard.py tests/test_family_dashboard.py
 node tests/browser/threat-actors.cjs
 node tests/browser/malware-families.cjs
 node tests/browser/tools-navigation.cjs

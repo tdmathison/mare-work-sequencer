@@ -51,8 +51,8 @@ AREAS = (
         "families",
         "Malware families",
         "malware_families",
-        "Profiles, ordered OSINT links and attached report bytes.",
-        ("tags",),
+        "Profiles, ordered OSINT links, attached report bytes and associated Threat Actor profile dependencies.",
+        ("tags", "actors"),
     ),
     Area(
         "tags", "Tags", "tags", "Shared tag definitions and permanent tag identities."

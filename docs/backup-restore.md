@@ -46,7 +46,7 @@ archive size is shown only after generation.
 | Selective area | Included content | Automatic dependency |
 | --- | --- | --- |
 | Cases | Full editable RAW state, stable case identities, samples and assets, user references, source number reservations | Referenced tag definitions and identities |
-| Malware families | All profiles, ordered OSINT, attached report bytes, including profiles without cases | Required tags and identities |
+| Malware families | All profiles, ordered OSINT, attached report bytes, including profiles without cases | Required tags/identities and associated actor profiles with their family dependencies |
 | Threat actors | Profiles, ordered aliases/OSINT, report bytes and stable Malware Family associations | Required TA_ tags, referenced configured family profiles and their tags; no unrelated cases |
 | Tags | Definitions and stable identities | None |
 

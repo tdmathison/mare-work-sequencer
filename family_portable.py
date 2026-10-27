@@ -178,7 +178,11 @@ def report_fields(spec):
 
 
 def export_library(connection, root, *, include_actors=True, include_families=True):
-    actor_data = export_profiles(connection, root, spec=ACTOR)['actors'] if include_actors else []
+    # Relationships have one portable representation: actor.known_families.
+    # A selective family export includes its related actors, and those actors'
+    # family dependencies, without pulling in unrelated actors or cases.
+    related = {r[0] for r in connection.execute('SELECT DISTINCT actor_id FROM actor_families WHERE family_id IS NOT NULL')} if include_families else set()
+    actor_data = export_profiles(connection, root, spec=ACTOR, ids=None if include_actors else related)['actors']
     dependencies = {link['family_uuid'] for actor in actor_data for link in actor['known_families'] if link['available']}
     data = export_profiles(connection, root, ids=None if include_families else dependencies)
     data['actors'] = actor_data

@@ -104,7 +104,7 @@ def inspect(client, archive, password="a strong recovery passphrase"):
 def test_registry_permissions_csrf_and_deprecated_plaintext_export():
     c, uid, *_ = setup()
     assert selection(["cases"]) == (["cases"], ["tags"])
-    assert selection(["cases", "families", "tags"])[1] == []
+    assert selection(["cases", "families", "tags"])[1] == ["actors"]
     assert selection([], True)[0] == ["actors", "cases", "families", "tags"]
     assert selection(["actors"]) == (["actors"], ["families", "tags"])
     assert c.get("/import-export", follow_redirects=True).status_code == 200

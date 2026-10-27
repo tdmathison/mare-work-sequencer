@@ -48,10 +48,18 @@ def initialize(connection):
     CREATE TRIGGER IF NOT EXISTS actor_tag_delete BEFORE DELETE ON tags
       WHEN EXISTS(SELECT 1 FROM threat_actors WHERE tag_id=OLD.id)
       BEGIN SELECT RAISE(ABORT,'Relink or delete the threat actor before deleting or merging its tag.'); END;
-    CREATE TRIGGER IF NOT EXISTS actor_family_deleted BEFORE DELETE ON malware_families
+    DROP TRIGGER IF EXISTS actor_family_deleted;
+    CREATE TRIGGER actor_family_deleted BEFORE DELETE ON malware_families
       BEGIN UPDATE threat_actors SET version=version+1,
         updated_at=strftime('%Y-%m-%dT%H:%M:%S+00:00','now'),updated_by=NULL
-        WHERE id IN (SELECT actor_id FROM actor_families WHERE family_id=OLD.id); END;
+        WHERE id IN (SELECT actor_id FROM actor_families WHERE family_id=OLD.id);
+        DELETE FROM actor_families WHERE family_id=OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS family_actor_deleted BEFORE DELETE ON threat_actors
+      BEGIN UPDATE malware_families SET version=version+1,
+        updated_at=strftime('%Y-%m-%dT%H:%M:%S+00:00','now'),updated_by=NULL
+        WHERE id IN (SELECT family_id FROM actor_families WHERE actor_id=OLD.id); END;
+    CREATE INDEX IF NOT EXISTS actor_family_reverse ON actor_families(family_id,actor_id);
+    INSERT OR IGNORE INTO schema_migrations VALUES('profile-associations-v2');
     INSERT OR IGNORE INTO schema_migrations VALUES('threat-actors-v1');
     ''')
     connection.commit()
@@ -93,14 +101,85 @@ def choices(connection, values, actor_id=None, *, strict=False):
     return result
 
 
-def save_associations(connection, actor_id, values):
+def save_associations(connection, actor_id, values, user_id=None):
     selected = choices(connection, values, actor_id, strict=True)
     before = associations(connection, actor_id)
+    previous_ids = {r['family_id'] for r in before}
+    for row in selected:
+        if row['family_id'] and row['family_id'] not in previous_ids and connection.execute(
+                'SELECT count(*) FROM actor_families WHERE family_id=?', (row['family_id'],)).fetchone()[0]>=MAX_FAMILIES:
+            raise ValueError('A selected Malware Family already has 100 associated actors.')
     connection.execute('DELETE FROM actor_families WHERE actor_id=?', (actor_id,))
     for position, row in enumerate(selected, 1):
         connection.execute('INSERT INTO actor_families VALUES(?,?,?,?,?,?,?)',
             (actor_id,row['family_uuid'],row['family_id'],row['family_name'],row['family_tag'],row['tag_identity'],position))
-    return [(r['family_uuid'],r['tag_identity']) for r in before] != [(r['family_uuid'],r['tag_identity']) for r in selected]
+    changed = [(r['family_uuid'],r['tag_identity']) for r in before] != [(r['family_uuid'],r['tag_identity']) for r in selected]
+    if changed:
+        _touch_related(connection, 'malware_families', {r['family_id'] for r in before + selected if r['family_id']}, user_id)
+    return changed
+
+
+def _touch_related(connection, table, ids, user_id):
+    # Invalidate forms opened on the other side before this association changed.
+    from tagging import now
+    for identity in ids:
+        connection.execute(f'UPDATE {table} SET version=version+1,updated_at=?,updated_by=? WHERE id=?',
+                           (now(), user_id, identity))
+
+
+def family_associations(connection, family_id):
+    return [dict(row) for row in connection.execute('''SELECT a.id AS actor_uuid,
+      a.name AS current_name,t.name AS current_tag FROM actor_families link
+      JOIN threat_actors a ON a.id=link.actor_id JOIN tags t ON t.id=a.tag_id
+      WHERE link.family_id=? ORDER BY a.name COLLATE NOCASE,a.id''', (family_id,))]
+
+
+def actor_choices(connection, values, *, strict=False):
+    if len(values)>MAX_FAMILIES or len(set(values))!=len(values):
+        raise ValueError('Choose at most 100 distinct configured Threat Actors.')
+    result=[]
+    for value in values:
+        try:
+            if str(uuid.UUID(value))!=value: raise ValueError()
+        except (ValueError, TypeError):
+            if strict: raise ValueError('Invalid threat-actor profile identity.')
+        row=connection.execute('''SELECT a.id AS actor_uuid,a.name AS current_name,
+          t.name AS current_tag FROM threat_actors a JOIN tags t ON t.id=a.tag_id
+          WHERE a.id=? AND substr(t.name,1,3)='TA_' AND length(t.name)>3''',(value,)).fetchone()
+        if row:
+            result.append(dict(row))
+        elif strict:
+            raise Conflict('A selected Threat Actor is unavailable. Remove it or choose an existing configured profile; no replacement was linked.')
+        else:
+            result.append(dict(actor_uuid=value,current_name='Unavailable profile',current_tag='Unavailable'))
+    return result
+
+
+def save_family_associations(connection, family_id, values, user_id=None):
+    selected=actor_choices(connection,values,strict=True)
+    before={r['actor_uuid'] for r in family_associations(connection,family_id)}
+    after={r['actor_uuid'] for r in selected}
+    if before==after:
+        return False
+    for actor_id in before-after:
+        connection.execute('DELETE FROM actor_families WHERE actor_id=? AND family_id=?',(actor_id,family_id))
+    for actor_id in after-before:
+        if connection.execute('SELECT 1 FROM actor_families WHERE actor_id=? AND family_uuid=?',(actor_id,family_id)).fetchone():
+            raise Conflict('This actor has an explicitly unavailable reference to that identity. Resolve it on the actor profile before associating it again.')
+        if connection.execute('SELECT count(*) FROM actor_families WHERE actor_id=?',(actor_id,)).fetchone()[0]>=MAX_FAMILIES:
+            raise ValueError('A selected Threat Actor already has 100 associated families.')
+        link=choices(connection,[family_id],strict=True)[0]
+        position=connection.execute('SELECT coalesce(max(position),0)+1 FROM actor_families WHERE actor_id=?',(actor_id,)).fetchone()[0]
+        connection.execute('INSERT INTO actor_families VALUES(?,?,?,?,?,?,?)',
+          (actor_id,family_id,family_id,link['family_name'],link['family_tag'],link['tag_identity'],position))
+    for actor_id in before^after:
+        # Keep the existing actor-side ordering contiguous for portable validation.
+        ordered=[r[0] for r in connection.execute('SELECT family_uuid FROM actor_families WHERE actor_id=? ORDER BY position',(actor_id,))]
+        connection.execute('UPDATE actor_families SET position=-position WHERE actor_id=?',(actor_id,))
+        for index,identity in enumerate(ordered,1):
+            connection.execute('UPDATE actor_families SET position=? WHERE actor_id=? AND family_uuid=?',(index,actor_id,identity))
+    _touch_related(connection,'threat_actors',before^after,user_id)
+    return True
 
 
 def register_actors(app, db, root):
@@ -120,14 +199,26 @@ def register_actors(app, db, root):
         response.headers['Cache-Control'] = 'private, no-store'
         return response
 
+    @app.get('/malware-families/actors/search')
+    def families_actors_search():
+        if not has_permission(g.user, 'tags:read', db()): abort(403)
+        query=request.args.get('q','').strip()[:200]
+        rows=db().execute('''SELECT a.id,a.name,t.name AS tag FROM threat_actors a
+          JOIN tags t ON t.id=a.tag_id WHERE substr(t.name,1,3)='TA_' AND length(t.name)>3
+          AND (instr(lower(a.name),lower(?))>0 OR instr(lower(t.name),lower(?))>0)
+          ORDER BY a.name COLLATE NOCASE,a.id LIMIT 50''',(query,query)).fetchall()
+        response=jsonify(actors=[dict(row) for row in rows])
+        response.headers['Cache-Control']='private, no-store'
+        return response
+
 
 def export_associations(connection, actor_id):
     result = []
-    for row in associations(connection, actor_id):
+    for position, row in enumerate(associations(connection, actor_id), 1):
         current = connection.execute('''SELECT i.identity FROM malware_families f
           JOIN family_tag_identities i ON i.tag_id=f.tag_id WHERE f.id=?''', (row['family_id'],)).fetchone()
         result.append({key:row[key] for key in ('family_uuid','family_name','family_tag','tag_identity','position')}
-                      | dict(available=bool(row['family_id']), target_tag_identity=current[0] if current else None))
+                      | dict(position=position, available=bool(row['family_id']), target_tag_identity=current[0] if current else None))
     return result
 
 

@@ -131,7 +131,7 @@ def test_relink_protections_and_family_deleted_or_relinked():
     version=actor_record(aid)['version']
     response=post(c,'/malware-families/'+family+'/delete',version=family_profile(family)['version'],confirm_name=family_profile(family)['name'])
     assert response.status_code==302
-    assert 'Unavailable (profile deleted)' in c.get('/threat-actors/'+aid).text
+    assert 'No families associated.' in c.get('/threat-actors/'+aid).text
     assert actor_record(aid)['version']>version
     assert edit(c,aid,known_families=[]).status_code==302
 
@@ -341,7 +341,7 @@ def test_missing_dependency_is_a_resolvable_actor_skip(tmp_path):
         (tmp_path/'family-library.json').write_text(json.dumps(data))
         conflicts,_,planned=resolve(db(),ROOT,tmp_path,{})
         assert any(row['key']=='actor:'+aid and 'dependency unavailable' in row['label'] for row in conflicts)
-        conflicts,_,planned=resolve(db(),ROOT,tmp_path,{'actor:'+aid:'keep'})
+        conflicts,_,planned=resolve(db(),ROOT,tmp_path,{'actor:'+aid:'keep', 'family:'+family:'keep'})
         assert not conflicts and planned['actors']==[]
         assert db().execute('SELECT count(*) FROM threat_actors').fetchone()[0]==0
 
@@ -404,6 +404,11 @@ def test_v2_complete_backup_without_actors_upgrades_safely(tmp_path):
 def test_deleted_association_requires_explicit_unavailable_import_choice(tmp_path):
     from backup_areas import resolve
     c,*_=setup();family=create_family(c);aid=create(c,known_families=[family])
+    with app.app_context():
+        # Reproduce a v1 backup's deleted-family tombstone without changing the
+        # v2 deletion policy exercised above.
+        db().execute('UPDATE actor_families SET family_id=NULL WHERE family_id=?',(family,))
+        db().commit()
     assert post(c,'/malware-families/'+family+'/delete',version=family_profile(family)['version'],confirm_name=family_profile(family)['name']).status_code==302
     with app.app_context():
         data=export_library(db(),ROOT)
@@ -450,6 +455,11 @@ def test_history_complete_counts_pagination_and_current_states():
 def test_http_unavailable_dependency_choice_and_repeat_import():
     from test_backup_workspace import export,inspect,post as backup_post,wait
     c,*_=setup();family=create_family(c);aid=create(c,known_families=[family])
+    with app.app_context():
+        # Reproduce a v1 backup's deleted-family tombstone without changing the
+        # v2 deletion policy exercised above.
+        db().execute('UPDATE actor_families SET family_id=NULL WHERE family_id=?',(family,))
+        db().commit()
     assert post(c,'/malware-families/'+family+'/delete',version=family_profile(family)['version'],confirm_name=family_profile(family)['name']).status_code==302
     with c.session_transaction() as session:session['csrf']='backup-workspace'
     archive,_=export(c,['actors'],password='')
@@ -473,6 +483,11 @@ def test_http_unavailable_dependency_choice_and_repeat_import():
 def test_skip_actor_clears_all_its_unavailable_dependency_conflicts(tmp_path):
     from backup_areas import resolve
     c,*_=setup();family=create_family(c);aid=create(c,known_families=[family])
+    with app.app_context():
+        # Reproduce a v1 backup's deleted-family tombstone without changing the
+        # v2 deletion policy exercised above.
+        db().execute('UPDATE actor_families SET family_id=NULL WHERE family_id=?',(family,))
+        db().commit()
     assert post(c,'/malware-families/'+family+'/delete',version=family_profile(family)['version'],confirm_name=family_profile(family)['name']).status_code==302
     with app.app_context():
         data=export_library(db(),ROOT);db().execute('DELETE FROM threat_actors');db().commit()
