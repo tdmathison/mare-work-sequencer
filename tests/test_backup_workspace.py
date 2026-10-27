@@ -196,6 +196,9 @@ def test_encrypted_complete_export_and_actual_replacement(tmp_path):
     with app.app_context():
         db().execute("INSERT INTO site_settings VALUES('recovery-setting','preserved')")
         db().commit()
+    from test_explorer_research import configuration
+    saved = post(c, '/data-explorer/views', name='Recovery graph', description='Owner-scoped configuration', configuration=json.dumps(configuration(cid)))
+    assert saved.status_code == 201, saved.text
     archive, job = export(c, complete=True)
     assert (
         job["manifest"]["complete"] and job["manifest"]["record_counts"]["users"] == 1
@@ -242,6 +245,10 @@ r=client.post('/login',data={'csrf':client.get('/login').text.split('name="csrf"
 assert r.status_code==302,r.text
 with app.app_context():
     assert db().execute("SELECT value FROM site_settings WHERE name='recovery-setting'").fetchone()[0]=='preserved'
+    view=db().execute("SELECT v.* FROM explorer_views v JOIN users u ON u.user_uuid=v.owner_uuid WHERE u.username='recovery-admin'").fetchone()
+    assert view['name']=='Recovery graph' and __import__('json').loads(view['configuration'])['positions']
+    assert len(client.get('/data-explorer/views').json['views'])==1
+
     case=db().execute('SELECT * FROM cases').fetchone();assert case['number']=='MARE-2026-000050' and case['stage']==1
     assert db().execute('SELECT count(*) FROM case_tags').fetchone()[0]==1
     assert db().execute("SELECT 1 FROM reserved_case_numbers WHERE number='MARE-2026-000050'").fetchone()

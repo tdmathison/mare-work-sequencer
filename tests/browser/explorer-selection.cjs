@@ -18,7 +18,7 @@ const base='http://127.0.0.1:8806',server=spawn('.venv/bin/python',['tests/brows
  await page.locator('#explorer-status').filter({hasText:'Layout settled'}).waitFor();
  const selected=()=>graph(()=>document.querySelector('#explorer-canvas')._cyreg.cy.nodes(':selected').map(n=>n.id()).sort());
  const ids=await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;return {family:cy.nodes('[kind="family"]').id(),actor:cy.nodes('[kind="actor"]').id()};});
- async function place(zoom=1){await page.evaluate(({ids,zoom})=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;cy.elements().unselect();cy.getElementById('case:1').position({x:100,y:100});cy.getElementById('case:2').position({x:400,y:100});cy.getElementById('case:3').position({x:700,y:100});cy.getElementById(ids.family).position({x:350,y:330});cy.getElementById(ids.actor).position({x:650,y:330});cy.viewport({zoom,pan:{x:100,y:100}});}, {ids,zoom});}
+ async function place(zoom=1){await page.evaluate(({ids,zoom})=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy;cy.elements().unselect();cy.getElementById('case:1').position({x:100,y:100});cy.getElementById('case:2').position({x:400,y:100});cy.getElementById('case:3').position({x:700,y:100});cy.getElementById(ids.family).position({x:350,y:330});cy.getElementById(ids.actor).position({x:650,y:330});cy.viewport({zoom,pan:{x:100,y:160}});}, {ids,zoom});}
  async function point(id){return page.evaluate(id=>{const canvas=document.querySelector('#explorer-canvas'),cy=canvas._cyreg.cy,p=cy.getElementById(id).renderedPosition(),r=canvas.getBoundingClientRect();return {x:r.x+p.x,y:r.y+p.y};},id);}
  async function marquee(start,end,key='Control'){
   await page.keyboard.down(key);await page.mouse.move(start.x,start.y);await page.mouse.down();await page.mouse.move(end.x,end.y,{steps:10});await page.mouse.up();await page.keyboard.up(key);await delay(40);
@@ -86,7 +86,7 @@ const base='http://127.0.0.1:8806',server=spawn('.venv/bin/python',['tests/brows
 
  // Marquee normalization remains linear and responsive on a larger displayed graph.
  await place(.2);
- await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy,source=cy.nodes('[kind="family"]')[0].data();cy.add(Array.from({length:400},(_,i)=>({data:{...source,id:'bulk:'+i},position:{x:1000+(i%20)*150,y:200+Math.floor(i/20)*100}})));});
- const selectionStarted=Date.now();await marquee({x:canvas.x+270,y:canvas.y+110},{x:canvas.x+900,y:canvas.y+550},'Meta');assert.equal((await selected()).filter(id=>id.startsWith('bulk:')).length,400);assert.ok(Date.now()-selectionStarted<3000);
+ await graph(()=>{const cy=document.querySelector('#explorer-canvas')._cyreg.cy,source=cy.nodes('[kind="family"]')[0].data();cy.add(Array.from({length:400},(_,i)=>({data:{...source,id:'bulk:'+i},position:{x:1000+(i%20)*150,y:400+Math.floor(i/20)*100}})));});
+ const selectionStarted=Date.now();await marquee({x:canvas.x+270,y:canvas.y+210},{x:canvas.x+900,y:canvas.y+650},'Meta');assert.equal((await selected()).filter(id=>id.startsWith('bulk:')).length,400);assert.ok(Date.now()-selectionStarted<3000);
  assert.deepEqual(errors,[]);console.log('PASS Explorer selection: center marquee, CTRL/Command toggle/add, group deltas after zoom/pan, stationary neighbors, category followers exactly once, layouts, hidden-node pruning, cancel/outside release, single details, Escape and normal pan.');
 })().catch(error=>{console.error(error);console.error(logs.slice(-2200));process.exitCode=1;}).finally(async()=>{await browser?.close();server.kill();fs.rmSync(tmp,{recursive:true,force:true});fs.rmSync(workspace,{recursive:true,force:true});});

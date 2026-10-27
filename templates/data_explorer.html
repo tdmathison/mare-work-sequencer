@@ -4,8 +4,10 @@
 <link rel="stylesheet" href="{{url_for('static',filename='data-explorer.css')}}">
 <script defer src="{{url_for('static',filename='vendor/cytoscape/cytoscape.min.js')}}"></script>
 <script defer src="{{url_for('static',filename='data-explorer.js')}}"></script>
+<script defer src="{{url_for('static',filename='explorer-research.js')}}"></script>
+<script defer src="{{url_for('static',filename='explorer-coverage.js')}}"></script>
 <div class="explorer-heading"><h1>Data Explorer</h1><span class="status">RESEARCH RELATIONSHIPS</span></div>
-<section class="explorer-shell" aria-label="Relationship graph" data-layout-worker="{{url_for('static',filename='explorer-layout-worker.js')}}" data-source="{{url_for('explorer_data')}}" data-case-template="{{url_for('explorer_contents',case_id=0)}}">
+<section class="explorer-shell" aria-label="Relationship graph" data-shared-allowed="{{1 if explorer_permissions['cases:read'] and explorer_permissions['indicators:read'] else 0}}" data-layout-worker="{{url_for('static',filename='explorer-layout-worker.js')}}" data-source="{{url_for('explorer_data')}}" data-case-template="{{url_for('explorer_contents',case_id=0)}}">
 <div id="explorer-canvas" tabindex="0" role="group" aria-label="Interactive relationship graph. Open Legend and objects for keyboard selection."></div>
 <div class="explorer-top-controls">
 <div class="explorer-search-group">
@@ -27,9 +29,25 @@
 <div class="explorer-zoom" role="group" aria-label="Zoom controls"><button type="button" id="explorer-zoom-in" aria-label="Zoom in">+</button><button type="button" id="explorer-zoom-out" aria-label="Zoom out">−</button></div>
 <button type="button" class="explorer-help-toggle" id="explorer-help-toggle" aria-label="Legend &amp; objects" aria-expanded="false" aria-controls="explorer-help">Legend &amp; objects</button>
 <section class="explorer-popover" id="explorer-help" role="dialog" aria-labelledby="explorer-help-heading" tabindex="-1" hidden><div class="explorer-panel-heading"><h2 id="explorer-help-heading">Legend &amp; objects</h2><button type="button" data-close="help" aria-label="Close legend and objects">×</button></div>
-<p class="muted">Scroll to zoom at the pointer. Drag the background to pan or drag an object to place it. Arrow keys on the canvas pan; +/− zoom.</p><ul class="explorer-legend"><li><span data-icon="case"></span>Case · document</li><li><span data-icon="family"></span>Malware family · bug</li><li><span data-icon="actor"></span>Threat actor · shield</li><li><span data-icon="files"></span>Package category · icon + count</li></ul>
+<p class="muted">Scroll to zoom at the pointer. Drag the background to pan or drag an object to place it. Arrow keys on the canvas pan; +/− zoom.</p><ul class="explorer-legend"><li><span data-icon="case"></span>Case · document</li><li><span data-icon="family"></span>Malware family · bug</li><li><span data-icon="actor"></span>Threat actor · shield</li><li><span data-icon="files"></span>Package category · icon + count</li><li><span class="explorer-recorded-swatch" aria-hidden="true"></span>Recorded relationship</li><li><span class="explorer-computed-swatch" aria-hidden="true"></span>Shared Indicators · optional computed overlap</li></ul>
 <label for="explorer-objects">Objects in this view</label><select id="explorer-objects" size="5" aria-describedby="explorer-status"></select><div class="explorer-secondary-actions"><button type="button" id="explorer-reload">Refresh data</button><button type="button" id="explorer-reset">Reset View</button></div></section>
 <section class="explorer-tray" id="explorer-tray" aria-label="Selected object" hidden><div class="explorer-tray-main"><span id="explorer-tray-icon" aria-hidden="true"></span><div class="explorer-tray-labels"><h2 id="explorer-tray-title"></h2><p id="explorer-tray-subtitle"></p></div><button type="button" id="explorer-deselect" aria-label="Deselect object">×</button></div><div id="explorer-tray-summary" aria-live="polite"></div><div class="explorer-tray-actions"><button type="button" id="explorer-clear-selection" hidden>Clear Selection</button><a id="explorer-open" hidden></a><button type="button" id="explorer-expand" hidden>Expand Standard MIP</button><button type="button" id="explorer-details-toggle" aria-expanded="false" aria-controls="explorer-details">Details</button></div></section>
 <aside class="explorer-details" id="explorer-details" role="dialog" aria-labelledby="explorer-details-heading" tabindex="-1" hidden><div class="explorer-panel-heading"><h2 id="explorer-details-heading">Selected object details</h2><button type="button" id="explorer-details-close" aria-label="Close details">×</button></div><div id="explorer-detail-body"></div></aside>
+</section>
+<section class="explorer-coverage-dock" id="explorer-coverage-dock" aria-label="Investigation coverage and knowledge gaps">
+<div class="explorer-coverage-toolbar">
+<div role="tablist" aria-label="Investigation inventory"><button id="coverage-tab" type="button" role="tab" aria-selected="true" aria-controls="coverage-panel">Investigation Coverage</button><button id="gaps-tab" type="button" role="tab" aria-selected="false" aria-controls="gaps-panel" tabindex="-1">Knowledge Gaps <span id="coverage-gap-count">—</span></button></div>
+<label>Scope <select id="coverage-scope"><option value="graph">Current Graph</option><option value="all">All Accessible Cases</option></select></label>
+<button type="button" id="coverage-refresh">Refresh</button><button type="button" id="coverage-toggle" aria-expanded="false" aria-controls="coverage-body">Expand coverage dock <span aria-hidden="true">⌃</span></button>
+</div>
+<div id="coverage-body" hidden>
+<p class="muted">Content presence only. This does not assess analysis quality or case completion.</p>
+<p id="coverage-status" role="status"></p>
+<section id="coverage-panel" role="tabpanel" aria-labelledby="coverage-tab">
+<div class="coverage-filters"><label class="coverage-check"><input id="coverage-missing" type="checkbox">Show cases with missing content</label><label>Case search <input id="coverage-search" type="search" maxlength="200" placeholder="Case number or title"></label><label>Sort <select id="coverage-sort"><option value="case">Case</option><option value="missing">Most missing categories</option></select></label></div>
+<div class="coverage-matrix-layout"><div class="coverage-matrix-main"><div id="coverage-table"></div><nav id="coverage-pages" aria-label="Coverage pages"></nav></div><aside class="coverage-gap-summary" aria-label="Knowledge Gaps summary"><h2>Knowledge Gaps</h2><div id="coverage-gap-summary"></div><button type="button" id="coverage-show-gaps">View all suggestions</button></aside></div>
+</section>
+<section id="gaps-panel" role="tabpanel" aria-labelledby="gaps-tab" hidden><p class="muted">Review suggested. These suggestions are optional; missing attribution is not a knowledge gap.</p><div id="coverage-gaps"></div><nav id="coverage-gap-pages" aria-label="Knowledge Gap pages"></nav></section>
+</div>
 </section>
 {% endblock %}

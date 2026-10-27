@@ -27,7 +27,7 @@ def permissions(connection):
             ('cases:read','tags:read','cases:assets','indicators:read','references:read','reports:read')}
 
 
-def graph(connection, allowed, query='', kinds=KINDS):
+def graph(connection, allowed, query='', kinds=KINDS,limit=LIMIT,edge_limit=None):
     # All graph queries use the same authorized CTE, including search neighborhoods
     # and limits. No full private records, per-node queries or inferred edges.
     nodes=[];edges=[]
@@ -54,8 +54,8 @@ def graph(connection, allowed, query='', kinds=KINDS):
     connection.execute('SAVEPOINT explorer_graph')
     try:
         total=connection.execute(cte+'SELECT count(*) FROM chosen',params).fetchone()[0]
-        if total>LIMIT:
-            return dict(error=f'{total} matching objects exceed the {LIMIT}-object view limit. Search for a case, profile, alias or tag, or narrow the type filters.',total=total,limit=LIMIT),413
+        if total>limit:
+            return dict(error=f'{total} matching objects exceed the {limit}-object view limit. Search for a case, profile, alias or tag, or narrow the type filters.',total=total,limit=limit),413
         result=[]
         for row in connection.execute(cte+'SELECT * FROM chosen ORDER BY kind,name COLLATE NOCASE,id',params):
             record=dict(row)
@@ -69,10 +69,12 @@ def graph(connection, allowed, query='', kinds=KINDS):
             record['url']=url_for({'case':'detail','family':'families_workspace','actor':'actors_workspace'}[record['kind']],**({'cid':record['uid']} if record['kind']=='case' else {'fid':record['uid']}))
             result.append(record)
         relationships=[dict(row) for row in connection.execute(cte+'''SELECT 'edge:'||e.source||':'||e.target id,e.* FROM edges e
-          JOIN chosen a ON a.id=e.source JOIN chosen b ON b.id=e.target ORDER BY e.source,e.target''',params)]
+          JOIN chosen a ON a.id=e.source JOIN chosen b ON b.id=e.target ORDER BY e.source,e.target'''+(' LIMIT '+str(edge_limit+1) if edge_limit else ''),params)]
     finally:
         connection.execute('RELEASE explorer_graph')
-    return dict(nodes=result,edges=relationships,total=total,limit=LIMIT,query=query,
+    limited=bool(edge_limit and len(relationships)>edge_limit)
+    if limited:relationships=relationships[:edge_limit]
+    return dict(nodes=result,edges=relationships,edge_limited=limited,total=total,limit=limit,query=query,
                 scope='Search matches and their immediate neighbors' if query else 'All authorized objects'),200
 
 
@@ -132,6 +134,9 @@ def register_explorer(app, db, root):
         if not (allowed['cases:read'] or allowed['tags:read']):abort(403)
         return allowed
 
+    from explorer_views import register_views
+    register_views(app,db,require)
+
     def case_record(case_id):
         allowed=require()
         if not allowed['cases:read']:abort(403)
@@ -150,6 +155,14 @@ def register_explorer(app, db, root):
             abort(409,description='Package files changed or are unavailable. Retry after saving the case.')
         finally:
             db().execute('RELEASE explorer_contents')
+
+    from explorer_coverage import register_coverage
+    register_coverage(app,db,require,root)
+
+    from explorer_shared import register_shared
+    register_shared(app,db,require,graph)
+    from explorer_research import register_research
+    register_research(app,db,require,graph,snapshot_categories)
 
     @app.context_processor
     def explorer_permission():

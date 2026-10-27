@@ -34,12 +34,12 @@ def selected_files(record, root, *, raw=False, include_samples=False):
     return result
 
 
-def planned_standard(connection, record, root):
+def planned_standard(connection, record, root, *, indicator_table=None):
     """Predict the export's derived STIX refresh without writing or building a ZIP."""
     from indicators import load_table
     from indicator_stix import build_bundle
     files=selected_files(record,root)
-    bundle,_=build_bundle(load_table(lambda:connection,record['id'])['sections'])
+    bundle,_=build_bundle((indicator_table if indicator_table is not None else load_table(lambda:connection,record['id']))['sections'])
     files.pop('iocs/indicators.stix.json',None)
     if bundle is not None:
         files['iocs/indicators.stix.json']=bundle.encode()

@@ -9,7 +9,9 @@
     "test:api-docs": "node tests/browser/api-documentation.cjs",
     "build:explorer": "node frontend/build-explorer-vendor.cjs",
     "test:explorer": "node tests/browser/data-explorer.cjs",
-    "test:explorer-selection": "node tests/browser/explorer-selection.cjs"
+    "test:explorer-selection": "node tests/browser/explorer-selection.cjs",
+    "test:explorer-research": "node tests/browser/explorer-research.cjs",
+    "test:explorer-coverage": "node tests/browser/explorer-coverage.cjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",
