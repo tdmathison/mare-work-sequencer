@@ -20,6 +20,12 @@ with app.app_context():
  for stage in range(4):
   cid=run("INSERT INTO cases(number,name,created,stage,owner,creator,external_system,external_number) VALUES(?,?,'now',?,?,1,'JIRA','EXT-123')",('MARE-2026-'+str(stage)+'123456789012345678901234567890','Long case title '+('malware '*20) if stage==1 else 'Short title '+str(stage),stage,uid if stage==2 else None if stage==0 else 1)).lastrowid
   ensure_package(cid)
+ run("UPDATE cases SET name=?,description=?,external_number=external_number||? WHERE id=3",('Long case title '+('UnbrokenTitle'*14),'Long description '*100,'z'*150))
+ run('UPDATE cases SET creator=? WHERE id=4',(uid,))
+ for i in range(6):
+  tag='RESEARCH_'+str(i)+'_'+('VERYLONGTAG'*8)
+  tid=run("INSERT INTO tags(name,normalized_name,created_at) VALUES(?,?,'now')",(tag,tag)).lastrowid
+  run("INSERT INTO case_tags(case_id,tag_id,assigned_at,assigned_by) VALUES(1,?,'now',1)",(tid,))
  (package(1)/'scripts'/'decoder.py').write_text('print(42)')
 `], {cwd:root, env});
   assert.equal(seed.status, 0, seed.stderr.toString());
@@ -45,7 +51,7 @@ with app.app_context():
   }
   const title = page.locator('.mip-table-title a').filter({hasText:'Long case title'});
   assert.equal(await title.getAttribute('title'), await title.textContent());
-  assert.ok(await title.evaluate(e => e.scrollWidth > e.clientWidth && getComputedStyle(e).textOverflow === 'ellipsis'));
+  assert.ok(await title.evaluate(e => e.scrollWidth <= e.clientWidth+1 && getComputedStyle(e).whiteSpace === 'normal' && getComputedStyle(e).overflow === 'visible'));
   await title.focus(); assert.equal(await title.evaluate(e => getComputedStyle(e).outlineStyle), 'solid');
   const caseHref = await title.getAttribute('href');
   await title.focus();
@@ -79,7 +85,31 @@ with app.app_context():
   }
   await page.goto(base+'/?view=table');
   await page.setViewportSize({width:390,height:844});
-  assert.ok(await page.locator('.mip-table-scroll').evaluate(e => e.scrollWidth > e.clientWidth));
+  async function assertFits() {
+    const overflow=await page.evaluate(()=>[document.documentElement,...document.querySelectorAll('.mip-table-panel,.mip-table-scroll,.mip-table,.mip-table th,.mip-table td')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({node:e.className||e.tagName,width:e.clientWidth,scroll:e.scrollWidth})));
+    assert.deepEqual(overflow,[],`Overflow at ${page.viewportSize().width}px`);
+    assert.equal(await page.locator('.mip-table tbody tr').first().locator('td').count(),6);
+    assert.equal(await page.locator('.mip-sort-button').count(),6);
+  }
+  for(const width of [1920,1440,1280,1024,768,720,390,360,320]){
+    await page.setViewportSize({width,height:900});await assertFits();
+    if(process.env.MARE_BOARD_SCREENSHOT_DIR && [1440,390].includes(width)){
+      await page.locator('.mip-table').scrollIntoViewIfNeeded();
+      await page.screenshot({path:path.join(process.env.MARE_BOARD_SCREENSHOT_DIR,`board-${width}.png`)});
+    }
+    await page.getByRole('button',{name:/^Filters/}).click();
+    assert.equal(await page.locator('.tag-filter-list input').count(),6);
+    await assertFits();await page.keyboard.press('Escape');
+  }
+  // Browser zoom reduces the CSS viewport: exercise 200% desktop/tablet equivalents.
+  const cdp=await page.context().newCDPSession(page);
+  for(const physicalWidth of [1440,768]){
+    await cdp.send('Emulation.setDeviceMetricsOverride',{width:physicalWidth/2,height:500,deviceScaleFactor:2,mobile:false});await assertFits();
+  }
+  await cdp.send('Emulation.clearDeviceMetricsOverride');await cdp.detach();
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator('.mip-table tbody tr').first().evaluate(e=>getComputedStyle(e).display),'block');
+  assert.deepEqual(await page.locator('.mip-table tbody tr').first().locator('td').evaluateAll(cells=>cells.map(e=>getComputedStyle(e,'::before').content.replaceAll('"',''))),['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   const touch = await browser.newContext({viewport:{width:390,height:844}, hasTouch:true, storageState:await page.context().storageState()});
   const touchPage = await touch.newPage(); await touchPage.goto(base+'/?view=table');
@@ -150,7 +180,7 @@ with app.app_context():
   await page.locator('#tag-filter-drawer').getByRole('button',{name:'Apply',exact:true}).click();
   assert.equal(await page.locator('.mip-table tbody tr').count(),1);
   assert.deepEqual(errors, []);
-  console.log('PASS: compact dimensions, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, relocated Review & Export backup/current case/Python renaming, no board Backup buttons, narrow and touch layouts, empty board.');
+  console.log('PASS: fitting desktop/tablet/mobile/200% zoom layouts, wrapped long fields, multiple tags, stacked rows and visible sorting, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, relocated Review & Export backup/current case/Python renaming, no board Backup buttons, narrow and touch layouts, empty board.');
 })().catch(error => {console.error(error); console.error(log); process.exitCode=1;}).finally(async () => {
   if (browser) await browser.close(); server.kill('SIGTERM');
   await new Promise(r => server.once('exit',r)); fs.rmSync(temporary,{recursive:true,force:true});

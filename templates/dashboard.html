@@ -27,13 +27,13 @@
 {% if view=='table' %}
 <div class="panel mip-table-panel">
   <div class="mip-table-scroll" role="region" aria-label="MIP Board cases" tabindex="0">
-  <table class="mip-table">
-    <thead>
-      <tr>
+  <table class="mip-table" role="table">
+    <thead role="rowgroup">
+      <tr role="row">
         {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Reviewed','reviewed')] %}
         {% set active = board_sort == key %}
         {% set next_direction = 'desc' if active and sort_direction == 'asc' else 'asc' %}
-        <th scope="col" class="mip-table-{{column_class}}" aria-sort="{{('ascending' if sort_direction == 'asc' else 'descending') if active else 'none'}}">
+        <th role="columnheader" scope="col" class="mip-table-{{column_class}}" aria-sort="{{('ascending' if sort_direction == 'asc' else 'descending') if active else 'none'}}">
           <form method="post" action="{{url_for('save_board_sort')}}" class="mip-sort-form">
             {{token(csrf)}}
             <input type="hidden" name="column" value="{{key}}">
@@ -50,23 +50,23 @@
         {% endfor %}
       </tr>
     </thead>
-    <tbody>
+    <tbody role="rowgroup">
       {% for c in cases %}
-      <tr>
-        <td class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% endif %}</td>
-        <td class="mip-table-title"><a href="/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
+      <tr role="row">
+        <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% endif %}</td>
+        <td role="cell" data-label="Case title" class="mip-table-title"><a href="/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
         {% set owner_label = (c.owner_name or 'Unassigned') ~ (' (disabled)' if c.owner_name and not c.owner_active else '') %}
-        <td class="mip-table-person"><span title="{{owner_label}}">{{owner_label}}</span></td>
-        <td class="mip-table-person"><span title="{{c.creator_name}}">{{c.creator_name}}</span></td>
-        <td><span class="mip-table-stage-badge {{'is-completed' if c.stage==stages|length-1 else 'is-active' if c.stage else 'is-not-started'}}">{{stages[c.stage]}}</span></td>
-        <td>
+        <td role="cell" data-label="Assigned owner" class="mip-table-person"><span title="{{owner_label}}">{{owner_label}}</span></td>
+        <td role="cell" data-label="Creator" class="mip-table-person"><span title="{{c.creator_name}}">{{c.creator_name}}</span></td>
+        <td role="cell" data-label="Stage"><span class="mip-table-stage-badge {{'is-completed' if c.stage==stages|length-1 else 'is-active' if c.stage else 'is-not-started'}}">{{stages[c.stage]}}</span></td>
+        <td role="cell" data-label="Reviewed">
           {{c.readiness|rejectattr('status','equalto','Pending')|list|length}} /
           {{c.readiness|length}}
         </td>
       </tr>
       {% else %}
-      <tr>
-        <td colspan="6">No cases found. Clear filters or create a case.</td>
+      <tr role="row">
+        <td role="cell" colspan="6">No cases found. Clear filters or create a case.</td>
       </tr>
       {% endfor %}
     </tbody>
