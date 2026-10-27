@@ -8,7 +8,8 @@
     "build:api-docs": "node frontend/build-api-docs.cjs",
     "test:api-docs": "node tests/browser/api-documentation.cjs",
     "build:explorer": "node frontend/build-explorer-vendor.cjs",
-    "test:explorer": "node tests/browser/data-explorer.cjs"
+    "test:explorer": "node tests/browser/data-explorer.cjs",
+    "test:explorer-selection": "node tests/browser/explorer-selection.cjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",
