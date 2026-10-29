@@ -1,0 +1,3698 @@
+[
+  {
+    "resource": "actors",
+    "name": "list",
+    "operation_id": "profiles_actors_list_get",
+    "path": "actors",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [],
+    "request": null,
+    "response": "ActorsListResponse",
+    "query": "ActorsListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "profiles",
+    "summary": "Read Threat Actors",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "actors",
+    "name": "create",
+    "operation_id": "ext_actors_edit_post_e7eb2101_post",
+    "path": "actors",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [],
+    "request": "ActorsCreateRequest",
+    "response": "ActorsCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "get",
+    "operation_id": "profiles_actors_item_get",
+    "path": "actors/{fid}",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ActorsGetResponse",
+    "query": "ActorsGetParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read Threat Actors",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "actors",
+    "name": "delete",
+    "operation_id": "ext_actors_delete_post_84388d1a_post",
+    "path": "actors/{fid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsDeleteRequest",
+    "response": "ActorsDeleteResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "update",
+    "operation_id": "ext_actors_edit_post_871aa588_post",
+    "path": "actors/{fid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsUpdateRequest",
+    "response": "ActorsUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "add_osint",
+    "operation_id": "ext_actors_osint_edit_post_f9e806f9_post",
+    "path": "actors/{fid}/osint",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsAddOsintRequest",
+    "response": "ActorsAddOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors osint edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "delete_osint",
+    "operation_id": "ext_actors_osint_delete_post_05f999aa_post",
+    "path": "actors/{fid}/osint/{eid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "eid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsDeleteOsintRequest",
+    "response": "ActorsDeleteOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors osint delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "update_osint",
+    "operation_id": "ext_actors_osint_edit_post_0ac3a2aa_post",
+    "path": "actors/{fid}/osint/{eid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "eid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsUpdateOsintRequest",
+    "response": "ActorsUpdateOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors osint edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "upload_reports",
+    "operation_id": "ext_actors_reports_upload_post_6a9da2f6_post",
+    "path": "actors/{fid}/reports",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsUploadReportsRequest",
+    "response": "ActorsUploadReportsResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors reports upload",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "delete_report",
+    "operation_id": "ext_actors_reports_delete_post_b9eeaf45_post",
+    "path": "actors/{fid}/reports/{aid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsDeleteReportRequest",
+    "response": "ActorsDeleteReportResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors reports delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "actors",
+    "name": "download_report",
+    "operation_id": "ext_actors_reports_download_get_e4976bdd_get",
+    "path": "actors/{fid}/reports/{aid}/download",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Actors reports download",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "actors",
+    "name": "update_report",
+    "operation_id": "ext_actors_reports_edit_post_00fe1765_post",
+    "path": "actors/{fid}/reports/{aid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ActorsUpdateReportRequest",
+    "response": "ActorsUpdateReportResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Actors reports edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "audit",
+    "name": "export_all",
+    "operation_id": "ext_audit_export_all_zip_get_f53801fb_get",
+    "path": "audit/export-all.zip",
+    "method": "GET",
+    "permission": "users:manage",
+    "paths": [],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Audit export all zip",
+    "description": "\n\nRequired role permission: users:manage."
+  },
+  {
+    "resource": "audit",
+    "name": "export_csv",
+    "operation_id": "ext_audit_export_csv_get_5d0ef10a_get",
+    "path": "audit/export.csv",
+    "method": "GET",
+    "permission": "users:manage",
+    "paths": [],
+    "request": null,
+    "response": null,
+    "query": "AuditExportCsvParams",
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Audit export csv",
+    "description": "\n\nRequired role permission: users:manage."
+  },
+  {
+    "resource": "backups",
+    "name": "create_job",
+    "operation_id": "ext_backup_jobs_create_post_187e9281_post",
+    "path": "backup-jobs",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [],
+    "request": "BackupsCreateJobRequest",
+    "response": "BackupsCreateJobResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Backup jobs create",
+    "description": "\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "job",
+    "operation_id": "ext_backup_jobs_status_get_be4f144a_get",
+    "path": "backup-jobs/{jid}",
+    "method": "GET",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "jid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "BackupsJobResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Backup jobs status",
+    "description": "\n\nRequired role permission: backups:manage."
+  },
+  {
+    "resource": "backups",
+    "name": "apply",
+    "operation_id": "ext_backup_jobs_apply_post_e1d0797a_post",
+    "path": "backup-jobs/{jid}/apply",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "jid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "BackupsApplyRequest",
+    "response": "BackupsApplyResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Backup jobs apply",
+    "description": "\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "download",
+    "operation_id": "ext_backup_jobs_download_get_f379a228_get",
+    "path": "backup-jobs/{jid}/download",
+    "method": "GET",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "jid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Backup jobs download",
+    "description": "\n\nRequired role permission: backups:manage."
+  },
+  {
+    "resource": "backups",
+    "name": "preview",
+    "operation_id": "ext_backup_jobs_preview_post_56b46c20_post",
+    "path": "backup-jobs/{jid}/preview",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "jid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "BackupsPreviewRequest",
+    "response": "BackupsPreviewResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Backup jobs preview",
+    "description": "\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "sync_apply",
+    "operation_id": "sync_api_apply_post",
+    "path": "backups/apply/{operation}",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "operation",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "BackupsSyncApplyRequest",
+    "response": "SyncResult",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Apply validated per-case synchronization decisions",
+    "description": "Object keyed by the zero-based review case index (string). Omitted decisions apply safe automatic new/update/unchanged/older actions; unresolved/invalid cases are skipped. Conflicts need explicit keep or replace. Legacy review also supports new or link (target is a local numeric case ID). Revision validation, ownership checks and recovery snapshots remain enforced; inspect each actual outcome for failure/rollback. Only the staging account may apply; preview expires after one hour.\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "export_cases",
+    "operation_id": "export_all_cases_post",
+    "path": "backups/export",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download a full case backup ZIP",
+    "description": "Includes nested case RAW ZIPs and metadata; excludes malware samples.\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "import_cases",
+    "operation_id": "api_import_backup_post",
+    "path": "backups/import",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [],
+    "request": "BackupsImportCasesRequest",
+    "response": "BackupsImportCasesResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": "cases",
+    "summary": "Stage a backup or RAW ZIP for synchronization review",
+    "description": "Validates archive paths, resource limits, checksums and case metadata. Does not immediately apply changes. Review with backups/review/{operation}, then explicitly apply. Review is bound to the importing account and expires after one hour. import and import-raw are aliases.\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "import_raw",
+    "operation_id": "api_import_backup_post_raw",
+    "path": "backups/import-raw",
+    "method": "POST",
+    "permission": "backups:manage",
+    "paths": [],
+    "request": "BackupsImportRawRequest",
+    "response": "BackupsImportRawResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": "cases",
+    "summary": "Stage a backup or RAW ZIP for synchronization review",
+    "description": "Validates archive paths, resource limits, checksums and case metadata. Does not immediately apply changes. Review with backups/review/{operation}, then explicitly apply. Review is bound to the importing account and expires after one hour. import and import-raw are aliases.\n\nRequired role permission: backups:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "backups",
+    "name": "sync_review",
+    "operation_id": "sync_api_review_get",
+    "path": "backups/review/{operation}",
+    "method": "GET",
+    "permission": "backups:manage",
+    "paths": [
+      {
+        "name": "operation",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "SyncResult",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Review a staged synchronization or its outcomes",
+    "description": "Only the account that staged the archive may access it. Expired preview returns 410.\n\nRequired role permission: backups:manage."
+  },
+  {
+    "resource": "cases",
+    "name": "list",
+    "operation_id": "case_collection_get",
+    "path": "cases",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [],
+    "request": null,
+    "response": "CasesListResponse",
+    "query": "CasesListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "cases",
+    "summary": "List cases newest first",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "cases",
+    "name": "create",
+    "operation_id": "case_collection_post",
+    "path": "cases",
+    "method": "POST",
+    "permission": "cases:create",
+    "paths": [],
+    "request": "CasesCreateRequest",
+    "response": "CasesCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a case",
+    "description": "A date prefix is added to the title if absent; the resulting name must remain \u2264200 characters. External system and number must be supplied together. Owner must be active.\n\nRequired role permission: cases:create.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "cases",
+    "name": "delete",
+    "operation_id": "case_item_delete",
+    "path": "cases/{case_id}",
+    "method": "DELETE",
+    "permission": "cases:delete",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Permanently delete a case and its files",
+    "description": "Real destructive operation. Active report generation blocks deletion; there is no additional API confirmation field.\n\nRequired role permission: cases:delete.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "cases",
+    "name": "get",
+    "operation_id": "case_item_get",
+    "path": "cases/{case_id}",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "CasesGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read case details and workflow history",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "cases",
+    "name": "update",
+    "operation_id": "case_item_patch",
+    "path": "cases/{case_id}",
+    "method": "PATCH",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "CasesUpdateRequest",
+    "response": "CasesUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Update case metadata or ownership",
+    "description": "External system/number must be paired. Stage changes use the dedicated workflow endpoint.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "packages",
+    "name": "export",
+    "operation_id": "export_case_post",
+    "path": "cases/{case_id}/archive",
+    "method": "POST",
+    "permission": "cases:export",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "PackagesExportRequest",
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download a Standard or RAW MIP ZIP",
+    "description": "Packaging & Delivery or Completed only; active owner required when mandatory. Standard requires a completed Word report. Outstanding review blockers require acknowledge=true. Including samples additionally requires samples:export. Malware sample archives are dangerous; handle only in an isolated analysis environment.\n\nRequired role permission: cases:export.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "assets",
+    "name": "delete",
+    "operation_id": "case_assets_delete",
+    "path": "cases/{case_id}/assets",
+    "method": "DELETE",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "AssetsDeleteRequest",
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete a package artifact",
+    "description": "\n\nRequired role permission: cases:assets.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "assets",
+    "name": "list",
+    "operation_id": "case_assets_get",
+    "path": "cases/{case_id}/assets",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "AssetsListResponse",
+    "query": "AssetsListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "files",
+    "summary": "List package files",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "assets",
+    "name": "upload",
+    "operation_id": "case_assets_post",
+    "path": "cases/{case_id}/assets",
+    "method": "POST",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "AssetsUploadRequest",
+    "response": "AssetsUploadResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Upload a package artifact",
+    "description": "Maximum 100 MiB per file. Sanitized duplicate filenames are rejected. Samples are wrapped in password-protected AES ZIP files using the configured sample password.\n\nRequired role permission: cases:assets.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "assets",
+    "name": "download",
+    "operation_id": "download_case_asset_get",
+    "path": "cases/{case_id}/assets/{relative_path}",
+    "method": "GET",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "relative_path",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download a package artifact",
+    "description": "relative_path may include slashes, e.g. scripts/example.txt; it must remain within the case directory. Content-Type is inferred from the filename. Generated indicators.stix.json returns 409 if it does not match the current saved table.\n\nRequired role permission: cases:assets."
+  },
+  {
+    "resource": "backups",
+    "name": "case",
+    "operation_id": "case_backup_post",
+    "path": "cases/{case_id}/backup",
+    "method": "POST",
+    "permission": "cases:export",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download a case RAW backup ZIP",
+    "description": "Includes case metadata and email-safe Python filenames. Malware samples excluded.\n\nRequired role permission: cases:export.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "notes",
+    "name": "delete_draft",
+    "operation_id": "case_draft_delete",
+    "path": "cases/{case_id}/draft",
+    "method": "DELETE",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete your case note draft",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "notes",
+    "name": "get_draft",
+    "operation_id": "case_draft_get",
+    "path": "cases/{case_id}/draft",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "NotesGetDraftResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read your case note draft",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "notes",
+    "name": "update_draft",
+    "operation_id": "case_draft_put",
+    "path": "cases/{case_id}/draft",
+    "method": "PUT",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "NotesUpdateDraftRequest",
+    "response": "NotesUpdateDraftResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Replace your case note draft",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "indicators",
+    "name": "get",
+    "operation_id": "case_indicators_get",
+    "path": "cases/{case_id}/indicators",
+    "method": "GET",
+    "permission": "indicators:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "Indicators",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read indicators and revision",
+    "description": "\n\nRequired role permission: indicators:read."
+  },
+  {
+    "resource": "indicators",
+    "name": "update",
+    "operation_id": "case_indicators_put",
+    "path": "cases/{case_id}/indicators",
+    "method": "PUT",
+    "permission": "indicators:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "IndicatorsUpdateRequest",
+    "response": "Indicators",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Replace indicators with revision validation",
+    "description": "Send all sections to preserve grouping, or rows when exactly one section exists. Each row has three text cells (\u22644,000 characters), 1\u2013100 sections with unique IDs (1\u201364 alphanumeric/underscore/hyphen), a nonempty title \u2264200 characters and description \u22644,000 characters. The default section must remain; \u226410,000 rows total. revision must equal the current revision. The bundled official MISP attribute catalog is selectable/storable; export capability/help is supplied per type. Known compatibility aliases normalize on save; exact MISP canonical names take precedence. text/comment/other retain literal Unicode/whitespace and export as non-detection x-misp-attribute objects; Valid scalar attributes without native mappings use the official MISP-compatible contextual representation, with informational stix.notices. Missing attachment/sample bytes and invalid values retain saved drafts with explicit stix.issues. Legacy android-package aliases normalize to mobile-application-id while retaining identity and original_type provenance. Unknown/ambiguous types and invalid values remain saved as drafts with stix.issues; CSV is refreshed and stale STIX removed. Fully exportable tables generate iocs/indicators.stix.json with refanged native patterns and faithful contextual objects; any unsupported row withholds the entire STIX output. Preserve optional row_meta (including explicit boolean to_ids detection intent) and stix_meta when editing to retain IDs/timestamps/intent; do not generate them yourself. Unchanged saves do not advance revision. The authenticated web Indicators workspace provides CSV/STIX import previews and a read-only download; equivalent versioned preview/import/STIX download endpoints are also available to SDK clients.\n\nRequired role permission: indicators:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "notes",
+    "name": "list",
+    "operation_id": "case_notes_get",
+    "path": "cases/{case_id}/notes",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "NotesListResponse",
+    "query": "NotesListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "notes",
+    "summary": "List case notes",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "notes",
+    "name": "create",
+    "operation_id": "case_notes_post",
+    "path": "cases/{case_id}/notes",
+    "method": "POST",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "NotesCreateRequest",
+    "response": "NotesCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a note",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "notes",
+    "name": "delete",
+    "operation_id": "case_note_delete",
+    "path": "cases/{case_id}/notes/{note_id}",
+    "method": "DELETE",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "note_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete a note",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "notes",
+    "name": "get",
+    "operation_id": "case_note_get",
+    "path": "cases/{case_id}/notes/{note_id}",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "note_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "NotesGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read a case note",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "notes",
+    "name": "update",
+    "operation_id": "case_note_patch",
+    "path": "cases/{case_id}/notes/{note_id}",
+    "method": "PATCH",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "note_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "NotesUpdateRequest",
+    "response": "NotesUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Update a note",
+    "description": "The resulting body must contain non-whitespace text.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "packages",
+    "name": "readiness",
+    "operation_id": "case_readiness_get",
+    "path": "cases/{case_id}/readiness",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "PackagesReadinessResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read package readiness",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "packages",
+    "name": "set_readiness",
+    "operation_id": "case_readiness_put",
+    "path": "cases/{case_id}/readiness",
+    "method": "PUT",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "PackagesSetReadinessRequest",
+    "response": "PackagesSetReadinessResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Set one category readiness",
+    "description": "Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "references",
+    "name": "get",
+    "operation_id": "case_references_get",
+    "path": "cases/{case_id}/references",
+    "method": "GET",
+    "permission": "references:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "References",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read references and revision",
+    "description": "\n\nRequired role permission: references:read."
+  },
+  {
+    "resource": "references",
+    "name": "update",
+    "operation_id": "case_references_put",
+    "path": "cases/{case_id}/references",
+    "method": "PUT",
+    "permission": "references:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReferencesUpdateRequest",
+    "response": "References",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Replace references with revision validation",
+    "description": "Fixed columns Link, Description. revision must equal the current revision.\n\nRequired role permission: references:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "cases",
+    "name": "reopen",
+    "operation_id": "reopen_case_post",
+    "path": "cases/{case_id}/reopen",
+    "method": "POST",
+    "permission": "cases:workflow",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "CasesReopenResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Reopen a completed case for analysis",
+    "description": "Completed cases only; active owner required when ownership is mandatory.\n\nRequired role permission: cases:workflow.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "get",
+    "operation_id": "case_report_get",
+    "path": "cases/{case_id}/report",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ReportsGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read report sections and mappings",
+    "description": "\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "update",
+    "operation_id": "case_report_put",
+    "path": "cases/{case_id}/report",
+    "method": "PUT",
+    "permission": "reports:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReportsUpdateRequest",
+    "response": "ReportsUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Save manual report sections",
+    "description": "Only manual sections are written; generated sections are accepted but not persisted. Omitted manual sections retain their current values.\n\nRequired role permission: reports:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "download",
+    "operation_id": "download_report_get",
+    "path": "cases/{case_id}/report/download",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": "ReportsDownloadParams",
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download the current report",
+    "description": "404 if the requested output has not been generated.\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "upload",
+    "operation_id": "upload_final_report_post",
+    "path": "cases/{case_id}/report/final",
+    "method": "POST",
+    "permission": "reports:generate",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReportsUploadRequest",
+    "response": "ReportsUploadResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": "report_files",
+    "summary": "Upload an edited DOCX report",
+    "description": "Valid DOCX \u226420 MiB required. backup=1 saves the previous report. generate_pdf=0 skips PDF conversion; otherwise LibreOffice is required. Active report jobs block replacement.\n\nRequired role permission: reports:generate.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "generate",
+    "operation_id": "generate_case_report_post",
+    "path": "cases/{case_id}/report/generate",
+    "method": "POST",
+    "permission": "reports:generate",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReportsGenerateRequest",
+    "response": "ReportsGenerateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Start local Word report generation",
+    "description": "Select an available template first. Generation saves supplied manual sections; omitted manual fields become empty. Read and submit existing sections to retain them. Existing reports require an explicit previous=backup or overwrite choice (409 needs_choice otherwise). Poll report/job; PDF generation requires LibreOffice. Accepts JSON or form fields.\n\nRequired role permission: reports:generate.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "list_images",
+    "operation_id": "report_images_get",
+    "path": "cases/{case_id}/report/images",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ReportsListImagesResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "images",
+    "summary": "List report image metadata",
+    "description": "\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "upload_image",
+    "operation_id": "report_images_post",
+    "path": "cases/{case_id}/report/images",
+    "method": "POST",
+    "permission": "reports:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReportsUploadImageRequest",
+    "response": "Image",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Upload a report or task image",
+    "description": "Readable image \u226410 MiB and \u226420 megapixels; normalized to PNG. Active report jobs block changes.\n\nRequired role permission: reports:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "delete_image",
+    "operation_id": "report_image_delete",
+    "path": "cases/{case_id}/report/images/{name}",
+    "method": "DELETE",
+    "permission": "reports:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete a report image",
+    "description": "\n\nRequired role permission: reports:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "reports",
+    "name": "download_image",
+    "operation_id": "report_image_get",
+    "path": "cases/{case_id}/report/images/{name}",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download a report image",
+    "description": "\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "job",
+    "operation_id": "case_report_job_get",
+    "path": "cases/{case_id}/report/job",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ReportsJobResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read the latest report generation job",
+    "description": "\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "get_mappings",
+    "operation_id": "case_report_mappings_get",
+    "path": "cases/{case_id}/report/mappings",
+    "method": "GET",
+    "permission": "reports:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ReportsGetMappingsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read MITRE mappings",
+    "description": "\n\nRequired role permission: reports:read."
+  },
+  {
+    "resource": "reports",
+    "name": "update_mappings",
+    "operation_id": "case_report_mappings_put",
+    "path": "cases/{case_id}/report/mappings",
+    "method": "PUT",
+    "permission": "reports:write",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ReportsUpdateMappingsRequest",
+    "response": "ReportsUpdateMappingsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Save MITRE mapping Markdown",
+    "description": "Blank text removes that mapping. Active report generation blocks saving.\n\nRequired role permission: reports:write.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "cases",
+    "name": "advance",
+    "operation_id": "advance_case_post",
+    "path": "cases/{case_id}/stage",
+    "method": "POST",
+    "permission": "cases:workflow",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "CasesAdvanceRequest",
+    "response": "CasesAdvanceResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Advance one workflow stage",
+    "description": "expected must equal the current stage. Active owner required to start; skipped/deferred outcomes require a reason. Completion checks readiness and review blockers. Stage 0 always records Started.\n\nRequired role permission: cases:workflow.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tasks",
+    "name": "list",
+    "operation_id": "case_tasks_get",
+    "path": "cases/{case_id}/tasks",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TasksListResponse",
+    "query": "TasksListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "tasks",
+    "summary": "List case tasks",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "tasks",
+    "name": "create",
+    "operation_id": "case_tasks_post",
+    "path": "cases/{case_id}/tasks",
+    "method": "POST",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TasksCreateRequest",
+    "response": "TasksCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a task",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tasks",
+    "name": "delete",
+    "operation_id": "case_task_delete",
+    "path": "cases/{case_id}/tasks/{task_id}",
+    "method": "DELETE",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete a task",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tasks",
+    "name": "get",
+    "operation_id": "case_task_get",
+    "path": "cases/{case_id}/tasks/{task_id}",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TasksGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read a case task",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "tasks",
+    "name": "update",
+    "operation_id": "case_task_patch",
+    "path": "cases/{case_id}/tasks/{task_id}",
+    "method": "PATCH",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TasksUpdateRequest",
+    "response": "TasksUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Update a task",
+    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "indicators",
+    "name": "import_rows",
+    "operation_id": "ext_indicators_import_post_f5bae3e5_post",
+    "path": "cases/{cid}/indicators/import",
+    "method": "POST",
+    "permission": "indicators:write",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "IndicatorsImportRowsRequest",
+    "response": "IndicatorsImportRowsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Indicators import",
+    "description": "\n\nRequired role permission: indicators:write.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "indicators",
+    "name": "preview_import",
+    "operation_id": "ext_indicators_import_preview_post_4ee71a56_post",
+    "path": "cases/{cid}/indicators/import/preview",
+    "method": "POST",
+    "permission": "indicators:write",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "IndicatorsPreviewImportRequest",
+    "response": "IndicatorsPreviewImportResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Indicators import preview",
+    "description": "\n\nRequired role permission: indicators:write.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "indicators",
+    "name": "download_stix",
+    "operation_id": "ext_indicators_stix_download_get_dc7b5212_get",
+    "path": "cases/{cid}/indicators/stix",
+    "method": "GET",
+    "permission": "indicators:read",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Indicators stix download",
+    "description": "\n\nRequired role permission: indicators:read."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_open",
+    "operation_id": "ext_snort_open_get_e12c0c74_get",
+    "path": "cases/{cid}/snort/file",
+    "method": "GET",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsSnortOpenResponse",
+    "query": "ToolsSnortOpenParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort open",
+    "description": "\n\nRequired role permission: cases:assets."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_save",
+    "operation_id": "ext_snort_save_post_e12c0c74_post",
+    "path": "cases/{cid}/snort/file",
+    "method": "POST",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ToolsSnortSaveRequest",
+    "response": "ToolsSnortSaveResponse",
+    "query": "ToolsSnortSaveParams",
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort save",
+    "description": "\n\nRequired role permission: cases:assets.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_inventory",
+    "operation_id": "ext_snort_inventory_get_4c1f954b_get",
+    "path": "cases/{cid}/snort/files",
+    "method": "GET",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsSnortInventoryResponse",
+    "query": "ToolsSnortInventoryParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort inventory",
+    "description": "\n\nRequired role permission: cases:assets."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_normalize",
+    "operation_id": "ext_snort_normalize_post_2f41d98b_post",
+    "path": "cases/{cid}/snort/normalize",
+    "method": "POST",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ToolsSnortNormalizeRequest",
+    "response": "ToolsSnortNormalizeResponse",
+    "query": "ToolsSnortNormalizeParams",
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort normalize",
+    "description": "\n\nRequired role permission: cases:assets.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "for_case",
+    "operation_id": "ext_case_tags_list_get_62b60a74_get",
+    "path": "cases/{cid}/tags",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TagsForCaseResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Case tags list",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "tags",
+    "name": "assign",
+    "operation_id": "ext_case_tag_change_post_8de28445_post",
+    "path": "cases/{cid}/tags/{tid}/assign",
+    "method": "POST",
+    "permission": "tags:assign",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TagsAssignResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Case tag change",
+    "description": "\n\nRequired role permission: tags:assign.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "remove",
+    "operation_id": "ext_case_tag_change_post_dcf195c1_post",
+    "path": "cases/{cid}/tags/{tid}/remove",
+    "method": "POST",
+    "permission": "tags:assign",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TagsRemoveResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Case tag change",
+    "description": "\n\nRequired role permission: tags:assign.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_open",
+    "operation_id": "ext_yara_open_get_27c901fb_get",
+    "path": "cases/{cid}/yara/file",
+    "method": "GET",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsYaraOpenResponse",
+    "query": "ToolsYaraOpenParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara open",
+    "description": "\n\nRequired role permission: cases:assets."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_save",
+    "operation_id": "ext_yara_save_post_27c901fb_post",
+    "path": "cases/{cid}/yara/file",
+    "method": "POST",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "ToolsYaraSaveRequest",
+    "response": "ToolsYaraSaveResponse",
+    "query": "ToolsYaraSaveParams",
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara save",
+    "description": "\n\nRequired role permission: cases:assets.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_files",
+    "operation_id": "ext_yara_files_get_752c8c89_get",
+    "path": "cases/{cid}/yara/files",
+    "method": "GET",
+    "permission": "cases:assets",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsYaraFilesResponse",
+    "query": "ToolsYaraFilesParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara files",
+    "description": "\n\nRequired role permission: cases:assets."
+  },
+  {
+    "resource": "coverage",
+    "name": "get",
+    "operation_id": "ext_explorer_coverage_get_255728ac_get",
+    "path": "coverage",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "CoverageGetResponse",
+    "query": "CoverageGetParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "rows",
+    "summary": "Explorer coverage",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "contents",
+    "operation_id": "ext_explorer_contents_get_29d53cde_get",
+    "path": "explorer/cases/{case_id}/contents",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ExplorerContentsResponse",
+    "query": "ExplorerContentsParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer contents",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "explorer",
+    "name": "category",
+    "operation_id": "ext_explorer_category_get_5c7e803c_get",
+    "path": "explorer/cases/{case_id}/contents/{category}",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "category",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ExplorerCategoryResponse",
+    "query": "ExplorerCategoryParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer category",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "explorer",
+    "name": "download",
+    "operation_id": "ext_explorer_file_get_6aea0ec3_get",
+    "path": "explorer/cases/{case_id}/file",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "case_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": "ExplorerDownloadParams",
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Explorer file",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "explorer",
+    "name": "connection_objects",
+    "operation_id": "ext_explorer_connection_objects_get_107ac453_get",
+    "path": "explorer/connection-objects",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerConnectionObjectsResponse",
+    "query": "ExplorerConnectionObjectsParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer connection objects",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "connections",
+    "operation_id": "ext_explorer_connections_get_670f3f4e_get",
+    "path": "explorer/connections",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerConnectionsResponse",
+    "query": "ExplorerConnectionsParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer connections",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "evidence",
+    "operation_id": "ext_explorer_evidence_get_7c7d0848_get",
+    "path": "explorer/evidence",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerEvidenceResponse",
+    "query": "ExplorerEvidenceParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer evidence",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "graph",
+    "operation_id": "ext_explorer_data_get_02c3068a_get",
+    "path": "explorer/graph",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerGraphResponse",
+    "query": "ExplorerGraphParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer data",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "shared_indicators",
+    "operation_id": "ext_explorer_shared_indicators_get_7626bdea_get",
+    "path": "explorer/shared-indicators",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerSharedIndicatorsResponse",
+    "query": "ExplorerSharedIndicatorsParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer shared indicators",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "list_views",
+    "operation_id": "ext_explorer_views_get_cdfbfc20_get",
+    "path": "explorer/views",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ExplorerListViewsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer views",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "create_view",
+    "operation_id": "ext_explorer_view_create_post_cdfbfc20_post",
+    "path": "explorer/views",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ExplorerCreateViewRequest",
+    "response": "ExplorerCreateViewResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer view create",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "explorer",
+    "name": "get_view",
+    "operation_id": "ext_explorer_view_get_cd9ccbbf_get",
+    "path": "explorer/views/{vid}",
+    "method": "GET",
+    "permission": null,
+    "paths": [
+      {
+        "name": "vid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ExplorerGetViewResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer view",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "explorer",
+    "name": "delete_view",
+    "operation_id": "ext_explorer_view_delete_post_039b5239_post",
+    "path": "explorer/views/{vid}/delete",
+    "method": "POST",
+    "permission": null,
+    "paths": [
+      {
+        "name": "vid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ExplorerDeleteViewRequest",
+    "response": "ExplorerDeleteViewResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer view delete",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "explorer",
+    "name": "update_view",
+    "operation_id": "ext_explorer_view_update_post_f201140b_post",
+    "path": "explorer/views/{vid}/update",
+    "method": "POST",
+    "permission": null,
+    "paths": [
+      {
+        "name": "vid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ExplorerUpdateViewRequest",
+    "response": "ExplorerUpdateViewResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Explorer view update",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "list",
+    "operation_id": "profiles_families_list_get",
+    "path": "families",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [],
+    "request": null,
+    "response": "FamiliesListResponse",
+    "query": "FamiliesListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "profiles",
+    "summary": "Read Malware Families",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "families",
+    "name": "create",
+    "operation_id": "ext_families_edit_post_b33b23d5_post",
+    "path": "families",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [],
+    "request": "FamiliesCreateRequest",
+    "response": "FamiliesCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Families edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "get",
+    "operation_id": "profiles_families_item_get",
+    "path": "families/{fid}",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "FamiliesGetResponse",
+    "query": "FamiliesGetParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read Malware Families",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "families",
+    "name": "delete",
+    "operation_id": "ext_families_delete_post_e2171d05_post",
+    "path": "families/{fid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesDeleteRequest",
+    "response": "FamiliesDeleteResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Families delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "update",
+    "operation_id": "ext_families_edit_post_4584b25f_post",
+    "path": "families/{fid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesUpdateRequest",
+    "response": "FamiliesUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Families edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "add_osint",
+    "operation_id": "ext_families_osint_edit_post_02e6afc7_post",
+    "path": "families/{fid}/osint",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesAddOsintRequest",
+    "response": "FamiliesAddOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families osint edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "delete_osint",
+    "operation_id": "ext_families_osint_delete_post_a7396702_post",
+    "path": "families/{fid}/osint/{eid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "eid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesDeleteOsintRequest",
+    "response": "FamiliesDeleteOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families osint delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "update_osint",
+    "operation_id": "ext_families_osint_edit_post_49172c98_post",
+    "path": "families/{fid}/osint/{eid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "eid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesUpdateOsintRequest",
+    "response": "FamiliesUpdateOsintResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families osint edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "upload_reports",
+    "operation_id": "ext_families_reports_upload_post_f6bd8335_post",
+    "path": "families/{fid}/reports",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesUploadReportsRequest",
+    "response": "FamiliesUploadReportsResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families reports upload",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "delete_report",
+    "operation_id": "ext_families_reports_delete_post_b35cf55b_post",
+    "path": "families/{fid}/reports/{aid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesDeleteReportRequest",
+    "response": "FamiliesDeleteReportResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families reports delete",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "families",
+    "name": "download_report",
+    "operation_id": "ext_families_reports_download_get_a3664c3a_get",
+    "path": "families/{fid}/reports/{aid}/download",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Families reports download",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "families",
+    "name": "update_report",
+    "operation_id": "ext_families_reports_edit_post_3549c3b4_post",
+    "path": "families/{fid}/reports/{aid}/edit",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "fid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "aid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "FamiliesUpdateReportRequest",
+    "response": "FamiliesUpdateReportResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Families reports edit",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "authentication",
+    "name": "me",
+    "operation_id": "me_get",
+    "path": "me",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "AuthenticationMeResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "permissions",
+    "summary": "Inspect the authenticated account and permissions",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "metrics",
+    "name": "get",
+    "operation_id": "metrics_get",
+    "path": "metrics",
+    "method": "GET",
+    "permission": "metrics:read",
+    "paths": [],
+    "request": null,
+    "response": "MetricsGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "users",
+    "summary": "Read all-time metrics",
+    "description": "Legacy all-time API metrics; independent of dashboard period filters.\n\nRequired role permission: metrics:read."
+  },
+  {
+    "resource": "roles",
+    "name": "permissions",
+    "operation_id": "permissions_get",
+    "path": "permissions",
+    "method": "GET",
+    "permission": "roles:manage",
+    "paths": [],
+    "request": null,
+    "response": "RolesPermissionsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "permissions",
+    "summary": "List known permission names",
+    "description": "\n\nRequired role permission: roles:manage."
+  },
+  {
+    "resource": "plugins",
+    "name": "capabilities",
+    "operation_id": "plugin_capabilities_get",
+    "path": "plugins",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "PluginsCapabilitiesResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "tools",
+    "summary": "Inspect existing plugin integration capabilities",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "roles",
+    "name": "list",
+    "operation_id": "roles_get",
+    "path": "roles",
+    "method": "GET",
+    "permission": "roles:manage",
+    "paths": [],
+    "request": null,
+    "response": "RolesListResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "roles",
+    "summary": "List roles and permissions",
+    "description": "\n\nRequired role permission: roles:manage."
+  },
+  {
+    "resource": "roles",
+    "name": "create",
+    "operation_id": "roles_post",
+    "path": "roles",
+    "method": "POST",
+    "permission": "roles:manage",
+    "paths": [],
+    "request": "RolesCreateRequest",
+    "response": "Role",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a custom role",
+    "description": "Only known, unique permissions already held by the caller may be granted.\n\nRequired role permission: roles:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "roles",
+    "name": "delete",
+    "operation_id": "role_item_delete",
+    "path": "roles/{name}",
+    "method": "DELETE",
+    "permission": "roles:manage",
+    "paths": [
+      {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete an unused custom role",
+    "description": "Built-in roles and roles assigned to users cannot be deleted.\n\nRequired role permission: roles:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "roles",
+    "name": "get",
+    "operation_id": "role_item_get",
+    "path": "roles/{name}",
+    "method": "GET",
+    "permission": "roles:manage",
+    "paths": [
+      {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "Role",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read role metadata",
+    "description": "\n\nRequired role permission: roles:manage."
+  },
+  {
+    "resource": "roles",
+    "name": "update",
+    "operation_id": "role_item_patch",
+    "path": "roles/{name}",
+    "method": "PATCH",
+    "permission": "roles:manage",
+    "paths": [
+      {
+        "name": "name",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "RolesUpdateRequest",
+    "response": "Role",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Update a custom role",
+    "description": "Built-in roles are immutable. Cannot grant permissions the caller does not hold.\n\nRequired role permission: roles:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "search",
+    "name": "query",
+    "operation_id": "ext_mip_search_results_get_6fb5b778_get",
+    "path": "search",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [],
+    "request": null,
+    "response": "SearchQueryResponse",
+    "query": "SearchQueryParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Mip search results",
+    "description": "\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "settings",
+    "name": "get",
+    "operation_id": "settings_get",
+    "path": "settings",
+    "method": "GET",
+    "permission": "settings:read",
+    "paths": [],
+    "request": null,
+    "response": "SettingsGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Inspect configured settings (no secrets)",
+    "description": "\n\nRequired role permission: settings:read."
+  },
+  {
+    "resource": "settings",
+    "name": "update",
+    "operation_id": "settings_patch",
+    "path": "settings",
+    "method": "PATCH",
+    "permission": "settings:write",
+    "paths": [],
+    "request": "SettingsUpdateRequest",
+    "response": "SettingsUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Set the sample archive password",
+    "description": "NUL characters are rejected. Changes affect future sample archives; the password is never returned.\n\nRequired role permission: settings:write.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "list",
+    "operation_id": "ext_tags_search_get_0bde1c6e_get",
+    "path": "tags",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [],
+    "request": null,
+    "response": "TagsListResponse",
+    "query": "TagsListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tags search",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "tags",
+    "name": "create",
+    "operation_id": "ext_tags_create_post_0bde1c6e_post",
+    "path": "tags",
+    "method": "POST",
+    "permission": "tags:create",
+    "paths": [],
+    "request": "TagsCreateRequest",
+    "response": "TagsCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tags create",
+    "description": "\n\nRequired role permission: tags:create.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "get",
+    "operation_id": "tag_item_get",
+    "path": "tags/{tid}",
+    "method": "GET",
+    "permission": "tags:read",
+    "paths": [
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TagsGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read a tag",
+    "description": "\n\nRequired role permission: tags:read."
+  },
+  {
+    "resource": "tags",
+    "name": "delete",
+    "operation_id": "ext_tag_manage_post_5be4d077_post",
+    "path": "tags/{tid}/delete",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TagsDeleteRequest",
+    "response": "TagsDeleteResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tag manage",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "merge",
+    "operation_id": "ext_tag_manage_post_e11da16b_post",
+    "path": "tags/{tid}/merge",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TagsMergeRequest",
+    "response": "TagsMergeResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tag manage",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tags",
+    "name": "rename",
+    "operation_id": "ext_tag_manage_post_9b71e36d_post",
+    "path": "tags/{tid}/rename",
+    "method": "POST",
+    "permission": "tags:manage",
+    "paths": [
+      {
+        "name": "tid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TagsRenameRequest",
+    "response": "TagsRenameResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tag manage",
+    "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "templates",
+    "name": "list",
+    "operation_id": "templates_get",
+    "path": "templates",
+    "method": "GET",
+    "permission": "templates:manage",
+    "paths": [],
+    "request": null,
+    "response": "TemplatesListResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "templates",
+    "summary": "List your Word templates",
+    "description": "\n\nRequired role permission: templates:manage."
+  },
+  {
+    "resource": "templates",
+    "name": "upload",
+    "operation_id": "templates_post",
+    "path": "templates",
+    "method": "POST",
+    "permission": "templates:manage",
+    "paths": [],
+    "request": "TemplatesUploadRequest",
+    "response": "TemplatesUploadResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": "templates",
+    "summary": "Upload and select a Word template",
+    "description": "DOCX \u226410 MiB, containing every report section heading or placeholder. Templates belong to the requesting user.\n\nRequired role permission: templates:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "templates",
+    "name": "delete",
+    "operation_id": "template_item_delete",
+    "path": "templates/{template_id}",
+    "method": "DELETE",
+    "permission": "templates:manage",
+    "paths": [
+      {
+        "name": "template_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete your Word template",
+    "description": "\n\nRequired role permission: templates:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "templates",
+    "name": "download",
+    "operation_id": "template_item_get",
+    "path": "templates/{template_id}",
+    "method": "GET",
+    "permission": "templates:manage",
+    "paths": [
+      {
+        "name": "template_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": true,
+    "collection": null,
+    "summary": "Download your Word template",
+    "description": "\n\nRequired role permission: templates:manage."
+  },
+  {
+    "resource": "templates",
+    "name": "select",
+    "operation_id": "select_template_put",
+    "path": "templates/selected",
+    "method": "PUT",
+    "permission": "templates:manage",
+    "paths": [],
+    "request": "TemplatesSelectRequest",
+    "response": "TemplatesSelectResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "templates",
+    "summary": "Select your Word template",
+    "description": "\n\nRequired role permission: templates:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "authentication",
+    "name": "list_tokens",
+    "operation_id": "tokens_get",
+    "path": "tokens",
+    "method": "GET",
+    "permission": "tokens:manage",
+    "paths": [],
+    "request": null,
+    "response": "AuthenticationListTokensResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "tokens",
+    "summary": "List your token metadata (no secrets)",
+    "description": "\n\nRequired role permission: tokens:manage."
+  },
+  {
+    "resource": "authentication",
+    "name": "create_token",
+    "operation_id": "tokens_post",
+    "path": "tokens",
+    "method": "POST",
+    "permission": "tokens:manage",
+    "paths": [],
+    "request": "AuthenticationCreateTokenRequest",
+    "response": "AuthenticationCreateTokenResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a bearer token",
+    "description": "\n\nRequired role permission: tokens:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "authentication",
+    "name": "revoke_token",
+    "operation_id": "revoke_token_delete",
+    "path": "tokens/{token_id}",
+    "method": "DELETE",
+    "permission": "tokens:manage",
+    "paths": [
+      {
+        "name": "token_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Revoke a token",
+    "description": "Own tokens only, unless users:manage is also held. Repeated revocation returns 204.\n\nRequired role permission: tokens:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "list",
+    "operation_id": "tool_registry_get",
+    "path": "tools",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ToolsListResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "tools",
+    "summary": "List authorized installed analyst tools",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_download",
+    "operation_id": "ext_snort_download_post_2fe743fa_post",
+    "path": "tools/snort/download",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsSnortDownloadRequest",
+    "response": null,
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": true,
+    "collection": null,
+    "summary": "Snort download",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_draft",
+    "operation_id": "ext_snort_draft_post_58c896e4_post",
+    "path": "tools/snort/draft",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsSnortDraftRequest",
+    "response": "ToolsSnortDraftResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort draft",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_jobs",
+    "operation_id": "ext_snort_jobs_post_bc52dea9_post",
+    "path": "tools/snort/jobs",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsSnortJobsRequest",
+    "response": "ToolsSnortJobsResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort jobs",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_job",
+    "operation_id": "ext_snort_job_get_fa974302_get",
+    "path": "tools/snort/jobs/{job}",
+    "method": "GET",
+    "permission": null,
+    "paths": [
+      {
+        "name": "job",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsSnortJobResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort job",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_cancel",
+    "operation_id": "ext_snort_cancel_post_4f9c8cbb_post",
+    "path": "tools/snort/jobs/{job}/cancel",
+    "method": "POST",
+    "permission": null,
+    "paths": [
+      {
+        "name": "job",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ToolsSnortCancelRequest",
+    "response": "ToolsSnortCancelResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort cancel",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "snort_state",
+    "operation_id": "ext_snort_state_get_e817087c_get",
+    "path": "tools/snort/state",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ToolsSnortStateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Snort state",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "tools",
+    "name": "process_text",
+    "operation_id": "ext_tools_text_process_post_431f933f_post",
+    "path": "tools/text/process",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsProcessTextRequest",
+    "response": "ToolsProcessTextResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Tools text process",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_download",
+    "operation_id": "ext_yara_download_post_7ea9d0d0_post",
+    "path": "tools/yara/download",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsYaraDownloadRequest",
+    "response": null,
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": true,
+    "collection": null,
+    "summary": "Yara download",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_draft",
+    "operation_id": "ext_yara_draft_post_490b4330_post",
+    "path": "tools/yara/draft",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsYaraDraftRequest",
+    "response": "ToolsYaraDraftResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara draft",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_jobs",
+    "operation_id": "ext_yara_jobs_post_c1092f06_post",
+    "path": "tools/yara/jobs",
+    "method": "POST",
+    "permission": null,
+    "paths": [],
+    "request": "ToolsYaraJobsRequest",
+    "response": "ToolsYaraJobsResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara jobs",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_job",
+    "operation_id": "ext_yara_job_get_4c41c45c_get",
+    "path": "tools/yara/jobs/{job}",
+    "method": "GET",
+    "permission": null,
+    "paths": [
+      {
+        "name": "job",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "ToolsYaraJobResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara job",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_cancel",
+    "operation_id": "ext_yara_cancel_post_e6d96b5b_post",
+    "path": "tools/yara/jobs/{job}/cancel",
+    "method": "POST",
+    "permission": null,
+    "paths": [
+      {
+        "name": "job",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "ToolsYaraCancelRequest",
+    "response": "ToolsYaraCancelResponse",
+    "query": null,
+    "media": "multipart/form-data",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara cancel",
+    "description": "\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "tools",
+    "name": "yara_state",
+    "operation_id": "ext_yara_state_get_305fb2c2_get",
+    "path": "tools/yara/state",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "ToolsYaraStateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Yara state",
+    "description": "\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "users",
+    "name": "list",
+    "operation_id": "users_get",
+    "path": "users",
+    "method": "GET",
+    "permission": "users:manage",
+    "paths": [],
+    "request": null,
+    "response": "UsersListResponse",
+    "query": "UsersListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "users",
+    "summary": "List accounts",
+    "description": "\n\nRequired role permission: users:manage."
+  },
+  {
+    "resource": "users",
+    "name": "create",
+    "operation_id": "users_post",
+    "path": "users",
+    "method": "POST",
+    "permission": "users:manage",
+    "paths": [],
+    "request": "UsersCreateRequest",
+    "response": "UsersCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create an account",
+    "description": "The role must exist. Without roles:manage, only roles whose permissions are a subset of the caller\u2019s role may be assigned.\n\nRequired role permission: users:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "users",
+    "name": "delete",
+    "operation_id": "user_item_delete",
+    "path": "users/{user_id}",
+    "method": "DELETE",
+    "permission": "users:manage",
+    "paths": [
+      {
+        "name": "user_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete an account",
+    "description": "Cannot delete yourself or the last active Administrator. Case ownership/creator references are cleared.\n\nRequired role permission: users:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "users",
+    "name": "get",
+    "operation_id": "user_item_get",
+    "path": "users/{user_id}",
+    "method": "GET",
+    "permission": "users:manage",
+    "paths": [
+      {
+        "name": "user_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "UsersGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read account metadata",
+    "description": "\n\nRequired role permission: users:manage."
+  },
+  {
+    "resource": "users",
+    "name": "update",
+    "operation_id": "user_item_patch",
+    "path": "users/{user_id}",
+    "method": "PATCH",
+    "permission": "users:manage",
+    "paths": [
+      {
+        "name": "user_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "UsersUpdateRequest",
+    "response": "UsersUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Change account role or active status",
+    "description": "Cannot disable/demote the last active Administrator. Role assignment uses the same permission constraints as account creation. Changes invalidate existing web sessions.\n\nRequired role permission: users:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  }
+]

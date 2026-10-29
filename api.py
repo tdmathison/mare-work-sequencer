@@ -114,6 +114,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
                 409, description='Start analysis or reopen this case before editing its content.')
         return current
 
+    app.extensions['api_editable_case'] = editable_case
+
     def new_token(user_id, name, expires=None):
         secret = 'mare_'+secrets.token_urlsafe(32)
         prefix = secret[:14]
@@ -194,12 +196,14 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         audit('Created role '+name)
         return jsonify(next(role for role in role_records(db()) if role['name'] == name)), 201
 
-    @api.route('/roles/<name>', methods=['PATCH', 'DELETE'])
+    @api.route('/roles/<name>', methods=['GET', 'PATCH', 'DELETE'])
     @require('roles:manage')
     def role_item(name):
         role = db().execute('SELECT * FROM roles WHERE name=?', (name,)).fetchone()
         if not role:
             abort(404)
+        if request.method == 'GET':
+            return jsonify(next(item for item in role_records(db()) if item['name']==name))
         if role['builtin']:
             return jsonify(error='Built-in roles cannot be changed or deleted.'), 409
         if request.method == 'DELETE':
@@ -252,12 +256,14 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         audit('Created user '+username)
         return jsonify(user=user_data(db().execute('SELECT * FROM users WHERE id=?', (cursor.lastrowid,)).fetchone())), 201
 
-    @api.route('/users/<int:user_id>', methods=['PATCH', 'DELETE'])
+    @api.route('/users/<int:user_id>', methods=['GET', 'PATCH', 'DELETE'])
     @require('users:manage')
     def user_item(user_id):
         target = db().execute('SELECT * FROM users WHERE id=?', (user_id,)).fetchone()
         if not target:
             abort(404)
+        if request.method == 'GET':
+            return jsonify(user=user_data(target))
         if request.method == 'DELETE':
             if target['id'] == g.user['id']:
                 return jsonify(error='You cannot delete the account used by this request.'), 409
@@ -312,9 +318,24 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     def case_collection():
         if request.method == 'GET':
             limit, offset = page()
-            rows = db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT ? OFFSET ?',
-                                (limit, offset)).fetchall()
-            return {'cases': [case_data(case(row['id'])) for row in rows], 'limit': limit, 'offset': offset, 'total': db().execute('SELECT count(*) FROM cases').fetchone()[0]}
+            filters=[];arguments=[]
+            query=request.args.get('q','').strip()[:300]
+            if query:
+                filters.append('(instr(lower(number),lower(?))>0 OR instr(lower(name),lower(?))>0)');arguments.extend([query,query])
+            for key,column in (('stage','stage'),('owner_id','owner')):
+                if key in request.args:
+                    try:
+                        value=int(request.args[key])
+                        if key=='stage' and value not in range(4):raise ValueError()
+                    except ValueError:abort(400,description='Invalid case filter.')
+                    filters.append(column+'=?');arguments.append(value)
+            sorting=request.args.get('sort','newest')
+            order={'newest':'id DESC','oldest':'id ASC','number':'number COLLATE NOCASE,id','name':'name COLLATE NOCASE,id'}.get(sorting)
+            if not order:abort(400,description='Invalid case sorting.')
+            where=' WHERE '+' AND '.join(filters) if filters else ''
+            rows=db().execute('SELECT * FROM cases'+where+' ORDER BY '+order+' LIMIT ? OFFSET ?',(*arguments,limit,offset)).fetchall()
+            return {'cases':[case_data(case(row['id'])) for row in rows], 'limit':limit, 'offset':offset,
+                    'total':db().execute('SELECT count(*) FROM cases'+where,arguments).fetchone()[0]}
         value = body()
         name = value.get('name', '')
         description = value.get('description', '')
@@ -514,14 +535,16 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         audit(f'Added task to case {case_id}')
         return jsonify(task=dict(db().execute('SELECT id,title,body,priority,state,done,created FROM tasks WHERE id=?', (cursor.lastrowid,)).fetchone())), 201
 
-    @api.route('/cases/<int:case_id>/tasks/<int:task_id>', methods=['PATCH', 'DELETE'])
-    @require({'PATCH': 'cases:update', 'DELETE': 'cases:update'})
+    @api.route('/cases/<int:case_id>/tasks/<int:task_id>', methods=['GET', 'PATCH', 'DELETE'])
+    @require({'GET':'cases:read', 'PATCH': 'cases:update', 'DELETE': 'cases:update'})
     def case_task(case_id, task_id):
-        editable_case(case_id)
+        case(case_id) if request.method == 'GET' else editable_case(case_id)
         task = db().execute('SELECT * FROM tasks WHERE id=? AND case_id=?',
                             (task_id, case_id)).fetchone()
         if not task:
             abort(404)
+        if request.method == 'GET':
+            return jsonify(task=dict(task))
         if request.method == 'DELETE':
             run('DELETE FROM tasks WHERE id=? AND case_id=?', (task_id, case_id))
             audit(f'Deleted task {task_id} from case {case_id}')
@@ -562,14 +585,16 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         audit(f'Added note to case {case_id}')
         return jsonify(note=dict(db().execute('SELECT id,title,body,author,created,include_export FROM notes WHERE id=?', (cursor.lastrowid,)).fetchone())), 201
 
-    @api.route('/cases/<int:case_id>/notes/<int:note_id>', methods=['PATCH', 'DELETE'])
-    @require({'PATCH': 'cases:update', 'DELETE': 'cases:update'})
+    @api.route('/cases/<int:case_id>/notes/<int:note_id>', methods=['GET', 'PATCH', 'DELETE'])
+    @require({'GET':'cases:read', 'PATCH': 'cases:update', 'DELETE': 'cases:update'})
     def case_note(case_id, note_id):
-        editable_case(case_id)
+        case(case_id) if request.method == 'GET' else editable_case(case_id)
         note = db().execute('SELECT * FROM notes WHERE id=? AND case_id=?',
                             (note_id, case_id)).fetchone()
         if not note:
             abort(404)
+        if request.method == 'GET':
+            return jsonify(note=dict(note))
         if request.method == 'DELETE':
             if note['include_export']:
                 mark_pending(case_id, 'reports/reverse-engineering-notes.md')

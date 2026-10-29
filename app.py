@@ -362,7 +362,7 @@ def protect():
             os.close(fd)
             raise
         g.backup_lock_fd = fd
-    if request.endpoint in ('backup_import', 'api.api_import_backup', 'backup_jobs_create'):
+    if request.endpoint in ('backup_import', 'api.api_import_backup', 'backup_jobs_create') or (request.path.startswith('/api/v1/backup-jobs') and request.method == 'POST'):
         request.max_content_length = 1024*1024*1024
     g.user = None
     if request.path.startswith('/api/v1/'):
@@ -1443,6 +1443,9 @@ ImportSync(app, ROOT, db, case_sync, backup_helpers, allocate_case_number, now)
 os.close(backup_bootstrap_fd)
 from backup_workspace import BackupWorkspace
 BackupWorkspace(app, ROOT, db, backup_helpers)
+
+from api_extensions import register_api_extensions
+register_api_extensions(app, db)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)
