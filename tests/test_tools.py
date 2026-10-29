@@ -29,7 +29,7 @@ def test_workspace_and_navigation(client):
     page = client.get('/tools')
     assert page.status_code == 200
     html = page.data.decode()
-    assert html.index('TOOLS') < html.index('DASHBOARDS') < html.index('SETTINGS')
+    assert html.index('title="Dashboards"') < html.index('title="Tools"') < html.index('title="Settings"')
     assert 'role="tab"' in html and 'tool-panel-cyberchef' in html
     assert 'data-src="/tools/cyberchef/app/"' in html
     assert 'allow-scripts allow-same-origin allow-downloads' in html
@@ -38,7 +38,7 @@ def test_workspace_and_navigation(client):
     with app.app_context():
         run("UPDATE users SET role='Administrator'")
     html = client.get('/tools').data.decode()
-    assert html.index('TOOLS') < html.index('DASHBOARDS') < html.index('SETTINGS')
+    assert html.index('title="Dashboards"') < html.index('title="Tools"') < html.index('title="Settings"')
     assert b'TOOLS' not in app.test_client().get('/login').data
 
 
@@ -134,21 +134,22 @@ def test_dropdown_uses_available_registry_order_and_direct_tabs(client):
            AnalystTool('yara-rule-editor','YARA Rule Editor','YARA rules',endpoint='tools_yara',tool_type='native')]
     for tool in tools:register_tool(app,tool)
     def entries(page):
-        menu=page.split('id="tools-menu"',1)[1].split('</div>',1)[0]
-        return [(path,html.unescape(label)) for path,label in re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>',menu)]
+        menu=page.split('data-group="Tools"',1)[1].split('class="sidebar-group"',1)[1].split('</div>',1)[0]
+        return [(path,html.unescape(label)) for path,label in re.findall(r'<a href="([^"]+)"[^>]*>(?:<span[^>]*>[^<]*</span>)?([^<]+)</a>',menu)]
     page=client.get('/tools').text
     assert entries(page)==[('/tools/'+tool.identifier,tool.name) for tool in [CYBERCHEF]+tools]
-    assert page.index('>API</a>')<page.index('>TOOLS</a>')<page.index('>SETTINGS</a>')
+    assert page.index('title="Tools"')<page.index('title="Settings"')
+    assert 'title="Developer"' not in page  # Default User has no Developer permissions.
     for tool in [CYBERCHEF]+tools:
         response=client.get('/tools/'+tool.identifier)
         assert response.status_code==200
-        assert 'data-navigation-tool="'+tool.identifier+'" aria-current="true"' in response.text
+        assert 'href="/tools/'+tool.identifier+'" aria-current="page"' in response.text
         assert 'id="tool-tab-'+tool.identifier+'"' in response.text
         assert 'data-url="/tools/'+tool.identifier+'"' in response.text
     app.extensions['analyst_tools']['cyberchef']=replace(CYBERCHEF,enabled=False)
     app.extensions['analyst_tools']['snort-rule-builder']=replace(tools[1],permission='users:manage')
     page=client.get('/tools').text
     assert entries(page)==[('/tools/text-manipulation','Text Manipulation'),('/tools/yara-rule-editor','YARA Rule Editor')]
-    assert 'href="/tools/text-manipulation" aria-current="page">TOOLS' in page
+    assert 'href="/tools/text-manipulation" aria-current="page" data-navigation-tool="text-manipulation"' in page
     assert client.get('/tools/snort-rule-builder').status_code==403
     assert client.get('/tools/snort-rule-builder/app/').status_code == 403

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block page_class %}developer-page developer-viewport{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='developer-workspace.css')}}">
+<section data-plugin-management data-base="{{url_for('developer_plugin_list')}}" data-csrf="{{csrf}}" data-editor="{{url_for('developer_editor')}}">
+<aside class="plugin-inventory" aria-label="Installed Plugins">
+<div class="inventory-heading"><h1>Plugins</h1><button type="button" data-plugin-refresh aria-label="Refresh plugins">↻</button><button type="button" data-plugin-new hidden>New Plugin</button></div>
+<label class="inventory-search">Search plugins<input type="search" data-plugin-search placeholder="Name, identifier, description"></label>
+<div class="inventory-filters" role="group" aria-label="Filter plugins">{% for filter in ['All','Enabled','Disabled','Errors'] %}<button type="button" data-plugin-filter="{{filter|lower}}" aria-pressed="{{'true' if loop.first else 'false'}}">{{filter}} <small data-count="{{filter|lower}}">0</small></button>{% endfor %}</div>
+<p role="status" data-management-status>Discovering plugins…</p>
+<div data-installed-plugins aria-label="Plugin inventory"></div>
+<details data-discovery-errors hidden><summary>Discovery errors</summary><ul></ul></details>
+</aside>
+<div role="separator" tabindex="0" aria-label="Plugin inventory width" aria-orientation="vertical" data-inventory-splitter></div>
+<section class="plugin-detail-region" aria-label="Plugin details"><p data-management-empty>Select a plugin to inspect its manifest.</p>
+<div data-plugin-details hidden>
+<header class="plugin-detail-header"><div><h2 data-detail-name></h2><p data-detail-byline></p><p data-detail-description></p></div><div class="plugin-primary-actions"><button type="button" data-enable>Enable</button><button type="button" data-disable>Disable</button><a class="button-secondary" data-edit>Edit in Editor</a></div></header>
+<div class="plugin-detail-tabs" role="tablist" aria-label="Plugin details">{% for tab in ['Overview','Configuration','Permissions','Dependencies','Activity'] %}<button type="button" role="tab" id="plugin-tab-{{tab|lower}}" data-detail-tab="{{tab|lower}}" aria-controls="plugin-detail-panel" aria-selected="{{'true' if loop.first else 'false'}}" tabindex="{{0 if loop.first else -1}}">{{tab}}</button>{% endfor %}</div>
+<div id="plugin-detail-panel" role="tabpanel" aria-labelledby="plugin-tab-overview" tabindex="0" data-plugin-metadata></div>
+</div></section>
+</section>
+<dialog id="plugin-create"><form><h2>New Plugin</h2><label>Identifier<input name="id" required pattern="[a-z][a-z0-9_-]{2,63}" maxlength="64" placeholder="hello_world"></label><label>Name<input name="name" required maxlength="120"></label><label>Description<input name="description" maxlength="2000"></label><label>Author<input name="author" required maxlength="200"></label><label>Version<input name="version" required value="1.0.0"></label><label>Template<select name="template"></select></label><p data-create-error role="status"></p><div class="dialog-actions"><button type="button" data-create-cancel>Cancel</button><button type="submit">Create</button></div></form></dialog>
+<dialog id="plugin-delete" aria-labelledby="plugin-delete-title" aria-describedby="plugin-delete-description"><form><h2 id="plugin-delete-title" data-delete-title>Delete plugin?</h2><p id="plugin-delete-description">This removes the installed plugin package and its files from the application's plugin directory. The package is retained for administrator recovery. Existing executions continue on their original snapshots; history and audit records are retained.</p><p data-delete-error role="alert"></p><div class="dialog-actions"><button type="button" data-delete-cancel>Cancel</button><button type="submit" class="plugin-delete-action">Delete Plugin</button></div></form></dialog>
+<script src="{{url_for('static',filename='developer-layout.js')}}"></script>
+<script defer src="{{url_for('static',filename='developer-plugins.js')}}"></script>
+{% endblock %}

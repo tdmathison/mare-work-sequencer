@@ -87,7 +87,7 @@ def test_prefix_and_local_assets(docs):
     page = client.get('/api', environ_overrides={'SCRIPT_NAME': '/mare'}).text
     assert 'data-spec-url="/mare/api/openapi.json"' in page
     assert '/mare/static/vendor/swagger-ui/swagger-ui-bundle.js' in page
-    assert 'aria-current="page">API' in page
+    assert re.search(r'<a href="/mare/api" aria-current="page">(?:<span[^>]*>[^<]*</span>)?API</a>', page)
     assert 'data-python-example' in page and 'data-markdown-editor' not in page
     assert 'os.environ["MARE_TOKEN"]' in page
     assert 'BASE = "http://localhost/mare/api/v1"' in page
@@ -114,6 +114,11 @@ def test_user_documentation_does_not_grant_api_permissions():
     client = app.test_client()
     with client.session_transaction() as session:
         session.update(uid=uid, version=1, csrf='user-csrf')
+    assert client.get('/api/openapi.json').status_code == 403
+    with app.app_context():
+        from authorization import initialize_roles
+        initialize_roles(db())
+        run("INSERT OR IGNORE INTO role_permissions VALUES('User','developer:api')")
     assert client.get('/api/openapi.json').status_code == 200
     assert client.get('/api/v1/me', headers=headers).status_code == 200
     assert client.get('/api/v1/users', headers=headers).status_code == 403

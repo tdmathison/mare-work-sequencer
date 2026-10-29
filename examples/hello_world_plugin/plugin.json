@@ -1,0 +1,1 @@
+{"schema":"mws-plugin/1","id":"hello_world_plugin","name":"Hello World","description":"Isolated Developer worker smoke test","version":"1.0.0","author":"MWS","entrypoint":"main.py:run","api_version":"v1","sdk_version":">=1,<2","plugin_api":"1","permissions":[],"dependencies":[]}

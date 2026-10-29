@@ -161,3 +161,18 @@ Threat Actor dependency and unavailable-reference conflict handling is documente
 in [Threat Actors](threat-actors.md). Shared actor/family imports commit their
 records and report publications together. Older archives without actors do not
 clear destination actor data.
+
+## Archive download names
+
+Multi-category downloads use `MWS_YYYYMMDD-HHMMSS_TYPES.zip`, for example
+`MWS_20261029-124901_C_TA_MF.zip`. Identifiers follow the fixed order `C` (cases),
+`T` (tags), `TA` (threat actors), `MF` (malware families). Only explicitly selected
+areas appear, including empty areas; automatically included dependencies do not
+add identifiers. Complete backups include all four identifiers.
+
+The server fixes the name when the operation begins, using `DISPLAY_TIMEZONE`
+(configured by `MARE_DISPLAY_TIMEZONE`, UTC by default), or server-local time when
+that setting is absent. The same name appears in the download header, completion
+message, job metadata and export audit entries. ZIP contents and import checks
+are unchanged; old filenames remain importable. Single-case RAW/Standard MIP
+filenames are unaffected.

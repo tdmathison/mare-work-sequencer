@@ -16822,6 +16822,30 @@
                     },
                     "description": {
                       "type": "string"
+                    },
+                    "plugins": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "development": {
+                            "type": "string"
+                          },
+                          "enabled": {
+                            "type": "integer"
+                          },
+                          "published_version": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      }
                     }
                   }
                 }

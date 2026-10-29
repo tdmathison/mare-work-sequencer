@@ -201,8 +201,12 @@ def register_api_extensions(app, db):
 
     @api.get('/plugins')
     def plugin_capabilities():
-        return tool_registry()
-    contract('plugin_capabilities','GET','Inspect existing plugin integration capabilities',json_response(obj({'tools':array(obj(additionalProperties=True)),'plugin_registry':BOOL,'description':TEXT})))
+        result=tool_registry().get_json()
+        result.update(plugin_registry=True,description='Trusted analyst tools and owner-scoped Developer plugin drafts. Plugin API 1 uses the existing SDK and REST v1.',plugins=[])
+        if has_permission(g.user,'plugins:read',db()):
+            result['plugins']=[{key:row[key] for key in ('id','name','development','enabled','published_version')} for row in db().execute('SELECT * FROM developer_plugins WHERE owner_uuid=? AND deleted=0 ORDER BY name,id',(g.user['user_uuid'],))]
+        return jsonify(result)
+    contract('plugin_capabilities','GET','Inspect existing plugin integration capabilities',json_response(obj({'tools':array(obj(additionalProperties=True)),'plugin_registry':BOOL,'description':TEXT,'plugins':array(obj({'id':TEXT,'name':TEXT,'development':TEXT,'enabled':INT,'published_version':{**TEXT,'nullable':True}}))})))
 
     # Detailed additive response schemas for new structured resources.
     from api_documentation import CONTRACTS

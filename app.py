@@ -378,6 +378,8 @@ def protect():
             return {'error': 'Change the temporary password in the web account before using the API.'}, 403
         g.user = user
         g.api_token_id = user['api_token_id']
+        from developer_execution import enforce_grant
+        enforce_grant(db())
         import time
         limit = int(os.environ.get('MARE_API_RATE_LIMIT', '600'))
         minute = int(time.time()//60)
@@ -1442,10 +1444,25 @@ ImportSync(app, ROOT, db, case_sync, backup_helpers, allocate_case_number, now)
 
 os.close(backup_bootstrap_fd)
 from backup_workspace import BackupWorkspace
+from plugin_store import initialize as initialize_plugin_store
+with app.app_context():
+    initialize_plugin_store(db())
 BackupWorkspace(app, ROOT, db, backup_helpers)
 
 from api_extensions import register_api_extensions
 register_api_extensions(app, db)
+
+from developer_pages import register_developer_pages
+from application_shell import register_shell
+register_developer_pages(app, db)
+from developer_workspace import register_workspace
+register_workspace(app, db, audit)
+register_shell(app, db)
+
+from developer_execution import register_execution
+register_execution(app, db, audit)
+from developer_configuration import register_configuration
+register_configuration(app, db, audit)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)

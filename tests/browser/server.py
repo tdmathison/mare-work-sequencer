@@ -26,6 +26,20 @@ with app.app_context():
     template_path = ROOT/'editor-test-template.docx'
     template.save(template_path)
 
+# Explicit test-only installed snapshot for management Enable/Disable integration.
+if os.environ.get('MARE_PLUGIN_BROWSER_TEST'):
+    import plugin_store
+    from plugin_discovery import discover
+    packages,_=discover(os.environ['MARE_PLUGINS_DIR'])
+    with app.app_context():
+        owner=db().execute('SELECT user_uuid FROM users WHERE id=?',(uid,)).fetchone()[0]
+        for location,entries,manifest in packages:
+            timestamp=plugin_store.now();pid=manifest['id']
+            db().execute('INSERT INTO developer_plugins(id,owner_uuid,name,created_at,updated_at,published_version,source_location) VALUES(?,?,?,?,?,?,?)',(pid,owner,manifest['name'],timestamp,timestamp,manifest['version'],location))
+            db().executemany('INSERT INTO developer_files VALUES(?,?,?,?)',[(pid,path,item['body'],item['directory']) for path,item in entries.items()])
+            db().execute('INSERT INTO developer_versions VALUES(?,?,?,?,?,?,?)',(pid,manifest['version'],plugin_store.fingerprint(entries),plugin_store.archive(entries),plugin_store.dumps(manifest),owner,timestamp))
+        db().commit()
+
 @app.get('/__editor_test__')
 def editor_fixture():
     with app.app_context():

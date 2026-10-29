@@ -13,10 +13,14 @@
     <script defer src="{{url_for('static',filename='vendor/codemirror/markdown-editor.js')}}"></script>
     <script defer src="{{url_for('static',filename='autosave.js')}}"></script>
     <link rel="stylesheet" href="{{url_for('static',filename='settings-navigation.css')}}" />
+    <link rel="stylesheet" href="{{url_for('static',filename='application-shell.css')}}" />
+    <script defer src="{{url_for('static',filename='application-shell.js')}}"></script>
     <script defer src="{{url_for('static',filename='settings-navigation.js')}}"></script>
   </head>
-  <body data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
+  <body class="{{'application-shell' if user else ''}}" data-user-layout="{{user.user_uuid if user else 'anonymous'}}" data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
+    {% if user %}{% include 'sidebar.html' %}{% endif %}
     <header class="topbar">
+      {% if user %}<button type="button" id="sidebar-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="application-sidebar">☰</button><div class="shell-breadcrumb"><a href="{{url_for('dashboard')}}">MWS</a><span aria-hidden="true"> / </span><span>{{shell_current}}</span></div>{% endif %}
       <a class="brand brand-link" href="/"
         ><div class="brand-mark">M</div>
         <div>
@@ -47,22 +51,6 @@
       {% elif request.endpoint == 'dashboards_directory' %}<a href="{{url_for('login')}}">Login</a>
       {% endif %}
     </header>
-    {% if user %}
-    <nav class="admin-nav">
-      {{application_nav_link('MIP BOARD', '/', 'board')}}
-      {% if can_mip_search %}{{application_nav_link('SEARCH', url_for('mip_search'), 'search')}}{% endif %}
-      {% if can_families_read %}{{application_nav_link('MALWARE FAMILIES', url_for('families_workspace'), 'families')}}{% endif %}
-      {% if can_actors_read %}{{application_nav_link('THREAT ACTORS', url_for('actors_workspace'), 'actors')}}{% endif %}
-      {% if can_tags_read %}{{application_nav_link('TAGS', '/tags', 'tags')}}{% endif %}
-      {{application_nav_link('API', '/api', 'api')}}
-      {% if tool_navigation %}{{dropdown_navigation('TOOLS', 'Tools', tools_home_url, tool_navigation, 'tools-menu', active_navigation=='tools')}}{% endif %}
-      {{dropdown_navigation('DASHBOARDS', 'Dashboards', url_for('dashboards_directory'), dashboard_navigation, 'dashboards-menu', active_navigation=='dashboards')}}
-      {% if settings_tabs %}
-      {{dropdown_navigation('SETTINGS', 'Settings', settings_home_url, settings_tabs, 'settings-menu', active_navigation=='settings')}}
-      {% endif %}
-      {% if can_data_explorer %}<a class="data-explorer-nav" href="{{url_for('data_explorer')}}"{% if active_navigation == 'explorer' %} aria-current="page"{% endif %}>DATA EXPLORER</a>{% endif %}
-    </nav>
-    {% endif %}
     <main class="page {% block page_class %}{% endblock %}">
       {% for message in get_flashed_messages() %}
       <div class="notice" role="status">{{message}}</div>

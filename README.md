@@ -2179,3 +2179,13 @@ API v1, without importing the backend or accessing its database. See the
 SDK development tests require `python -m pip install -e '.[test]'`. Backend-only
 installations do not need httpx or pydantic; in-process SDK integration tests skip
 when those optional development dependencies are absent.
+
+### Developer Workspace
+
+The shared sidebar includes Developer → API, SDK, Editor and Plugins. Plugins
+is a full-height Control Center with inventory filters, configuration, permissions,
+dependencies and activity tabs. Editor provides a viewport-filling CodeMirror
+workspace, resizable explorer and Output/Debug console, persistent layout preferences,
+automatic Python/SDK completion and unpublished development runs. See the [Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md)
+for discovery, permissions, manifests, configuration, backups,
+rootless-worker deployment, and deployment verification requirements.

@@ -1045,7 +1045,9 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         return redirect(url_for('api_page', _anchor='api-tokens'))
 
     @app.get('/api')
+    @app.get('/developer/api', endpoint='developer_api')
     def api_page():
+        if not allowed('developer:api'):abort(403)
         tokens = db().execute('SELECT id,name,token_prefix,created,last_used,revoked,expires FROM api_tokens WHERE user_id=? ORDER BY id DESC',
                               (g.user['id'],)).fetchall()
         return render_template('api.html', api_tokens=tokens, now_utc=now(),
@@ -1053,6 +1055,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
 
     @app.get('/api/openapi.json')
     def api_openapi():
+        if not allowed('developer:api'):abort(403)
         from api_documentation import build_spec
         response = jsonify(build_spec(app, request.script_root))
         response.headers['Cache-Control'] = 'no-store'

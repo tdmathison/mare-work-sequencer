@@ -24,7 +24,7 @@
       if (active && !frame.hasAttribute('src')) frame.src = frame.dataset.src;
     });
     document.querySelectorAll('[data-navigation-tool]').forEach(link => {
-      if (link.dataset.navigationTool === tab.dataset.tool) link.setAttribute('aria-current','true');
+      if (link.dataset.navigationTool === tab.dataset.tool) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');
     });
     if (push && previous !== tab) history.pushState({mareTools:{id:tab.dataset.tool,index:++historyIndex}},'',tab.dataset.url);

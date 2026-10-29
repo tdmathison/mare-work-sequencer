@@ -50,7 +50,7 @@
         if(data.state==='queued'||data.state==='running'){active=true;continue;}
         if(data.state==='failed'){error(data.error||'Some items failed. Review the result.');}
         if(kind==='export'&&data.state==='completed'){
-          const box=$('export-result');box.hidden=false;box.replaceChildren(node('p',(data.complete?'Complete':'Selective')+' archive · '+data.archive_size.toLocaleString()+' bytes'));
+          const box=$('export-result');box.hidden=false;box.replaceChildren(node('p',(data.complete?'Complete':'Selective')+' archive · '+data.archive_name+' · '+data.archive_size.toLocaleString()+' bytes'));
           const link=node('a','Download archive');link.href=root+'/'+id+'/download';box.append(link,details('Counts and coverage',[data.manifest.counts,...data.manifest.exclusions]));
         }
         if(kind==='import'&&data.state==='preview'&&data.preview&&!busyPreviewEqual(data.preview)){renderPreview(data.preview);}

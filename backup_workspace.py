@@ -1,4 +1,5 @@
 """Focused, durable backup jobs over the existing installation and RAW services."""
+from backup_filenames import archive_filename
 
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, closing, nullcontext
@@ -277,6 +278,12 @@ class BackupWorkspace:
             abort(404)
         if time.time() - data["created_epoch"] > TTL:
             abort(410)
+        if data["kind"] == "export" and not data.get("archive_name"):
+            data["archive_name"] = archive_filename(
+                data["areas"], self.app.config.get("DISPLAY_TIMEZONE"),
+                started_at=datetime.fromisoformat(data["created_at"]),
+            )
+            self.save(data)
         return data
 
     def save(self, data):
@@ -287,10 +294,10 @@ class BackupWorkspace:
         data["updated_at"] = stamp()
         self.save(data)
 
-    def audit(self, action, jid):
+    def audit(self, action, jid, archive_name=None):
         self.db().execute(
             "INSERT INTO audit(actor,action,created) VALUES(?,?,?)",
-            (g.user["username"], f"Backup workspace {action}: job={jid}", stamp()),
+            (g.user["username"], f"Backup workspace {action}: job={jid}" + ("; archive=" + archive_name if archive_name else ""), stamp()),
         )
         sqlite3.Connection.commit(self.db())
 
@@ -446,6 +453,7 @@ class BackupWorkspace:
 
     def export(self, data, passphrase):
         folder = self.job_path(data["id"])
+        g.backup_archive_name = data["archive_name"]
         payload = folder / "payload.zip"
         self.update(data, phase="Snapshotting database and durable files")
         if data["complete"]:
@@ -544,7 +552,7 @@ class BackupWorkspace:
                 z.write(payload, "payload.zip")
         os.chmod(archive, 0o600)
         payload.unlink()
-        self.audit("export completed", data["id"])
+        self.audit("export completed", data["id"], data["archive_name"])
         self.update(
             data,
             state="completed",
@@ -1175,6 +1183,8 @@ class BackupWorkspace:
                 dependencies=deps,
                 choices={},
             )
+            if kind == "export":
+                data["archive_name"] = archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"))
             if kind == "inspect":
                 upload = request.files.get("archive")
                 if not upload or not upload.filename:
@@ -1192,7 +1202,7 @@ class BackupWorkspace:
                             abort(413)
                         output.write(chunk)
             self.save(data)
-            self.audit(kind + " queued", jid)
+            self.audit(kind + " queued", jid, data.get("archive_name"))
             self.submit(data, "export" if kind == "export" else "inspect", password)
             return jsonify(id=jid), 202
 
@@ -1212,7 +1222,7 @@ class BackupWorkspace:
             response = send_file(
                 self.job_path(jid) / "backup.zip",
                 as_attachment=True,
-                download_name="MARE-backup-" + jid + ".zip",
+                download_name=data["archive_name"],
                 mimetype="application/zip",
             )
             response.headers["Cache-Control"] = "private, no-store"

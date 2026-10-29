@@ -26,7 +26,8 @@ def test_authorized_graph_real_edges_dedup_search_and_navigation():
         assert app.test_client().get(path).status_code==302
         assert c.get(path).status_code==200
     html=c.get('/data-explorer').text
-    assert 'class="data-explorer-nav" href="/data-explorer" aria-current="page"' in html
+    from test_navigation import NavigationParser
+    assert [link['href'] for link in NavigationParser(html).links if link.get('aria-current')=='page']==['/data-explorer']
     response=c.get('/data-explorer/data');data=response.json
     assert response.headers['Cache-Control']=='private, no-store'
     assert len(data['nodes'])==3 and len(data['edges'])==3

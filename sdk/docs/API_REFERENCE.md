@@ -4195,6 +4195,10 @@ MetricsGetResponseCompletedItem version-1 API fields.
 
 RolesPermissionsResponsePermissionsItem version-1 API fields.
 
+### PluginsCapabilitiesResponsePluginsItem
+
+PluginsCapabilitiesResponsePluginsItem version-1 API fields.
+
 ### SettingsGetResponseSettings
 
 SettingsGetResponseSettings version-1 API fields.

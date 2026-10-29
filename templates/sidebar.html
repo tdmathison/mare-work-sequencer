@@ -1,0 +1,11 @@
+<aside id="application-sidebar" class="application-sidebar" aria-label="Application sidebar">
+<a class="sidebar-brand" href="{{url_for('dashboard')}}" title="MARE Work Sequencer"><span class="brand-mark">M</span><span class="sidebar-label">MARE <small>WORK SEQUENCER</small></span></a>
+<button type="button" id="sidebar-collapse" aria-label="Collapse sidebar" aria-expanded="true" aria-controls="application-sidebar"><span aria-hidden="true">⇤</span><span class="sidebar-label">Collapse</span></button>
+<nav aria-label="Primary navigation">{% for item in sidebar_items %}
+<div class="sidebar-item{% if item.active %} is-active{% endif %}">
+<div class="sidebar-link-row"><a href="{{item.url}}" title="{{item.label}}"{% if item.active and not item.children %} aria-current="page"{% endif %}><span class="sidebar-icon" aria-hidden="true">{{item.icon}}</span><span class="sidebar-label">{{item.label}}</span></a>{% if item.children %}<button type="button" class="sidebar-group-toggle" aria-label="Open {{item.label}} menu" aria-controls="sidebar-group-{{loop.index}}" aria-expanded="{{'true' if item.active else 'false'}}" data-group="{{item.label}}">⌄</button>{% endif %}</div>
+{% if item.children %}<div class="sidebar-group" id="sidebar-group-{{loop.index}}"{% if not item.active %} hidden{% endif %}>{% for child in item.children %}<a href="{{child.url}}"{% if child.active %} aria-current="page"{% endif %}{% if child.identifier is defined %} data-navigation-tool="{{child.identifier}}"{% endif %}>{% if child.icon %}<span class="sidebar-child-icon" aria-hidden="true">{{child.icon}}</span>{% endif %}{{child.label}}</a>{% endfor %}</div>{% endif %}
+</div>{% endfor %}</nav>
+<a class="sidebar-account" href="{{url_for('account')}}" title="{{user.username}} · {{user.role}}"><span aria-hidden="true">●</span><span class="sidebar-label">{{user.username}}<small>{{user.role}}</small></span></a>
+</aside>
+<button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Close navigation" hidden></button>
