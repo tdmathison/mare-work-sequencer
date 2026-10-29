@@ -7,3 +7,8 @@ node_modules/
 playwright-report/
 test-results/
 .DS_Store
+
+# Python package build artifacts
+*.egg-info/
+build/
+dist/

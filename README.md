@@ -2165,3 +2165,17 @@ Data Explorer now uses a **Focus Canvas**: full-width graph, floating search and
 filters, primary-object count chips, brighter connections, emphasized case nodes,
 and a compact selection tray with an overlay Details drawer. Existing permissions,
 relationships and Standard MIP inclusion rules remain unchanged.
+
+## Python SDK
+
+The standalone Python 3.10+ SDK is in [`sdk/`](sdk/README.md). Install with
+`python -m pip install -e .` from this repository root or from the `sdk` directory.
+It provides `MWSClient` and `AsyncMWSClient` over the existing bearer-authenticated
+API v1, without importing the backend or accessing its database. See the
+[SDK/API coverage matrix](sdk/docs/API_COVERAGE.md),
+[generated API reference](sdk/docs/API_REFERENCE.md), and
+[implementation report](sdk/docs/IMPLEMENTATION_REPORT.md).
+
+SDK development tests require `python -m pip install -e '.[test]'`. Backend-only
+installations do not need httpx or pydantic; in-process SDK integration tests skip
+when those optional development dependencies are absent.
