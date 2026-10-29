@@ -18,7 +18,7 @@ class NavigationParser(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
-        if tag == "nav" and attrs.get("class") == "admin-nav":
+        if tag == "nav" and attrs.get("aria-label") == "Primary navigation":
             self.inside = True
         if self.inside and tag == "a":
             self.links.append(attrs)
@@ -51,24 +51,26 @@ def test_rendered_application_sections(role, monkeypatch):
     pages = {
         "/": "/",
         "/cases/new": "/",
-        f"/cases/{cid}": "/",
-        f"/cases/{cid}/file?path=supporting/navigation.md": "/",
+        f"/cases/{cid}": f"/cases/{cid}",
+        f"/cases/{cid}/file?path=supporting/navigation.md": f"/cases/{cid}",
         "/search": "/search",
-        "/metrics": "/dashboards",
+        "/metrics": "/metrics",
         "/dashboards": "/dashboards",
         "/tags": "/tags",
         f"/tags/{tid}": "/tags",
         "/tools": "/tools/cyberchef",
-        "/tools/text-manipulation": "/tools/cyberchef",
+        "/tools/text-manipulation": "/tools/text-manipulation",
         "/settings/general": "/settings/general",
         "/api": "/api",
-        "/settings/import-export": "/settings/general",
+        "/settings/import-export": "/settings/import-export",
     }
     if role == "User":
         pages.pop("/settings/import-export")
+        pages.pop("/api")
+        assert client.get("/api").status_code == 403
         assert client.get("/import-export").status_code == 403
     if role == "Administrator":
-        pages.update({"/settings/users": "/settings/general", "/settings/audit": "/settings/general"})
+        pages.update({"/settings/users": "/settings/users", "/settings/audit": "/settings/audit"})
     for path, parent in pages.items():
         response = client.get(path)
         assert response.status_code == 200, (path, response.status_code)

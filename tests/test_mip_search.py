@@ -305,7 +305,7 @@ def test_auth_navigation_and_permissions(search_client):
     assert app.test_client().get("/search/results?q=x").status_code == 302
     assert app.test_client().get("/search/findings/anything").status_code == 302
     html = client.get("/search").data.decode()
-    assert html.index("MIP BOARD") < html.index("SEARCH") < html.index("METRICS")
+    assert html.index('title="MIP Board"') < html.index('title="Search"') < html.index('title="Metrics"')
     refresh(index)
     r = results(client, "case needle")
     row = findings(r)[0]

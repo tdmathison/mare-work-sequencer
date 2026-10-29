@@ -51,18 +51,18 @@ def test_authorized_menu_and_active_section():
     links = NavigationParser(html).links
     assert [link['href'] for link in links if link.get('aria-current') == 'page'] == ['/dashboards']
     assert 'METRICS</a>' not in html
-    assert 'Metrics — Private' in html
-    assert 'Threat Actors — Public</a>' in html
+    assert 'Metrics</h3>' in html
+    assert 'Threat Actors</h3>' in html
     assert 'aria-label="Open dashboard: Metrics"' in html
     assert client.get('/metrics').status_code == 200
     for path in ('/dashboards/cases', '/dashboards/malware-families', '/dashboards/threat-actors'):
         wall = client.get(path)
         assert 'class="wall-login" href="/">Return</a>' in wall.text
         assert 'class="wall-login" href="/login"' not in wall.text
-    assert 'href="/dashboards" aria-current="page"' in client.get('/metrics').text
-    assert 'aria-current="true">Metrics — Private' in client.get('/metrics').text
+    assert [link['href'] for link in NavigationParser(client.get('/metrics').text).links if link.get('aria-current')=='page']==['/metrics']
+
     top = [link['href'] for link in links]
-    assert top.index('/api') + 1 == top.index('/tools/cyberchef')
+    assert '/tools/cyberchef' in top and '/settings/general' in top
 
 
 def test_restricted_metrics_is_enforced_server_side():

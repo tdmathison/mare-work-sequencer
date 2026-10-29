@@ -55,7 +55,7 @@ def test_sdk_end_to_end_case_investigation_and_exports(tmp_path):
         assert coverage.rows[0].indicators.count==2 and coverage.rows[0].report.state=='present'
         sdk.explorer.create_view(data={'name':'SDK view','configuration':configuration(cid)})
         assert sdk.explorer.list_views().views[0]['name']=='SDK view'
-        assert sdk.tools.list().tools and sdk.plugins.capabilities().plugin_registry is False
+        assert sdk.tools.list().tools and sdk.plugins.capabilities().plugin_registry is True
         assert sdk.tools.process_text(data={'operation':'domains','text':'EXAMPLE.TEST'}).text=='example.test'
         assert sdk.metrics.get().stages
         sdk.cases.advance(cid,data={'expected':1})

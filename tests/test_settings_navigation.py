@@ -43,7 +43,7 @@ def test_canonical_categories_and_query_preserving_bookmarks():
         page = c.get(new)
         assert page.status_code == 200
         assert "<h1>Settings</h1>" in page.text
-        assert 'aria-current="page">SETTINGS' in page.text
+        assert 'aria-label="Primary navigation"' in page.text
         assert (
             'aria-current="page">'
             + {

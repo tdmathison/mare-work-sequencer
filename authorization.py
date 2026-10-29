@@ -1,4 +1,17 @@
 PERMISSIONS = {
+    'developer:api': 'View interactive API documentation',
+    'developer:sdk': 'View Python SDK documentation',
+    'plugins:read': 'Access plugin editor and owned plugins',
+    'plugins:create': 'Create plugin drafts',
+    'plugins:edit': 'Edit plugin source and files',
+    'plugins:validate': 'Validate plugin snapshots',
+    'plugins:test': 'Test plugins in isolation',
+    'plugins:execute': 'Run enabled published plugins',
+    'plugins:debug': 'Debug plugins in isolation',
+    'plugins:publish': 'Publish immutable plugin versions',
+    'plugins:versions': 'Manage plugin versions and enablement',
+    'plugins:delete': 'Delete owned plugin registrations',
+    'plugins:configure': 'Configure owned plugins',
     'tags:read': 'Read tags and filter cases',
     'tags:create': 'Create shared tags',
     'tags:assign': 'Assign and remove case tags',
@@ -66,6 +79,9 @@ def initialize_roles(connection):
 
 def has_permission(user, permission, connection):
     if not user:
+        return False
+    from flask import g, has_request_context
+    if has_request_context() and hasattr(g, 'plugin_permissions') and permission not in g.plugin_permissions:
         return False
     if user['role'] == 'Administrator':
         return True

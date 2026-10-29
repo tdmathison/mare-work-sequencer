@@ -114,6 +114,11 @@ def test_user_documentation_does_not_grant_api_permissions():
     client = app.test_client()
     with client.session_transaction() as session:
         session.update(uid=uid, version=1, csrf='user-csrf')
+    assert client.get('/api/openapi.json').status_code == 403
+    with app.app_context():
+        from authorization import initialize_roles
+        initialize_roles(db())
+        run("INSERT OR IGNORE INTO role_permissions VALUES('User','developer:api')")
     assert client.get('/api/openapi.json').status_code == 200
     assert client.get('/api/v1/me', headers=headers).status_code == 200
     assert client.get('/api/v1/users', headers=headers).status_code == 403

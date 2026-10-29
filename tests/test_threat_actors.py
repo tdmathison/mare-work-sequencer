@@ -69,7 +69,7 @@ def test_workspace_aliases_history_associations_and_safe_rendering():
     html=c.get('/threat-actors/'+aid).text
     assert '&lt;script&gt;unsafe()&lt;/script&gt;' in html and '<script>unsafe()' not in html
     assert 'Known Malware Families' in html and '/malware-families/'+family in html
-    assert 'THREAT ACTORS' in html
+    assert 'title="Threat Actors"' in html
     assert c.get('/threat-actors?q=second+NAME').text.count('class="family-choice"')==1
     history=c.get('/threat-actors/'+aid+'?tab=history').text
     assert 'MARE-FAMILY-1' in history and 'Cases currently using TA_TEST' in history

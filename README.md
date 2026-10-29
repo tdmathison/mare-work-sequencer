@@ -2179,3 +2179,11 @@ API v1, without importing the backend or accessing its database. See the
 SDK development tests require `python -m pip install -e '.[test]'`. Backend-only
 installations do not need httpx or pydantic; in-process SDK integration tests skip
 when those optional development dependencies are absent.
+
+### Developer Workspace
+
+The shared sidebar includes Developer → API, SDK and Editor, with owner-scoped
+multi-file plugin drafts and an isolated worker integration. See the
+[Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md) for the Hello World
+tutorial, permissions, manifest, secret configuration, publishing, backups,
+rootless-worker deployment, and deployment verification requirements.

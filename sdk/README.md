@@ -153,3 +153,32 @@ with MWSClient() as client:
     # After validating the replacement credential, explicitly revoke the old token ID:
     # client.authentication.revoke_token(old_token_id)
 ```
+
+### Native MWS plugin runtime
+
+Developer → Editor creates owner-scoped drafts using plugin API 1. The isolated
+worker supplies the typed `mws_sdk.plugin.PluginContext`; plugin source never runs
+inside Flask. Use its actual SDK client rather than constructing credentials:
+
+```python
+from mws_sdk.plugin import PluginContext
+
+
+def run(context: PluginContext):
+    if context.case_id is None:
+        return {"message": "Select a case"}
+    case = context.client.cases.get(context.case_id).case
+    if case is None:
+        return {"message": "Case unavailable"}
+    context.log(f"Reviewed {case.number}")
+    return {"number": case.number, "title": case.name}
+```
+
+Manifest permissions and the initiating user's current RBAC both apply. Test and
+debug sessions can only read their selected case; production runs use immutable
+published versions. `context.configuration` contains non-secret fields only;
+approved external connections use `context.external(service, path)` so connector
+credentials remain outside the plugin/debuggee. Deployment and publishing are
+covered in the application's [Developer Workspace guide](../docs/DEVELOPER_WORKSPACE.md).
+`client.plugins.capabilities()` reports the registered tools and your authorized
+Developer plugin registrations; it does not execute plugins.

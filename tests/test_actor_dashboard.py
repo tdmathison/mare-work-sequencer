@@ -54,7 +54,7 @@ def test_anonymous_links_public_projection_no_writes_and_protected_management(mo
         assert client.get('/dashboards/threat-actors/data?'+params).status_code==400
     auth=login_client()
     assert 'class="wall-login" href="/">Return</a>' in auth.get('/dashboards/threat-actors').text
-    assert 'Threat Actors — Public' in auth.get('/dashboards').text
+    assert 'Threat Actors</h3>' in auth.get('/dashboards').text
 
 
 def test_stable_ta_counts_distinct_case_inventory_and_no_family_inference():
