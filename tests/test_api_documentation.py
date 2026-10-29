@@ -46,7 +46,7 @@ def test_every_public_operation_and_permission_is_documented(docs):
         if not rule.rule.startswith('/api/v1/'):
             continue
         path = re.sub(r'<(?:[^:>]+:)?([^>]+)>', r'{\1}', rule.rule[len('/api/v1'):])
-        endpoint = rule.endpoint.removeprefix('api.')
+        endpoint = rule.endpoint.split('.')[-1]
         for method in rule.methods - {'OPTIONS', 'HEAD'}:
             expected.add((path, method.lower()))
             endpoints.add((endpoint, method))

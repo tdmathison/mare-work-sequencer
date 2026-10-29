@@ -364,6 +364,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         os.close(fd)
         temp = Path(name)
         pdf_temp = temp.with_suffix('.pdf')
+        saved = False
         try:
             f.save(temp)
             if temp.stat().st_size > 20*1024*1024:
@@ -399,13 +400,15 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
             connection.commit()
             mark_pending(cid, path)
             audit(f'Uploaded edited Word report for case {cid}')
+            saved = True
             return {'saved': True, 'report_exists': True, 'report_path': path, 'report_files': report_outputs(cid)}
         except ValueError as exc:
             return {'error': str(exc)}, 400
         except Exception:
             return {'error': 'The edited report could not be saved. Check that it is a valid DOCX.'}, 400
         finally:
-            if db().in_transaction:
+            # CaseSync defers commit until content/revision reconciliation.
+            if db().in_transaction and not saved:
                 db().rollback()
             temp.unlink(missing_ok=True)
             pdf_temp.unlink(missing_ok=True)
