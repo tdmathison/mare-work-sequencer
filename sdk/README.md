@@ -156,7 +156,7 @@ with MWSClient() as client:
 
 ### Native MWS plugin runtime
 
-Developer → Editor creates owner-scoped drafts using plugin API 1. The isolated
+Developer → Plugins discovers packages; Editor edits owner-scoped drafts using plugin API 1. The isolated
 worker supplies the typed `mws_sdk.plugin.PluginContext`; plugin source never runs
 inside Flask. Use its actual SDK client rather than constructing credentials:
 
@@ -165,9 +165,10 @@ from mws_sdk.plugin import PluginContext
 
 
 def run(context: PluginContext):
-    if context.case_id is None:
-        return {"message": "Select a case"}
-    case = context.client.cases.get(context.case_id).case
+    cases = context.client.cases.list().cases
+    if not cases:
+        return {"message": "No accessible cases"}
+    case = cases[0]
     if case is None:
         return {"message": "Case unavailable"}
     context.log(f"Reviewed {case.number}")
@@ -175,7 +176,8 @@ def run(context: PluginContext):
 ```
 
 Manifest permissions and the initiating user's current RBAC both apply. Test and
-debug sessions can only read their selected case; production runs use immutable
+debug sessions can only read their selected case; Editor development runs have no
+case association and can explicitly read authorized cases. Production runs use immutable
 published versions. `context.configuration` contains non-secret fields only;
 approved external connections use `context.external(service, path)` so connector
 credentials remain outside the plugin/debuggee. Deployment and publishing are

@@ -21,7 +21,6 @@ def test_shared_sidebar_and_existing_destinations():
         "Workbench",
         "Tools",
         "Plugins",
-        "Metrics",
         "Users",
         "Settings",
         "Import &amp; Export",
@@ -35,6 +34,7 @@ def test_shared_sidebar_and_existing_destinations():
         "Dashboards",
     ):
         assert label in page, label
+    assert 'title="Metrics"' not in page
     assert c.get("/workbench").status_code == 200
     assert c.get("/developer/sdk").status_code == 200
     assert c.get("/developer/sdk?document=reference").status_code == 200

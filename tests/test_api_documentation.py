@@ -87,7 +87,7 @@ def test_prefix_and_local_assets(docs):
     page = client.get('/api', environ_overrides={'SCRIPT_NAME': '/mare'}).text
     assert 'data-spec-url="/mare/api/openapi.json"' in page
     assert '/mare/static/vendor/swagger-ui/swagger-ui-bundle.js' in page
-    assert 'aria-current="page">API' in page
+    assert re.search(r'<a href="/mare/api" aria-current="page">(?:<span[^>]*>[^<]*</span>)?API</a>', page)
     assert 'data-python-example' in page and 'data-markdown-editor' not in page
     assert 'os.environ["MARE_TOKEN"]' in page
     assert 'BASE = "http://localhost/mare/api/v1"' in page

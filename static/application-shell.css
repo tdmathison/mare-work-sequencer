@@ -17,3 +17,5 @@
 @media(prefers-reduced-motion:no-preference){.application-sidebar {transition:transform .15s ease;}}
 .sidebar-backdrop[hidden],.sidebar-group[hidden]{display:none!important}
 .application-sidebar button,.application-shell .top-actions button{margin-top:0}
+
+.sidebar-child-icon {display:inline-block;width:16px;margin-right:6px;color:#72a9cf;font-size:14px;text-align:center;}

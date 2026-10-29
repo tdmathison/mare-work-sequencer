@@ -217,7 +217,7 @@ def test_metrics_auth_period_validation_and_escaping(role):
     assert b"&lt;script&gt;label&lt;/script&gt;" in response.data
     assert b"<script>label</script>" not in response.data
     from test_navigation import NavigationParser
-    assert [link['href'] for link in NavigationParser(response.text).links if link.get('aria-current')=='page']==['/metrics']
+    assert [link['href'] for link in NavigationParser(response.text).links if link.get('aria-current')=='page']==['/dashboards']
     assert client.get("/metrics?weeks=4").status_code == 200
     assert client.get("/metrics?weeks=5").status_code == 400
     assert client.get("/metrics?weeks=garbage").status_code == 400

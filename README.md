@@ -2182,8 +2182,10 @@ when those optional development dependencies are absent.
 
 ### Developer Workspace
 
-The shared sidebar includes Developer → API, SDK and Editor, with owner-scoped
-multi-file plugin drafts and an isolated worker integration. See the
-[Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md) for the Hello World
-tutorial, permissions, manifest, secret configuration, publishing, backups,
+The shared sidebar includes Developer → API, SDK, Editor and Plugins. Plugins
+is a full-height Control Center with inventory filters, configuration, permissions,
+dependencies and activity tabs. Editor provides a viewport-filling CodeMirror
+workspace, resizable explorer and Output/Debug console, persistent layout preferences,
+automatic Python/SDK completion and unpublished development runs. See the [Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md)
+for discovery, permissions, manifests, configuration, backups,
 rootless-worker deployment, and deployment verification requirements.

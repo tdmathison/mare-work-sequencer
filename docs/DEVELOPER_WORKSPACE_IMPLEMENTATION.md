@@ -3,7 +3,71 @@
 Changes remain on `feature/developer-workspace`. No commit, push or merge was
 performed. No production database was accessed or modified.
 
-## Components
+This document records the original implementation baseline. The subsequent
+Plugins/Editor refactor replaces its advanced Editor controls; the current UI
+and deployment instructions are in [Developer Workspace](DEVELOPER_WORKSPACE.md).
+Backend version, configuration and debugger facilities described below remain
+available through their existing authorized APIs.
+
+## Current File Explorer replacement
+
+The V2 tree is replaced by `frontend/developer-explorer.js`, with original
+MIT-licensed SVGs in `frontend/developer-file-icons.js`. There is no external icon
+package or second Explorer implementation. `frontend/developer-editor.js` adapts
+snapshot changes to open buffers/tabs and restarts LSP after structural changes;
+the existing runner and Output/Debug console are reused.
+
+`plugin_file_operations.py` extends the existing `/files` API with bounded atomic
+multi-item move/copy/delete. `developer_workspace.py` keeps ownership, RBAC, CSRF,
+audit and revision CAS authoritative; `plugin_store.py` additionally rejects
+case-variant implicit parent collisions. All changes operate on virtual SQLite
+package entries; no host filesystem move/copy/delete is introduced. The root
+manifest is protected from structural removal, while its contents remain editable.
+
+`templates/developer_editor.html` and `static/developer-workspace.css` provide the
+compact header, internal tree scroll area, inline names, drag feedback and menus.
+The frontend bundle and `package.json` browser-check command are updated. New
+coverage is in `tests/test_plugin_file_operations.py` and
+`tests/browser/developer-explorer.cjs`; the existing page browser flow now uses
+tree items and inline names. Documentation is in the current workspace guide.
+
+Copy duplicates saved snapshot bytes, not unsaved text. Collisions never overwrite
+existing entries; copies receive unused names. Deletion requires confirmation,
+warns about descendants/drafts, and has no Explorer undo/recycle bin. No new
+runtime dependency or database migration is required.
+
+## Current V2 replacement
+
+The existing `/plugins` and `/developer/editor` routes now render viewport workspaces;
+no parallel routes or registries were added. The old document-height controls and
+single long metadata panel were replaced by the Control Center and resizable IDE.
+
+Files for the V2 replacement:
+
+- `templates/developer_plugins.html`, `static/developer-plugins.js`: searchable,
+  filtered inventory, five tabs, schema-derived configuration, activity and existing
+  enable/disable/create/edit operations.
+- `templates/developer_editor.html`, `frontend/developer-editor.js`: compact plugin
+  switcher, collapsible explorer, entrypoint selection, word wrap, console allocation,
+  and guarded browser history. CodeMirror, LSP and isolated execution are reused.
+- `static/developer-layout.js`, `static/developer-workspace.css`: intrinsic-header
+  viewport layout, independent scroll regions, accessible pointer/keyboard splitters,
+  user-scoped non-sensitive preferences and optional temporary sidebar collapse.
+- `developer_workspace.py`: additive manifest inventory metadata, effective scope
+  information and owner-scoped activity usernames / bounded diagnostic summaries.
+  Configuration, registry, file operations and runner contracts stay authoritative.
+- `static/vendor/codemirror/markdown-editor.js`: rebuilt frontend bundle.
+- `README.md`, `docs/DEVELOPER_WORKSPACE.md`: current workspace instructions.
+- `tests/browser/plugin-pages.cjs`, `tests/test_plugin_pages.py`,
+  `tests/test_api_documentation.py`: management, configuration/secrets, geometry,
+  splitters/preferences, guarded history, permissions and metadata regressions.
+
+V2 adds no dependencies or database migration. The earlier discovery migration is
+unchanged. Container execution still requires deployment verification on Linux
+with rootless Podman; browser execution rendering uses explicit transport fixtures,
+while LSP checks use real basedpyright and SDK definitions.
+
+## Original components
 
 - `application_shell.py`, `templates/sidebar.html`, `templates/base.html`, and
   `static/application-shell.*`: shared permission-aware left sidebar, breadcrumbs,

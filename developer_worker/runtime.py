@@ -35,6 +35,7 @@ class PluginContext:
                 }
             ),
             flush=True,
+            file=sys.stderr,
         )
 
     def external(self, service: str, path: str) -> Any:
@@ -110,7 +111,7 @@ def run():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "mode", choices=["validate", "test", "run", "language", "debug"]
+        "mode", choices=["validate", "test", "run", "develop", "language", "debug"]
     )
     args = parser.parse_args()
     value = prepare()

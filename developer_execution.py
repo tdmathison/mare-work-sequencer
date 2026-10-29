@@ -217,6 +217,20 @@ def enforce_grant(connection):
     if grant is None:
         return
     g.plugin_permissions = frozenset(json.loads(grant["permissions"]))
+    run = connection.execute(
+        "SELECT mode FROM developer_executions WHERE id=?", (grant["execution_id"],)
+    ).fetchone()
+    if run and run["mode"] == "develop":
+        if request.method != "GET" or not re.fullmatch(
+            r"/api/v1/cases(?:/\d+(?:/(?:indicators|references|report(?:/mappings)?|notes(?:/\d+)?|tasks(?:/\d+)?|readiness))?)?",
+            request.path,
+        ):
+            abort(
+                403,
+                description="Development runs may only read declared case data through the existing API.",
+            )
+        return
+
     path = request.path
     case_id = (request.view_args or {}).get("case_id")
     asset = (request.view_args or {}).get("relative_path")
@@ -313,7 +327,9 @@ def register_execution(app, db, audit):
         if not has_permission(g.user, "plugins:read", db()) or not has_permission(
             g.user,
             "plugins:"
-            + {"run": "execute", "language": "edit"}.get(row["mode"], row["mode"]),
+            + {"run": "execute", "develop": "execute", "language": "edit"}.get(
+                row["mode"], row["mode"]
+            ),
             db(),
         ):
             abort(403)
@@ -327,7 +343,13 @@ def register_execution(app, db, audit):
                 (
                     result["status"],
                     result.get("duration"),
-                    store.dumps({"output": result.get("output", "")[: 256 * 1024]}),
+                    store.dumps(
+                        {
+                            key: result[key]
+                            for key in ("output", "stdout", "stderr", "events", "exit_code")
+                            if key in result
+                        }
+                    ),
                     store.now() if finished else None,
                     row["id"],
                 ),
@@ -361,8 +383,20 @@ def register_execution(app, db, audit):
         return {**result, "id": row["id"]}
 
     def start(pid, mode):
-        row = owned(pid, {"run": "execute", "language": "edit"}.get(mode, mode))
+        row = owned(
+            pid,
+            {"run": "execute", "develop": "execute", "language": "edit"}.get(
+                mode, mode
+            ),
+        )
         data = body()
+        if mode == "develop" and any(
+            key in data for key in ("case_id", "artifact", "version")
+        ):
+            abort(
+                400,
+                description="Editor runs do not accept case associations or installed versions.",
+            )
         worker("GET", "/health")
         entries = store.files(db(), pid)
         version = data.get("version")
@@ -388,7 +422,9 @@ def register_execution(app, db, audit):
             value = json.loads(snapshot["manifest"])
         else:
             checked = store.static_validation(entries)
-            if not checked["valid"]:
+            if not checked["valid"] and not (
+                mode == "language" and checked["manifest"]
+            ):
                 return checked, 400
             value = checked["manifest"]
             raw = store.archive(entries)
@@ -439,7 +475,7 @@ def register_execution(app, db, audit):
                 row,
                 value,
                 app.config["SECRET_KEY"],
-                require=mode in ("validate", "test", "run", "debug"),
+                require=mode in ("validate", "test", "run", "develop", "debug"),
             )
         except ValueError as error:
             abort(400, description=str(error))
@@ -524,7 +560,7 @@ def register_execution(app, db, audit):
                 {
                     "mode": mode,
                     "archive": base64.b64encode(raw).decode(),
-                    "token": token,
+                    "token": token if permissions and mode != "language" else "",
                     "secrets": secrets_config,
                     "context": {
                         "case_id": cid,
@@ -561,7 +597,7 @@ def register_execution(app, db, audit):
         )
         return {**result, "id": eid}, 202
 
-    for mode in ("validate", "test", "run", "debug", "language"):
+    for mode in ("validate", "test", "run", "develop", "debug", "language"):
 
         def action(pid, mode=mode):
             return start(pid, mode)
@@ -702,6 +738,13 @@ def register_execution(app, db, audit):
         data = body()
         if type(data.get("enabled")) is not bool:
             abort(400)
+        if data["enabled"]:
+            checked = store.static_validation(store.files(db(), pid))
+            if not checked["valid"] or checked["manifest"]["id"] != pid:
+                abort(
+                    409,
+                    description="Correct the invalid manifest/package before enabling. The active installed snapshot was not reloaded.",
+                )
         if data["enabled"] and not row["published_version"]:
             abort(409, description="Publish a validated and tested version first.")
         with db():

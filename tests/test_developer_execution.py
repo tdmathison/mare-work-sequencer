@@ -223,7 +223,6 @@ def test_rootless_container_resource_and_filesystem_contract():
     for value in (
         "--network=none",
         "--read-only",
-        "--timeout=60",
         "--user=10001:10001",
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges",

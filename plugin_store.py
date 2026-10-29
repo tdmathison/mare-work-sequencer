@@ -236,6 +236,15 @@ def initialize(connection):
         row[1] for row in connection.execute("PRAGMA table_info(developer_grants)")
     }:
         connection.execute("ALTER TABLE developer_grants ADD COLUMN artifact TEXT")
+    if "source_location" not in {
+        row[1] for row in connection.execute("PRAGMA table_info(developer_plugins)")
+    }:
+        connection.execute(
+            "ALTER TABLE developer_plugins ADD COLUMN source_location TEXT"
+        )
+    connection.execute(
+        "INSERT OR IGNORE INTO schema_migrations VALUES('developer-package-discovery-v1')"
+    )
     connection.commit()
 
 
@@ -255,6 +264,7 @@ def validate_tree(entries):
     ):
         raise ValueError("Workspace exceeds size limits.")
     seen = set()
+    canonical = {}
     for path, item in entries.items():
         safe_path(path)
         if len(item["body"]) > MAX_FILE:
@@ -264,6 +274,11 @@ def validate_tree(entries):
             raise ValueError("Case-insensitive path collisions are forbidden.")
         seen.add(folded)
         parts = path.split("/")
+        for index in range(1, len(parts) + 1):
+            logical = "/".join(parts[:index])
+            previous = canonical.setdefault(logical.casefold(), logical)
+            if previous != logical:
+                raise ValueError("Case-insensitive path collisions are forbidden.")
         for index in range(1, len(parts)):
             parent = "/".join(parts[:index])
             if parent in entries and not entries[parent]["directory"]:

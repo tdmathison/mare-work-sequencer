@@ -12,7 +12,7 @@ class Unavailable(RuntimeError):
 
 class UnixHTTP(http.client.HTTPConnection):
     def __init__(self, path):
-        super().__init__("localhost", timeout=8)
+        super().__init__("localhost", timeout=30)
         self.path = path
 
     def connect(self):

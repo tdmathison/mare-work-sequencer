@@ -25,18 +25,20 @@ import urllib.parse
 import zipfile
 
 MAX_OUTPUT = 256 * 1024
-MODES = {"validate", "test", "run", "language", "debug"}
+MODES = {"validate", "test", "run", "develop", "language", "debug"}
 
 
-def container_command(image, name, snapshot, gateway, mode):
-    if not re.fullmatch(r"[a-zA-Z0-9./:_-]+@sha256:[a-f0-9]{64}", image):
+def container_command(image, name, snapshot, gateway, mode, engine="podman"):
+    if engine not in ("docker", "podman"):
+        raise ValueError("Unsupported container engine.")
+    if not re.fullmatch(r"(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}", image):
         raise ValueError(
             "Configure an administrator-built image pinned by SHA-256 digest."
         )
     if mode not in MODES:
         raise ValueError("Unsupported worker mode.")
-    return [
-        "podman",
+    command = [
+        engine,
         "run",
         "--rm",
         "--name",
@@ -45,7 +47,6 @@ def container_command(image, name, snapshot, gateway, mode):
         "--network=none",
         "--user=10001:10001",
         "--read-only",
-        "--timeout=" + str(600 if mode in ("language", "debug") else 60),
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges",
         "--pids-limit=64",
@@ -69,6 +70,8 @@ def container_command(image, name, snapshot, gateway, mode):
         image,
         mode,
     ]
+
+    return command
 
 
 def validated_snapshot(encoded):
@@ -161,7 +164,11 @@ class Gateway(BaseHTTPRequestHandler):
     def forward(self):
         job = self.server.job
         # This independent allowlist supplements the authoritative scoped API grant.
-        path = self.path
+        parsed = urllib.parse.urlsplit(self.path)
+        if parsed.scheme or parsed.netloc or len(parsed.query) > 4096:
+            self.send_error(403)
+            return
+        path = parsed.path
         if path == "/external" and self.command == "POST":
             self.external(job)
             return
@@ -180,7 +187,16 @@ class Gateway(BaseHTTPRequestHandler):
         prefix = "/api/v1/cases/" + str(job.context.get("case_id"))
         if (
             not job.token
-            or not (path == prefix or path.startswith(prefix + "/"))
+            or not (
+                bool(
+                    re.fullmatch(
+                        r"/api/v1/cases(?:/\d+(?:/(?:indicators|references|report(?:/mappings)?|notes(?:/\d+)?|tasks(?:/\d+)?|readiness))?)?",
+                        path,
+                    )
+                )
+                if job.mode == "develop"
+                else (path == prefix or path.startswith(prefix + "/"))
+            )
             or any(c in decoded for c in ("\\", "..", "?", "#"))
         ):
             self.send_error(403, "Only the selected case is accessible.")
@@ -193,7 +209,7 @@ class Gateway(BaseHTTPRequestHandler):
             self.send_error(413)
             return
         request = urllib.request.Request(
-            job.origin + path,
+            job.origin + self.path,
             data=self.rfile.read(size) if size else None,
             method=self.command,
             headers={
@@ -284,8 +300,14 @@ class Job:
         self.mode = value["mode"]
         self.started = time.monotonic()
         self.ended = None
+        self.exit_code = None
+        self.requested_status = None
+        self.cleaned = threading.Event()
         self.status = "Starting"
         self.output = bytearray()
+        self.streams = {"stdout": bytearray(), "stderr": bytearray()}
+        self.events = []
+        self.readers = []
         self.messages = deque()
         self.message_bytes = 0
         self.lock = threading.RLock()
@@ -306,6 +328,8 @@ class Job:
         (snapshot / "context.json").write_text(
             json.dumps({**self.context, "mode": self.mode})
         )
+        for file in snapshot.iterdir():
+            file.chmod(0o644)
         self.gateway = UnixServer(str(gateway / "api.sock"), Gateway)
         self.gateway.job = self
         os.chmod(gateway / "api.sock", 0o666)
@@ -313,7 +337,7 @@ class Job:
         try:
             self.process = subprocess.Popen(
                 container_command(
-                    supervisor.image, self.name, str(snapshot), str(gateway), self.mode
+                    supervisor.image, self.name, str(snapshot), str(gateway), self.mode, supervisor.engine
                 ),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
@@ -327,30 +351,45 @@ class Job:
             shutil.rmtree(self.folder)
             raise
         self.status = "Running"
+        self.append(b"[diagnostic] Isolated execution started.\n", "stderr")
         protocol = self.mode in ("language", "debug")
-        threading.Thread(
+        stdout_reader = threading.Thread(
             target=self.read_protocol if protocol else self.read_output,
-            args=() if protocol else (self.process.stdout,),
+            args=() if protocol else (self.process.stdout, "stdout"),
             daemon=True,
-        ).start()
-        threading.Thread(
-            target=self.read_output, args=(self.process.stderr,), daemon=True
-        ).start()
+        )
+        stderr_reader = threading.Thread(
+            target=self.read_output, args=(self.process.stderr, "stderr"), daemon=True
+        )
+        self.readers = [stdout_reader, stderr_reader]
+        for reader in self.readers:
+            reader.start()
         threading.Thread(target=self.monitor, daemon=True).start()
 
-    def append(self, raw):
+    def append(self, raw, channel="stdout"):
         with self.lock:
             remaining = MAX_OUTPUT - len(self.output)
-            self.output.extend(raw[: max(0, remaining)])
-        if len(raw) > remaining:
+            chunk = raw[: max(0, remaining)]
+            self.output.extend(chunk)
+            self.streams[channel].extend(chunk)
+            if chunk:
+                self.events.append(
+                    {
+                        "sequence": len(self.events) + 1,
+                        "timestamp": time.time(),
+                        "stream": channel,
+                        "bytes": len(chunk),
+                    }
+                )
+        if len(raw) > remaining or len(self.events) > 512:
             self.stop("Output limit exceeded")
 
-    def read_output(self, stream):
+    def read_output(self, stream, channel="stdout"):
         while True:
             chunk = stream.read1(4096)
             if not chunk:
                 break
-            self.append(chunk)
+            self.append(chunk, channel)
 
     def read_protocol(self):
         try:
@@ -403,6 +442,19 @@ class Job:
             self.messages.clear()
             self.message_bytes = 0
             output = bytes(self.output).decode("utf-8", "replace")
+            streams = {
+                key: bytes(raw).decode("utf-8", "replace")
+                for key, raw in self.streams.items()
+            }
+            events = [dict(event) for event in self.events]
+
+        def redact(text):
+            for secret in [self.token, *self.secrets.values()]:
+                if secret:
+                    text = text.replace(secret, "[REDACTED]")
+            return text
+
+        streams = {key: redact(text) for key, text in streams.items()}
         # Tokens are never passed to the container, but redact defensively as well.
         if self.token:
             output = output.replace(self.token, "[REDACTED]")
@@ -412,20 +464,23 @@ class Job:
         return {
             "id": self.id,
             "status": self.status,
+            "exit_code": self.exit_code,
             "duration": round((self.ended or time.monotonic()) - self.started, 3),
             "output": output,
+            **streams,
+            "events": events,
             "messages": messages,
         }
 
     def stop(self, status="Canceled"):
         with self.lock:
-            if self.status not in ("Starting", "Running"):
+            if self.status not in ("Starting", "Running") or self.requested_status:
                 return
-            self.status = status
+            self.requested_status = status
         # Engine command has a fixed argv and service-owned container name.
         try:
             subprocess.run(
-                ["podman", "kill", "--signal", "KILL", self.name],
+                [self.supervisor.engine, "kill", "--signal", "KILL", self.name],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=10,
@@ -447,21 +502,38 @@ class Job:
                     pass
                 self.process.wait(timeout=15)
         finally:
-            with self.lock:
-                if self.status == "Running":
-                    self.status = (
-                        "Succeeded" if self.process.returncode == 0 else "Failed"
+            for reader in self.readers:
+                reader.join(timeout=2)
+            # Explicit removal also handles a killed CLI or a failed attach. Never
+            # leave a container behind merely because the client process exited.
+            try:
+                subprocess.run(
+                    [self.supervisor.engine, "rm", "--force", self.name],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=10, env=self.supervisor.environment,
+                )
+            finally:
+                self.gateway.shutdown()
+                self.gateway.server_close()
+                shutil.rmtree(self.folder, ignore_errors=True)
+                with self.lock:
+                    self.exit_code = self.process.returncode
+                    self.status = self.requested_status or (
+                        "Succeeded" if self.exit_code == 0 else "Failed"
                     )
-                self.ended = time.monotonic()
-            self.gateway.shutdown()
-            self.gateway.server_close()
-            shutil.rmtree(self.folder, ignore_errors=True)
+                    self.ended = time.monotonic()
+                    self.append(("[diagnostic] Execution " + self.status + "; exit code " + str(self.exit_code) + ".\n").encode(), "stderr")
+                self.cleaned.set()
+
 
 
 class Supervisor:
-    def __init__(self, root, image, origin):
+    def __init__(self, root, image, origin, engine="podman"):
         if os.geteuid() == 0:
             raise RuntimeError("Run the worker as a dedicated non-root user.")
+        if engine not in ("docker", "podman"):
+            raise ValueError("Unsupported container engine.")
+        self.engine = engine
         self.root = Path(root)
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.image = image
@@ -477,29 +549,47 @@ class Supervisor:
             k: v
             for k, v in os.environ.items()
             if k
-            in ("PATH", "HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "LANG")
+            in ("PATH", "HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "LANG", "DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_CONFIG")
         }
         result = subprocess.run(
-            ["podman", "info", "--format", "json"],
+            [engine, "info", "--format", "{{json .}}" if engine == "docker" else "json"],
             check=True,
             capture_output=True,
             text=True,
             timeout=10,
             env=self.environment,
         )
-        host = json.loads(result.stdout).get("host", {})
-        security = host.get("security", {})
-        if not security.get("rootless") or not security.get("seccompEnabled"):
-            raise RuntimeError(
-                "Rootless Podman with default seccomp confinement is required."
-            )
-        if host.get("cgroupVersion") != "v2" or not {"cpu", "memory", "pids"}.issubset(
-            set(host.get("cgroupControllers", []))
-        ):
-            raise RuntimeError(
-                "Delegated cgroup v2 CPU, memory and PID controllers are required."
-            )
-        container_command(image, "check", "/unused", "/unused", "validate")
+        info = json.loads(result.stdout)
+        if engine == "docker":
+            options = info.get("SecurityOptions", [])
+            if not any("rootless" in option for option in options) or not any(
+                "seccomp" in option and "unconfined" not in option for option in options
+            ):
+                raise RuntimeError("Rootless Docker with default seccomp confinement is required.")
+            if (str(info.get("CgroupVersion")) != "2"
+                or info.get("CgroupDriver") != "systemd"
+                or not all(info.get(key) for key in ("MemoryLimit", "SwapLimit", "CpuCfsQuota", "PidsLimit"))):
+                raise RuntimeError("Docker requires cgroup v2 with systemd and CPU, memory, swap and PID limits.")
+        else:
+            host = info.get("host", {})
+            security = host.get("security", {})
+            if not security.get("rootless") or not security.get("seccompEnabled"):
+                raise RuntimeError("Rootless Podman with default seccomp confinement is required.")
+            if host.get("cgroupVersion") != "v2" or not {"cpu", "memory", "pids"}.issubset(
+                set(host.get("cgroupControllers", []))
+            ):
+                raise RuntimeError("Delegated cgroup v2 CPU, memory and PID controllers are required.")
+        container_command(image, "check", "/unused", "/unused", "validate", engine)
+        self.health()
+
+    def health(self):
+        # A configured socket alone does not mean the engine/image is available.
+        subprocess.run(
+            [self.engine, "image", "inspect", self.image], check=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=10,
+            env=self.environment,
+        )
+        return {"ready": True, "isolation": "rootless-" + self.engine, "protocol": 1}
 
     def create(self, value):
         with self.lock:
@@ -538,7 +628,7 @@ class Handler(BaseHTTPRequestHandler):
             value = json.loads(self.rfile.read(length)) if length else {}
             supervisor = self.server.supervisor
             if self.command == "GET" and self.path == "/health":
-                result = {"ready": True, "isolation": "rootless-podman", "protocol": 1}
+                result = supervisor.health()
             elif self.command == "POST" and self.path == "/jobs":
                 result = supervisor.create(value)
             else:
@@ -548,6 +638,7 @@ class Handler(BaseHTTPRequestHandler):
                 job = supervisor.jobs[match[1]]
                 if match[2] == "/cancel" and self.command == "POST":
                     job.stop()
+                    job.cleaned.wait(timeout=20)
                     result = job.poll()
                 elif match[2] == "/rpc" and self.command == "POST":
                     result = job.exchange(value)
@@ -580,19 +671,28 @@ def main():
     parser.add_argument("--work", required=True)
     parser.add_argument("--image", required=True)
     parser.add_argument("--api-origin", required=True)
+    parser.add_argument("--engine", choices=("docker", "podman"), default="podman")
     args = parser.parse_args()
-    supervisor = Supervisor(args.work, args.image, args.api_origin)
+    supervisor = Supervisor(args.work, args.image, args.api_origin, args.engine)
     location = Path(args.socket)
     if location.exists():
         raise RuntimeError("Socket already exists; stop the old service first.")
     server = UnixServer(str(location), Handler)
     server.supervisor = supervisor
     os.chmod(location, 0o660)
+    import signal
+
+    def shutdown(signum, frame):
+        threading.Thread(target=server.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, shutdown)
     try:
         server.serve_forever()
     finally:
         for job in supervisor.jobs.values():
             job.stop()
+        for job in supervisor.jobs.values():
+            job.cleaned.wait(timeout=25)
         server.server_close()
         location.unlink(missing_ok=True)
 

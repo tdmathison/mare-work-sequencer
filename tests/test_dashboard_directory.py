@@ -59,7 +59,7 @@ def test_authorized_menu_and_active_section():
         wall = client.get(path)
         assert 'class="wall-login" href="/">Return</a>' in wall.text
         assert 'class="wall-login" href="/login"' not in wall.text
-    assert [link['href'] for link in NavigationParser(client.get('/metrics').text).links if link.get('aria-current')=='page']==['/metrics']
+    assert [link['href'] for link in NavigationParser(client.get('/metrics').text).links if link.get('aria-current')=='page']==['/dashboards']
 
     top = [link['href'] for link in links]
     assert '/tools/cyberchef' in top and '/settings/general' in top

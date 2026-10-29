@@ -1,5 +1,6 @@
 from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
 """Portable case backups: nested RAW packages plus validated workbench metadata."""
+from backup_filenames import archive_filename
 import hashlib
 from contextlib import closing
 import io
@@ -256,6 +257,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             abort(403)
         if request.endpoint in ('database_backup','api.api_database_backup') and not getattr(g,'backup_worker',False):
             return redirect(url_for('import_export_page'))
+        filename = getattr(g, "backup_archive_name", None) or archive_filename(("cases", "tags", "actors", "families"), app.config.get("DISPLAY_TIMEZONE"))
         connection = db()
         connection.execute('BEGIN IMMEDIATE')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
@@ -312,10 +314,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             connection.commit()
             out.seek(0)
             summary = ', '.join(f'{value} {key}' for key,value in counts.items())
-            audit('Created full database and MIP content backup: '+summary)
-            flash('Installation backup includes '+summary+'.')
-            response = send_file(out, as_attachment=True, download_name='MARE-installation-backup-'+now()[
-                                 :19].replace(':', '-')+'.zip', mimetype='application/zip')
+            audit('Created full database and MIP content backup: '+summary+'; archive='+filename)
+            flash('Installation backup '+filename+' includes '+summary+'.')
+            response = send_file(out, as_attachment=True, download_name=filename, mimetype='application/zip')
             response.headers['X-MARE-Backup-Counts'] = json.dumps(counts, separators=(',', ':'))
             response.call_on_close(out.close)
             return response
@@ -341,6 +342,11 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
     @app.post('/import-export/export')
     def backup_export():
         areas = set(getattr(g, "backup_areas", ("cases","families","tags","actors")))
+        try:
+            filename = getattr(g, "backup_archive_name", None) or archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"))
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for('import_export_page'))
         if db().execute("SELECT 1 FROM report_jobs WHERE status IN ('queued','running')").fetchone():
             flash('Wait for report generation to finish before exporting the backup.')
             return redirect(url_for('import_export_page'))
@@ -406,9 +412,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 raise ValueError('Backup exceeds the 1 GiB upload limit.')
             out.seek(0)
             audit('Exported full RAW case backup: ' +
-                  str(len(index['cases']))+' cases; '+str(len(library['families']))+' malware families; '+str(sum(len(f['reports']) for f in library['families']))+' attached reports')
-            response = send_file(out, as_attachment=True, download_name='MARE-case-backup-'+now()[
-                                 :19].replace(':', '-')+'.zip', mimetype='application/zip')
+                  str(len(index['cases']))+' cases; '+str(len(library['families']))+' malware families; '+str(sum(len(f['reports']) for f in library['families']))+' attached reports; archive='+filename)
+            response = send_file(out, as_attachment=True, download_name=filename, mimetype='application/zip')
             response.call_on_close(out.close)
             return response
         except ValueError as exc:

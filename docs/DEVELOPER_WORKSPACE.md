@@ -2,10 +2,10 @@
 
 MWS now uses a shared left sidebar. Collapse it for icon-only navigation; on
 small screens the header menu opens a drawer (Escape dismisses it). Sidebar
-and IDE panel preferences are stored locally for each user. Existing case
+preferences are stored locally for each user. Existing case
 Workbench tabs, URLs and case-state restrictions remain authoritative.
 
-Developer contains **API**, **SDK**, and **Editor**. `/api` remains compatible;
+Developer contains **API**, **SDK**, **Editor**, and **Plugins**. `/api` remains compatible;
 `/developer/api` is an alias for the same Swagger implementation. SDK pages
 render the shipped guide and generated reference, not a second SDK manual.
 Use section search, anchors, and code-copy controls. Documentation access does
@@ -21,53 +21,146 @@ Every workspace endpoint enforces these permissions. Drafts and histories are
 owner-scoped, including for administrators. Runtime access is the intersection
 of the initiating user's current RBAC and the manifest's requested permissions.
 
-## Hello World tutorial
+## Plugins management
 
-1. Open Developer → Editor and select **New Plugin**.
-2. Enter a unique lowercase identifier such as `hello_research`, name, author,
-   semantic version `1.0.0`, and a description. Choose **Hello World**. Request
-   `cases:read` if the plugin should retrieve the selected case.
-3. Create the draft. `main.py` opens automatically. The generated tree includes
-   `plugin.json`, README, requirements, tests, and resources. Nothing is enabled
-   or published automatically.
-4. Edit Python, JSON, YAML, TOML, Markdown, or other UTF-8 resources. Binary files
-   remain downloadable. Ctrl/Cmd+S saves all modified buffers. Navigation offers
-   Save, Discard, and Cancel. A stale revision returns a conflict and retains the
-   local buffer; refresh only after resolving or copying your edits.
-5. **Check syntax** performs non-executing manifest/AST checks. **Connect Python
-   intelligence** starts a dedicated basedpyright container when the worker is
-   deployed. Use completion, hover, F12 for definitions, Shift+F12 for references,
-   Ctrl/Cmd+Shift+Space for signatures, and Symbols for local symbols. Definitions
-   in installed dependencies direct you to SDK documentation; plugin definitions
-   open in the editor.
-6. Choose an optional case ID and JSON inputs. **Validate in worker** checks
-   installed dependency compatibility and imports/types with basedpyright,
-   without calling the operational entrypoint. **Test** runs the plugin's pytest
-   suite in a restricted container. API writes and external connections are
-   denied in test, debug, and language sessions, regardless of plugin flags.
-7. Click a Python gutter or press F9 to toggle a breakpoint. Debug Start creates an isolated
-   debugpy session; Continue, Pause, Step Over/Into/Out and Stop control it. The
-   current line, stack frames and scope variables appear in the workspace.
-   Expression evaluation, conditional breakpoints, arbitrary launch arguments,
-   and attaching to other processes are deliberately unavailable.
-8. After isolated validation and testing pass for the exact current fingerprint,
-   **Publish** stores an immutable version. Enable it separately. **Run published**
-   uses that version's saved bytes, even if the draft subsequently changes.
-   Review requested permissions in `plugin.json` before confirming execution.
-9. Use execution history to inspect statuses, outputs and duration. Cancel revokes
-   the job's API grant before asking the worker to stop. Versions / Rollback can
-   select a prior immutable publication. Draft deletion disables its registration
-   and preserves historical executions and published snapshots.
+Developer → Plugins (`/plugins`) is a management page, separate from Editor.
+Place a package in a child directory of the application's `plugins` directory
+(or configure `MARE_PLUGINS_DIR`), then Refresh. Discovery validates manifests,
+paths and package budgets without importing or executing Python. Unrelated
+folders are ignored; invalid packages and conflicts appear separately.
 
-Tests default to real read-only case APIs. Tests can additionally use ordinary
-httpx MockTransport fixtures; generated tests only check entrypoint availability.
-A dry-run boolean is a convenience, never the security boundary. Production runs
-alone may use declared write permissions, and normal closed-case rules still
-apply on the server. Runtime tasks cannot access unrelated cases or global
-administration APIs. Select an optional case artifact (up to 8 MiB) after entering the case ID.
-The manifest must request `cases:assets`; only that selected asset can be
-downloaded through `context.client.assets`, using `context.artifact` as its path.
-Assets are transferred through the scoped API, never mounted from the host.
+Discovery registers new packages as disabled, unpublished, owner-scoped drafts
+in the existing SQLite registry; importing requires `plugins:create`. Existing
+registrations are never overwritten by refresh. The registry is the authoritative
+editable package: editing changes its transactional snapshot, not the original
+installation directory. Filesystem changes to an already registered package are
+not automatically reloaded. Existing registry packages remain available.
+
+The full-height Control Center has an independently scrolling inventory and
+five detail tabs: Overview, Configuration, Permissions, Dependencies and Activity.
+Search by name, identifier or description; filter All, Enabled, Disabled or Errors.
+Invalid registered drafts remain visible with their error state. Filesystem discovery
+errors appear separately. New Plugin uses the existing templates and create API.
+Select a package to inspect its manifest, declared permissions, SDK/API contract,
+configuration schema, dependencies and enabled state. Missing metadata says
+“Not specified.” Compatibility here checks the declared contract; installed
+worker dependencies are checked by isolated validation.
+
+**Enable** preserves the existing publication gate. For a new package it runs
+isolated validation and tests, publishes the exact checked revision, then enables
+it. This requires validate/test/publish/versions permissions and a working worker.
+Already published packages use the existing enable operation. **Disable** stops
+future published runs; existing executions continue on their immutable snapshots.
+**Edit in Editor** opens the selected identifier in Editor. Invalid drafts can be inspected,
+repaired, or disabled without reloading an unsafe draft over an installed version.
+
+Right-click an inventory entry (or press Shift+F10 / the Menu key) for Enable,
+Disable, Edit and Delete. The menu selects that entry, supports arrow keys,
+Home/End, Escape, and outside-click dismissal. Invalid packages cannot be enabled.
+Delete requires confirmation and `plugins:delete`. Imported packages move into
+`PLUGINS_DIR/.mws-deleted/<identifier>-<unique-id>`; registry snapshots, execution
+history and audit records remain. Existing executions continue on immutable
+snapshots. Administrators can recover files from that directory; restoring a
+registration requires an administrator to clear its soft-delete state after
+review. Application built-in tools are outside this registry. Set the server
+configuration `PROTECTED_PLUGIN_IDS` to a collection of registered identifiers
+that must not be deleted; the API enforces it regardless of browser controls.
+The browser sends only the registered identifier and revision, never a deletion
+path. Recovery directories and package symlinks are never followed.
+
+Configuration renders the declared types, enum choices and required fields. Save
+uses the existing configuration API; Reset changes discards only unsaved inputs.
+Configured secret values are never displayed, returned or stored in browser
+preferences. Blank secret inputs preserve existing values; explicit clear controls
+remove them. Permissions distinguishes declared scopes from currently authorized
+scopes. Activity lists the initiating owner’s recent executions, status and duration.
+
+## Viewport layout and preferences
+
+Both pages fill the available viewport below the actual application header. Only
+inventory, details, explorer, CodeMirror and console contents scroll. The resizable
+inventory divider remembers its preferred width. In Editor, drag the explorer
+separator horizontally and the console separator upward to allocate space; these
+separators also support arrow keys and Home/End. The console consumes editor space
+without extending the page. The explorer can be hidden with its toolbar toggle.
+
+Workspace preferences are scoped to the signed-in user in browser storage: explorer
+width/visibility, console height/open state/tab, word wrap, last package and optional
+sidebar collapse. The gear menu controls word wrap and optional sidebar collapse.
+Automatic sidebar collapse is off by default and restores the prior state on exit.
+Source files, configuration values, secrets and logs are never saved in preferences.
+Plugins → Edit in Editor and Editor → Plugins preserve the selected identifier;
+plugin switches have browser history and use the existing unsaved-buffer guard.
+
+## Editing and running
+
+1. Open a package through **Edit**, or select it in Developer → Editor. The left
+   explorer provides files, folders, refresh and authorized create/rename/delete
+   operations. Open text files in multiple CodeMirror tabs. Binary files remain
+   downloadable. Paths are confined to the package on the server.
+2. Edit Python, JSON, YAML, TOML, Markdown and text. Use **Save** or Ctrl/Cmd+S.
+   Unsaved buffers have indicators. Navigation offers Save, Discard and Cancel;
+   revision conflicts retain your local edits. Invalid manifests are saved as
+   repairable drafts with validation errors, preserving enable/publication state.
+3. Python intelligence starts automatically using isolated basedpyright and the
+   installed SDK types. Type a period to open real member completion; accept with
+   Enter or Tab and dismiss with Escape. Hover shows documentation; typing an
+   opening parenthesis/comma shows signatures. Ctrl/Cmd+Shift+Space requests a
+   signature. Diagnostics track document changes. A missing worker produces an
+   explicit error instead of invented suggestions. No SDK panel is required.
+4. **Run** saves changes and executes the manifest entrypoint from the saved,
+   unpublished immutable snapshot. It does not publish or enable the package.
+   No case selection or investigation session is required. `context.case_id` is
+   None. SDK calls may read authorized cases when explicitly programmed and
+   declared; development runs cannot mutate cases or access administration APIs,
+   external connectors or case assets. Required configuration can be managed in Plugins → Configuration.
+5. Run opens the collapsible, vertically resizable Console. **Output** contains
+   stdout, print statements, results and run lifecycle messages. **Debug** contains
+   stderr, tracebacks, plugin logs, validation and runner diagnostics. Status and
+   elapsed duration remain visible. Both tabs support clear, copy, automatic
+   scrolling and manual review. Debug is a diagnostic log, not an interactive
+   debugger. The backend debugger and version APIs remain available to authorized
+   integrations, but are not controls in this editor.
+
+## File Explorer
+
+The project tree replaces the old file list. Folders have distinct closed/open gold
+SVG icons; file-type glyphs share one original MIT-licensed SVG set (no external
+icon/font dependency). Python uses blue/yellow; configuration, code and document
+formats have their own colors, including special package/manifest filenames.
+
+Click a file to open it; use chevrons to expand folders. Ctrl/Cmd-click toggles
+selection and Shift-click selects a range. Arrow keys, Home/End and type-ahead
+navigate the tree; Enter opens the focused file. These shortcuts apply only while
+the Explorer has focus, leaving CodeMirror shortcuts intact.
+
+The compact header and folder context menus provide **New File** and **New Folder**
+with inline naming. F2 or **Rename** selects the stem without the extension; Enter
+confirms and Escape cancels. Right-click an item or use Shift+F10 for a keyboard
+menu; arrow keys navigate, Escape dismisses it. Empty-space menus operate on the
+package root. File menus retain **Download** for binary and text resources.
+
+Use Ctrl/Cmd+X/C/V for an internal, package-scoped clipboard. Cut items dim until
+pasted or canceled with Escape. Copy/paste duplicates saved package bytes under
+an unused `copy` name; it does not copy unsaved editor text or replace existing
+files. Drag files/folders to folder rows or the project root; valid targets turn
+blue and invalid targets are marked. Hovering opens collapsed folders, and edge
+dragging scrolls the tree. Multiple selected items move in one transaction.
+
+Moves/renames rekey open tabs while retaining unsaved text and undo history.
+Refresh preserves local buffers, selection and expanded folders. Structural
+changes restart the isolated language session against the updated snapshot.
+Renaming/moving/deleting the entrypoint warns that its manifest reference must be
+updated; Python imports are never rewritten. The root `plugin.json` can be edited
+and copied but cannot be moved, renamed or deleted.
+
+Deletion asks for confirmation and warns about descendants and unsaved tabs.
+It closes affected tabs after the server confirms success. There is no recycle bin;
+deletes cannot be undone through the Explorer. Back up important source first.
+All operations affect the existing virtual registry package, never arbitrary host
+paths. The backend validates every source/target, rejects descendant moves and
+collisions, enforces size limits and RBAC, audits operations, and uses the existing
+revision compare-and-swap transaction for atomic multi-item changes.
 
 ## Manifest and compatibility
 
@@ -91,9 +184,7 @@ Assets are transferred through the scoped API, never mounted from the host.
 
 The entrypoint receives the typed `mws_sdk.plugin.PluginContext`. Its `client`
 is the actual MWSClient; `case_id`, `inputs`, `configuration`, `dry_run`, `log`,
-and `external` form plugin API 1. Four wizard templates demonstrate Hello World,
-indicator review, report generation and controlled external integration. They
-use implemented SDK methods, not direct database/backend imports.
+and `external` form plugin API 1. Use implemented SDK methods, not direct database/backend imports.
 
 Dependencies are declarations, not installation instructions. Administrators
 must review and install dependencies into a new worker image, pin its digest,
@@ -103,8 +194,7 @@ before publishing changed source; published semantic versions cannot be replaced
 Validation/test results are bound to all file paths, contents and directory flags.
 
 Configuration fields support string, finite number, boolean, enum, defaults and
-required flags. Example: `"api_key":{"type":"string","secret":true}`. Use
-Configuration to enter values. Secret inputs are encrypted using the existing
+required flags. Example: `"api_key":{"type":"string","secret":true}`. Use Plugins → Configuration to enter values. Secret inputs are encrypted using the existing
 site key and AES-256 ZIP support; stored values are never returned to the browser
 or placed in container environment/context. Keep environment-provided site keys
 available during restore, as with existing complete-backup signing/encryption.
@@ -133,7 +223,9 @@ conflicts, links, special files and encrypted entries, and validate compatibilit
 without executing code. Imports create disabled, unpublished drafts. Identifier
 collisions must be resolved explicitly, never overwritten silently.
 
-The idempotent `developer-workspace-v1` migration adds draft/file/version,
+The idempotent `developer-package-discovery-v1` migration adds an optional source
+location to existing registrations without modifying snapshots or state.
+The `developer-workspace-v1` migration adds draft/file/version,
 execution and grant tables before backup schema discovery.
 Complete installation backups include their SQLite records; selective profile
 or case archives do not implicitly export plugin code or secrets. Older complete
@@ -141,6 +233,10 @@ installation backups follow the existing schema-upgrade-before-replacement rule.
 Standalone plugin ZIPs are portable across compatible MWS installations.
 
 ## Deploying the isolated worker
+
+For rootless Docker, use the complete [Docker worker setup](DEVELOPER_DOCKER_WORKER.md),
+including service units, image build, health checks, troubleshooting and real execution probes.
+The Podman setup below remains supported.
 
 The web environment requires **no** Pyright/debugpy/container-engine dependencies.
 Without a configured worker, execution, isolated validation, language intelligence
@@ -210,6 +306,8 @@ those host properties.
 - Run `.venv/bin/pytest` with `PYTHONPATH=.:sdk` for Python tests.
 - Run `npm run build:editors` after frontend edits.
 - Run `node tests/browser/developer-workspace.cjs` for disposable-data Chrome tests.
+- Run `npm run test:developer-explorer` for actual registry-backed tree, drag/drop,
+  clipboard, inline naming, unsaved buffer and keyboard checks.
 - Set `MARE_TEST_DEBUG_PYTHON` to an isolated interpreter with debugpy and run
   `node tests/browser/developer-debug.cjs` for the real DAP fixture test.
 - Set `MARE_TEST_LANGUAGE_SERVER` to an isolated basedpyright executable and run
@@ -221,8 +319,8 @@ those host properties.
 - 503: verify private socket ownership, worker service logs, immutable image,
   rootless engine and approved API origin. Never enable an insecure fallback.
 - Missing imports: rebuild the approved worker image with reviewed dependencies.
-- API failures: select a valid case and request the necessary data permission;
-  tests/debugging cannot write, and closed cases must be reopened through MWS.
+- API failures: request the necessary manifest and user data permissions.
+  Development runs are read-only; normal closed-case restrictions still apply.
 
 ## Architecture
 

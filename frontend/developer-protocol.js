@@ -25,6 +25,7 @@ class DeveloperProtocol {
   async start(context = {}) {
     const result = await this.http("/plugins/" + this.id + "/" + this.mode, context);
     this.session = result.id;
+    if(this.closed){await this.http("/executions/"+this.session+"/cancel",{});return this;}
     this.consume(result);
     this.timer = setInterval(() => this.poll().catch((error) => {
       this.onOutput?.(error.message);

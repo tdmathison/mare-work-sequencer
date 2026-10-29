@@ -53,10 +53,23 @@ def register_developer_pages(app, db):
     def developer_editor():
         if not has_permission(g.user, "plugins:read", db()):
             abort(403)
-        return render_template("developer_editor.html")
+        pid = request.args.get("plugin")
+        if pid:
+            if not re.fullmatch(r"[a-z][a-z0-9_-]{2,63}", pid):
+                abort(400)
+            if (
+                not db()
+                .execute(
+                    "SELECT 1 FROM developer_plugins WHERE id=? AND owner_uuid=? AND deleted=0",
+                    (pid, g.user["user_uuid"]),
+                )
+                .fetchone()
+            ):
+                abort(404)
+        return render_template("developer_editor.html", selected_plugin=pid or "")
 
     @app.get("/plugins")
     def plugins_page():
         if not has_permission(g.user, "plugins:read", db()):
             abort(403)
-        return render_template("developer_editor.html", management=True)
+        return render_template("developer_plugins.html")

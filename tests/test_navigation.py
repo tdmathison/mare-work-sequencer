@@ -54,7 +54,7 @@ def test_rendered_application_sections(role, monkeypatch):
         f"/cases/{cid}": f"/cases/{cid}",
         f"/cases/{cid}/file?path=supporting/navigation.md": f"/cases/{cid}",
         "/search": "/search",
-        "/metrics": "/metrics",
+        "/metrics": "/dashboards",
         "/dashboards": "/dashboards",
         "/tags": "/tags",
         f"/tags/{tid}": "/tags",

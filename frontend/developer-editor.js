@@ -1,126 +1,31 @@
-import { languageService } from "./developer-language";
-import { debugging } from "./developer-debug";
-import { DeveloperProtocol } from "./developer-protocol";
+import {createExplorer} from './developer-explorer';
+import {languageService} from './developer-language';
 import { EditorState, Compartment } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, highlightActiveLineGutter } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, drawSelection, highlightActiveLine, highlightActiveLineGutter, tooltips } from "@codemirror/view";
 import { history, defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { languages } from "@codemirror/language-data";
 import { LanguageDescription, syntaxHighlighting, bracketMatching, indentOnInput, foldGutter, foldKeymap, indentUnit } from "@codemirror/language";
 import { search, searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-async function mountDeveloperEditor({ theme, highlighting }) {
-  const root = document.querySelector("[data-developer-editor]");
-  if (!root) return;
-  const q = (s) => root.querySelector(s), base = root.dataset.base, csrf = root.dataset.csrf;
-  const status = q(".ide-status"), output = q("[data-console]"), tabs = q(".ide-tabs"), tree = q("[data-files]");
-  const buffers = /* @__PURE__ */ new Map();
-  let selected = null, plugin = null, current = null, permissions = [], view, language, debuggerUI, runTimer, runId, saving, selectionGeneration = 0;
-  const wrap = new Compartment(), indent = new Compartment(), access = new Compartment();
-  const preference = "mws-developer-layout:" + document.body.dataset.userLayout;
-  let prefs = {};
-  try {
-    prefs = JSON.parse(localStorage.getItem(preference) || "{}");
-  } catch {
-  }
-  for (const key of ["explorer", "docs"]) {
-    root.classList.toggle("ide-hide-" + key, prefs[key] === false);
-    q("[data-command=" + key + "]").setAttribute("aria-expanded", String(prefs[key] !== false));
-  }
-  function remember() {
-    try {
-      localStorage.setItem(preference, JSON.stringify(prefs));
-    } catch {
-    }
-  }
-  for (const [panel, key, min, max] of [[".ide-explorer", "left", 140, 320], [".ide-docs", "right", 160, 360]]) {
-    const node = q(panel), handle = document.createElement("div");
-    handle.className = "ide-resize";
-    handle.tabIndex = 0;
-    handle.role = "separator";
-    handle.setAttribute("aria-label", "Resize " + (key === "left" ? "Explorer" : "SDK help"));
-    handle.setAttribute("aria-orientation", "vertical");
-    const apply = (value) => {
-      prefs[key] = Math.max(min, Math.min(max, value));
-      root.style.setProperty("--ide-" + key, prefs[key] + "px");
-      handle.setAttribute("aria-valuenow", prefs[key]);
-    };
-    handle.setAttribute("aria-valuemin", min);
-    handle.setAttribute("aria-valuemax", max);
-    apply(Number(prefs[key]) || (key === "left" ? 200 : 220));
-    handle.onkeydown = (e) => {
-      if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
-        e.preventDefault();
-        apply(prefs[key] + (e.key === "ArrowRight" ? 1 : -1) * (key === "right" ? -10 : 10));
-        remember();
-      }
-    };
-    handle.onpointerdown = (e) => {
-      e.preventDefault();
-      const initial = e.clientX, width = prefs[key];
-      handle.setPointerCapture(e.pointerId);
-      handle.onpointermove = (event) => apply(width + (event.clientX - initial) * (key === "right" ? -1 : 1));
-      const end = () => {
-        handle.onpointermove = null;
-        remember();
-      };
-      handle.onpointerup = end;
-      handle.onpointercancel = end;
-    };
-    node.append(handle);
-  }
-  const bottom = q(".ide-bottom");
-  if (prefs.bottom) bottom.style.height = prefs.bottom + "px";
-  new ResizeObserver(() => {
-    if (bottom.open && bottom.offsetHeight > 80) {
-      prefs.bottom = bottom.offsetHeight;
-      remember();
-    }
-  }).observe(bottom);
-  function message(text) {
-    status.textContent = text;
-  }
-  function log(value) {
-    q("[data-execution-history]").hidden = true;
-    output.hidden = false;
-    output.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-    q(".ide-bottom").open = true;
-  }
-  async function api(path = "", data, extra) {
-    const options = { credentials: "same-origin" };
-    if (data !== void 0) {
-      const form = extra || new FormData();
-      form.set("csrf", csrf);
-      form.set("payload", JSON.stringify(data));
-      options.method = "POST";
-      options.body = form;
-    }
-    const response = await fetch(base + path, options);
-    if (!response.ok) {
-      let text = await response.text();
-      try {
-        text = JSON.parse(text).error || text;
-      } catch {
-        const doc = new DOMParser().parseFromString(text, "text/html");
-        text = doc.querySelector("p")?.textContent || response.statusText;
-      }
-      throw new Error(text);
-    }
-    return response.json();
-  }
-  function symbol(value) {
-    q("[data-symbol-info]").textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  }
-  function context() {
-    const inputs = JSON.parse(q("[data-inputs]").value || "{}");
-    return { case_id: q("[data-case]").value ? Number(q("[data-case]").value) : null, artifact: q("[data-artifact]").value || null, inputs, ...q("[data-version]").value ? { version: q("[data-version]").value } : {} };
-  }
-  async function openLine(path, line) {
-    await openFile(path);
-    const position = view.state.doc.line(Math.min(view.state.doc.lines, line + 1)).from;
-    view.dispatch({ selection: { anchor: position }, effects: EditorView.scrollIntoView(position, { y: "center" }) });
-  }
-  const protocolOptions = { root, base: base.replace(/\/plugins$/, ""), csrf, plugin: () => selected, view: () => view, current: () => current, contents: () => view?.state.doc.toString() || "", log, symbol, inspect: symbol, open: openLine, context };
-  language = languageService(protocolOptions);
-  debuggerUI = debugging(protocolOptions);
+
+async function mountDeveloperEditor({theme,highlighting}) {
+ const root=document.querySelector('[data-developer-editor]');if(!root)return;
+ const layout=window.MareDeveloperWorkspace(root,'editor');
+ const tooltipLayer=document.createElement('div');tooltipLayer.className='developer-tooltip-layer';document.body.append(tooltipLayer);
+ const q=s=>root.querySelector(s),base=root.dataset.base,csrf=root.dataset.csrf,status=q('.ide-status'),tabs=q('.ide-tabs'),tree=q('[data-files]');
+ const managementUrl=q('[data-management-link]').getAttribute('href');
+ const buffers=new Map();let selected=null,plugin=null,current=null,permissions=[],view,language,saving,selectionGeneration=0,runId,running=false,activeConsole=['output','debug'].includes(layout.prefs.consoleTab)?layout.prefs.consoleTab:'output',historyIndex=Number.isInteger(window.history.state?.mareEditor?.index)?window.history.state.mareEditor.index:0,restoringHistory=false;
+ const wrap=new Compartment(),indent=new Compartment(),access=new Compartment(),prefs={wrap:layout.prefs.wordWrap!==false,indent:'4'};
+ const outputs={output:'',debug:''},consolePanel=q('.ide-console');
+ function message(text){status.textContent=text;}
+ function consoleOpen(open=true){root.classList.toggle('console-collapsed',!open);layout.save({consoleOpen:open});consolePanel.hidden=!open;q('[data-command=console]').setAttribute('aria-expanded',String(open));}
+ function consoleTab(name){activeConsole=name;layout.save({consoleTab:name});for(const tab of root.querySelectorAll('[data-console-tab]')){const active=tab.dataset.consoleTab===name;tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;q('#console-'+tab.dataset.consoleTab+'-panel').hidden=!active;}for(const action of ['clear','copy'])q('[data-command='+action+'-console]').setAttribute('aria-label',action[0].toUpperCase()+action.slice(1)+' '+(name==='output'?'Output':'Debug'));}
+ function append(name,text){if(!text)return;const pre=q(name==='output'?'[data-output]':'[data-debug-output]'),follow=pre.scrollHeight-pre.scrollTop-pre.clientHeight<35;outputs[name]=(outputs[name]+text).slice(-512*1024);pre.textContent=outputs[name];if(follow)pre.scrollTop=pre.scrollHeight;}
+ function diagnostic(text){append('debug',new Date().toISOString()+' [diagnostic] '+String(text)+'\n');}
+ function log(text){diagnostic(typeof text==='string'?text:JSON.stringify(text,null,2));}
+ function fail(error){message(error.message);diagnostic(error.message);}
+ async function api(path='',data){const options={credentials:'same-origin',cache:'no-store'};if(data!==undefined){const form=new FormData();form.set('csrf',csrf);form.set('payload',JSON.stringify(data));options.method='POST';options.body=form;}const response=await fetch(base+path,options);if(!response.ok){const raw=await response.text();throw Error(new DOMParser().parseFromString(raw,'text/html').querySelector('p')?.textContent||raw||response.statusText);}return response.json();}
+ async function openLine(path,line){await openFile(path);if(!view)return;const position=view.state.doc.line(Math.min(view.state.doc.lines,line+1)).from;view.dispatch({selection:{anchor:position},effects:EditorView.scrollIntoView(position,{y:'center'})});}
+ language=languageService({root,base:base.replace(/\/plugins$/,''),csrf,plugin:()=>selected,view:()=>view,current:()=>current,contents:()=>view?.state.doc.toString()||'',log,symbol:log,open:openLine});
   function dirty() {
     return [...buffers.values()].some((b) => b.text !== b.saved);
   }
@@ -148,13 +53,14 @@ async function mountDeveloperEditor({ theme, highlighting }) {
     return saving;
   }
   async function saveBuffers() {
+    message("Saving files…");
     storeState();
     const pid=selected,draft=plugin;
     for(const [path,b] of [...buffers]) {
       if(b.text===b.saved)continue;
       const text=b.text;
       const result=await api('/'+pid+'/files',{revision:draft.revision,path,text});
-      draft.revision=result.revision;b.saved=text;
+      draft.revision=result.revision;b.saved=text; if(result.validation&&!result.validation.valid)diagnostic(result.validation.diagnostics.map(d=>d.message).join('\n'));
       if(selected===pid)tabLabels();
     }
     message(dirty()?'Saved snapshot; newer edits remain unsaved.':'All files saved.');
@@ -197,7 +103,7 @@ async function mountDeveloperEditor({ theme, highlighting }) {
     });
   }
   function extensions() {
-    return [language.extension, debuggerUI.extension, theme, syntaxHighlighting(highlighting), lineNumbers(), history(), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), bracketMatching(), indentOnInput(), foldGutter(), search({ top: true }), highlightSelectionMatches(), keymap.of([{ key: "Mod-s", run: () => {
+    return [language.extension, tooltips({parent:tooltipLayer}), theme, syntaxHighlighting(highlighting), lineNumbers(), history(), drawSelection(), highlightActiveLine(), highlightActiveLineGutter(), bracketMatching(), indentOnInput(), foldGutter(), search({ top: true }), highlightSelectionMatches(), keymap.of([{ key: "Mod-s", run: () => {
       saveAll().catch((e) => message(e.message));
       return true;
     } }, indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap, ...foldKeymap]), wrap.of(prefs.wrap === false ? [] : EditorView.lineWrapping), indent.of(indentUnit.of(prefs.indent === "tab" ? "	" : " ".repeat(Number(prefs.indent) || 4))), access.of(EditorState.readOnly.of(!permissions.includes("edit"))), EditorView.updateListener.of((update) => {
@@ -215,21 +121,20 @@ async function mountDeveloperEditor({ theme, highlighting }) {
     const b = buffers.get(path);
     if (!b) return;
     current = path;
-    if (!b.state) {
-      const language2 = LanguageDescription.matchFilename(languages, path);
-      let support = [];
-      if (language2) try {
-        support = await language2.load();
-      } catch {
-      }
-      b.state = EditorState.create({ doc: b.text, extensions: [...extensions(), support] });
+    const languageDescription = LanguageDescription.matchFilename(languages, path), syntaxName=languageDescription?.name||null;
+    if (!b.state || b.syntaxName!==syntaxName) {
+      let support=[];
+      if(languageDescription)try{support=await languageDescription.load();}catch{}
+      if(!b.state){b.syntax=new Compartment();b.state=EditorState.create({doc:b.text,extensions:[...extensions(),b.syntax.of(support)]});}
+      else b.state=b.state.update({effects:b.syntax.reconfigure(support)}).state;
+      b.syntaxName=syntaxName;
     }
     if (current !== path || buffers.get(path)!==b) return;
     if (view) view.setState(b.state);
     else view = new EditorView({ state: b.state, parent: q(".ide-code") });
     tabLabels();
+    explorer.styles();
     view.focus();
-    debuggerUI.refresh();
     language.sync().catch((e) => message(e.message));
   }
   async function openFile(path) {
@@ -244,477 +149,60 @@ async function mountDeveloperEditor({ theme, highlighting }) {
       text = new TextDecoder("utf-8", { fatal: true }).decode(raw);
       if (text.includes("\0")) throw new Error();
     } catch {
-      log({ path, size: raw.byteLength, message: "Binary resource. Use its download link in the file explorer." });
+      log({ path, size: raw.byteLength, message: "Binary resource. Use Download in its Explorer context menu." });
       return;
     }
     buffers.set(path, { text, saved: text, state: null });
     await openBuffer(path);
   }
-  function fileTree() {
-    tree.replaceChildren();
-    const nodes = /* @__PURE__ */ new Map([["", tree]]);
-    const entries = [...plugin.files].sort((a, b) => a.path.localeCompare(b.path));
-    function directory(path) {
-      if (nodes.has(path)) return nodes.get(path);
-      const split = path.lastIndexOf("/"), parent = directory(split < 0 ? "" : path.slice(0, split)), details = document.createElement("details"), summary = document.createElement("summary");
-      summary.textContent = path.slice(split + 1);
-      details.open = true;
-      details.append(summary);
-      parent.append(details);
-      nodes.set(path, details);
-      return details;
+  const explorer=createExplorer({root,tree,plugin:()=>plugin,id:()=>selected,permissions:()=>permissions,current:()=>current,open:openFile,message,fail,
+    refresh:async()=>{if(saving)await saving;await refreshDetail();message('Explorer refreshed. Unsaved buffers were retained.');},
+    download:path=>{const link=document.createElement('a');link.href=base+'/'+selected+'/file?path='+encodeURIComponent(path);link.download=path.split('/').at(-1);link.click();},mutate:mutateExplorer});
+  function fileTree(){explorer.render();}
+  async function mutateExplorer(operation,data){
+    if(!selected||!plugin)throw Error('Select a loaded plugin first.');
+    if(saving)await saving;
+    const pid=selected,draft=plugin,generation=selectionGeneration,paths=data.paths||[data.path];
+    const includes=path=>paths.some(parent=>path===parent||path.startsWith(parent+'/'));
+    const affected=[...buffers].filter(([path])=>includes(path)),entry=plugin.manifest?.entrypoint?.split(':')[0];
+    if(operation==='delete'){
+      const names=paths.join(', '),folders=paths.some(path=>plugin.files.some(item=>item.path.startsWith(path+'/'))),unsaved=affected.some(([,buffer])=>buffer.text!==buffer.saved);
+      if(!confirm('Delete '+names+'?'+(folders?' Folders and their contents will be removed.':'')+(unsaved?' Unsaved edits in affected tabs will be lost.':'')+' This cannot be undone.'))return false;
     }
-    for (const item of entries) {
-      if (item.directory) {
-        directory(item.path);
-        continue;
-      }
-      const slash = item.path.lastIndexOf("/"), parent = directory(slash < 0 ? "" : item.path.slice(0, slash)), line = document.createElement("div"), button = document.createElement("button");
-      button.type = "button";
-      button.textContent = item.path.slice(slash + 1);
-      button.title = item.path;
-      button.onclick = () => openFile(item.path).catch((e) => message(e.message));
-      const download = document.createElement("a");
-      download.href = base + "/" + selected + "/file?path=" + encodeURIComponent(item.path);
-      download.textContent = "\u2193";
-      download.setAttribute("aria-label", "Download " + item.path);
-      download.className = "ide-download";
-      line.className = "ide-file-line";
-      line.append(button, download);
-      parent.append(line);
+    if(['rename','move','delete'].includes(operation)&&entry&&includes(entry)&&!confirm('This affects the manifest entry point '+entry+'. Update plugin.json before running the package again. Python imports will not be changed. Continue?'))return false;
+    const result=await api('/'+pid+'/files',{operation,revision:draft.revision,...data});draft.revision=result.revision;
+    if(pid!==selected||generation!==selectionGeneration)return false;
+    if(operation==='delete'){
+      for(const [path] of affected)buffers.delete(path);
+      if(current&&includes(current)){current=null;view?.destroy();view=null;}
+    }else if(operation==='rename'||operation==='move'){
+      storeState();const renamed=new Map();for(const [path,buffer] of buffers){const change=result.changes.roots.find(item=>path===item.source||path.startsWith(item.source+'/'));const next=change?change.target+path.slice(change.source.length):path;renamed.set(next,buffer);if(current===path)current=next;}buffers.clear();for(const [path,buffer] of renamed)buffers.set(path,buffer);
+      // The current EditorState retains undo/redo and unsaved text; re-opening it
+      // selects the proper syntax mode when its extension changed.
+      if(current)await openBuffer(current);
     }
+    const updated=await api('/'+pid);if(pid!==selected||generation!==selectionGeneration)return false;plugin=updated;q('[data-plugin-title]').textContent=plugin.name;explorer.changed(result.changes,operation);tabLabels();if(!view&&buffers.size)await openBuffer(buffers.keys().next().value);
+    message(operation[0].toUpperCase()+operation.slice(1)+' completed.');if(['rename','move','delete','create','directory','copy'].includes(operation)&&permissions.includes('edit')){await language.close();if(pid!==selected||generation!==selectionGeneration)return result;language.start().catch(error=>{if(pid===selected&&generation===selectionGeneration)diagnostic('Python intelligence unavailable: '+error.message);});}return result;
   }
-  async function refreshDetail() {
-    const pid=selected,result=await api("/"+pid);
-    if(selected!==pid)return;
-    plugin=result;
-    q("[data-plugin-title]").textContent = plugin.name + " \xB7 " + plugin.development;
-    const select = q("[data-version]"), previous = select.value;
-    select.replaceChildren(new Option("Draft / current publication", ""));
-    for (const version of plugin.versions) select.add(new Option(version.version, version.version));
-    select.value = previous;
-    fileTree();
-  }
-  async function selectPlugin(id) {
-    if (id === selected) return;
-    const generation=++selectionGeneration;
-    if (!await guard() || generation!==selectionGeneration) return;
-    await language.close();
-    await debuggerUI.stop();
-    if(generation!==selectionGeneration)return;
-    buffers.clear();
-    current = null;
-    view?.destroy();
-    view = null;
-    selected = id;
-    await refreshDetail();
-    if(selected!==id||generation!==selectionGeneration)return;
-    tabLabels();
-    await openFile(plugin.files.find((f) => f.path === "main.py")?.path || plugin.files.find((f) => !f.directory)?.path);
-    message(plugin.id + " \xB7 revision " + plugin.revision);
-    renderPlugins();
-  }
-  let listing = [];
-  function renderPlugins() {
-    const needle = q("[data-plugin-search]").value.toLowerCase(), container = q("[data-plugins]");
-    container.replaceChildren();
-    for (const row of listing.filter((p) => (p.name + " " + p.id).toLowerCase().includes(needle))) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.textContent = row.name;
-      button.setAttribute("aria-current", String(row.id === selected));
-      const meta = document.createElement("small");
-      meta.textContent = row.development + " \xB7 " + (row.enabled ? "Enabled" : "Disabled");
-      button.append(meta);
-      button.onclick = () => selectPlugin(row.id).catch((e) => message(e.message));
-      container.append(button);
-    }
-    if (!container.children.length) {
-      const empty = document.createElement("p");
-      empty.textContent = "No plugins found.";
-      container.append(empty);
-    }
-  }
-  async function reload() {
-    const data = await api();
-    listing = data.plugins;
-    permissions = data.permissions;
-    root.querySelectorAll("[data-permission]").forEach((el) => {
-      el.hidden = !permissions.includes(el.dataset.permission);
-    });
-    q("[data-worker-status]").textContent = data.worker.message;
-    const templateSelect = document.querySelector("[data-templates]");
-    templateSelect.replaceChildren();
-    for (const t of data.templates) {
-      const option = document.createElement("option");
-      option.value = t.id;
-      option.textContent = t.name;
-      templateSelect.append(option);
-    }
-    const allowed = document.querySelector("[data-data-permissions]");
-    allowed.replaceChildren();
-    for (const name of data.data_permissions) {
-      const label = document.createElement("label"), input = document.createElement("input");
-      input.type = "checkbox";
-      input.name = "permission";
-      input.value = name;
-      label.append(input, document.createTextNode(name));
-      allowed.append(label);
-    }
-    renderPlugins();
-    return data;
-  }
-  async function fileOperation(operation, path, extra = {}) {
-    if (!selected) throw new Error("Select a plugin first.");
-    const result = await api("/" + selected + "/files", { operation, path, revision: plugin.revision, ...extra });
-    plugin.revision = result.revision;
-    await refreshDetail();
-  }
-  function chooseFile(accept) {
-    return new Promise((resolve) => {
-      const input = document.createElement("input");
-      input.type = "file";
-      if (accept) input.accept = accept;
-      input.onchange = () => resolve(input.files[0]);
-      input.oncancel = () => resolve(null);
-      input.click();
-    });
-  }
-  const configDialog = document.querySelector("#plugin-configuration");
-  configDialog.querySelector("[data-configuration-cancel]").onclick = () => configDialog.close();
-  configDialog.querySelector("form").onsubmit = async (event) => {
-    event.preventDefault();
-    const values = {}, secrets = {}, clear_secrets = [];
-    for (const input of configDialog.querySelectorAll("[name]")) {
-      if (input.dataset.secret === "true") {
-        if (input.value) secrets[input.name] = input.value;
-      } else values[input.name] = input.dataset.enum ? JSON.parse(input.value) : input.dataset.kind === "boolean" ? input.checked : input.dataset.kind === "number" ? Number(input.value) : input.value;
-    }
-    for (const input of configDialog.querySelectorAll("[data-clear-secret]:checked")) clear_secrets.push(input.dataset.clearSecret);
-    try {
-      await api("/" + selected + "/configuration", { values, secrets, clear_secrets });
-      configDialog.querySelector("[data-configuration-fields]").replaceChildren();
-      configDialog.close();
-      message("Configuration saved. Secret values are never returned.");
-    } catch (error) {
-      configDialog.querySelector("[data-configuration-error]").textContent = error.message;
-    }
-  };
-  const wizard = document.querySelector("#plugin-wizard");
-  document.querySelector("[data-wizard-cancel]").onclick = () => wizard.close();
-  wizard.querySelector("form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = new FormData(event.target);
-    try {
-      const result = await api("", { template: form.get("template"), manifest: { id: form.get("id"), name: form.get("name"), description: form.get("description"), version: form.get("version"), author: form.get("author"), permissions: form.getAll("permission"), dependencies: form.get("dependencies").split("\n").map((x) => x.trim()).filter(Boolean) } });
-      wizard.close();
-      await reload();
-      await selectPlugin(result.id);
-    } catch (error) {
-      wizard.querySelector("[data-wizard-error]").textContent = error.message;
-    }
-  });
-  root.addEventListener("click", async (event) => {
-    const button = event.target.closest("[data-command]");
-    if (!button) return;
-    const command = button.dataset.command;
-    try {
-      if (command === "new") {
-        if (!await guard()) return;
-        wizard.querySelector("[data-wizard-error]").textContent = "";
-        wizard.showModal();
-      } else if (command === "save") await saveAll();
-      else if (command === "refresh") {
-        if (!await guard()) return;
-        const id = selected;
-        selected = null;
-        await reload();
-        if (id) await selectPlugin(id);
-      } else if (command === "export") {
-        if (!selected) throw new Error("Select a plugin first.");
-        if (!await guard()) return;
-        location.href = base + "/" + selected + "/export";
-      } else if (command === "validate") {
-        if (!selected) throw new Error("Select a plugin first.");
-        await saveAll();
-        log(await api("/" + selected + "/static-validation", {}));
-      } else if (command === "language") {
-        if (!selected) throw Error("Select a plugin first.");
-        await saveAll();
-        await language.close();
-        await language.start();
-        message("Python language server connected. F12: definition \xB7 Shift F12: references \xB7 Ctrl/\u2318 Shift Space: signature.");
-      } else if (command === "symbols") await language.symbols();
-      else if (["validate-worker", "test", "run"].includes(command)) {
-        if (!selected) throw Error("Select a plugin first.");
-        await saveAll();
-        const mode = command === "validate-worker" ? "validate" : command;
-        const data = context();
-        if(mode==='run'){const version=data.version||plugin.published_version,record=plugin.versions.find(item=>item.version===version);if(!confirm('Run published '+version+' on case '+(data.case_id??'none')+'?\nRequested API permissions: '+(record?.permissions?.join(', ')||'(none)')+'\nArtifact: '+(data.artifact||'none')))return;}
-        const result = await api("/" + selected + "/" + mode, data);
-        runId = result.id;
-        clearInterval(runTimer);
-        const poll = async () => {
-          const response = await fetch(base.replace(/\/plugins$/, "") + "/executions/" + runId, { credentials: "same-origin" });
-          if (!response.ok) {
-            clearInterval(runTimer);
-            throw Error("Worker poll failed.");
-          }
-          const state = await response.json();
-          log(state);
-          if (!["Starting", "Running"].includes(state.status)) {
-            clearInterval(runTimer);
-            await refreshDetail();
-          }
-        };
-        runTimer = setInterval(() => poll().catch((e) => message(e.message)), 750);
-        log(result);
-      } else if (command === "cancel") {
-        if (runId) {
-          const client = new DeveloperProtocol({ base: base.replace(/\/plugins$/, ""), csrf });
-          log(await client.http("/executions/" + runId + "/cancel", {}));
-          clearInterval(runTimer);
-        }
-      } else if (command === "publish") {
-        await saveAll();
-        if (confirm("Publish this immutable version after its isolated validation and test results?")) {
-          log(await api("/" + selected + "/publish", { revision: plugin.revision }));
-          await refreshDetail();
-        }
-      } else if (command === "enable") {
-        log(await api("/" + selected + "/enable", { enabled: !plugin.enabled }));
-        await refreshDetail();
-      } else if (command === "versions") {
-        log(plugin.versions);
-        const version = prompt("Published versions: " + plugin.versions.map((v) => v.version).join(", ") + ". Enter a version to roll back, or Cancel.");
-        if (version) {
-          log(await api("/" + selected + "/rollback", { version }));
-          await refreshDetail();
-        }
-      } else if (command === "configure") {
-        if (!selected) throw Error("Select a plugin first.");
-        const data = await api("/" + selected + "/configuration");
-        const dialog = document.querySelector("#plugin-configuration"), container = dialog.querySelector("[data-configuration-fields]");
-        container.replaceChildren();
-        for (const [name, field] of Object.entries(data.schema)) {
-          const label = document.createElement("label");
-          label.textContent = name + (field.required ? " *" : "");
-          let input;
-          if (field.enum) {
-            input = document.createElement("select");
-            for (const item of field.enum) {
-              const option = document.createElement("option");
-              option.value = JSON.stringify(item);
-              option.textContent = String(item);
-              input.append(option);
-            }
-            input.dataset.enum = "true";
-          } else {
-            input = document.createElement("input");
-            input.type = field.secret ? "password" : field.type === "boolean" ? "checkbox" : field.type === "number" ? "number" : "text";
-            if (field.type === "number") input.step = "any";
-          }
-          input.name = name;
-          input.dataset.kind = field.type;
-          input.dataset.secret = String(Boolean(field.secret));
-          input.autocomplete = "off";
-          if (field.secret) input.placeholder = data.configured_secrets.includes(name) ? "Configured \u2014 leave blank to retain" : "Not configured";
-          else if (field.type === "boolean") input.checked = Boolean(data.values[name] ?? field.default);
-          else input.value = input.dataset.enum ? JSON.stringify(data.values[name] ?? field.default ?? field.enum[0]) : data.values[name] ?? field.default ?? "";
-          label.append(input);
-          if (field.description) {
-            const hint = document.createElement("small");
-            hint.textContent = field.description;
-            label.append(hint);
-          }
-          if (field.secret && data.configured_secrets.includes(name)) {
-            const clear = document.createElement("label"), checkbox = document.createElement("input");
-            checkbox.type = "checkbox";
-            checkbox.dataset.clearSecret = name;
-            clear.append(checkbox, document.createTextNode("Clear stored " + name));
-            label.append(clear);
-          }
-          container.append(label);
-        }
-        dialog.querySelector("[data-configuration-error]").textContent = "";
-        dialog.showModal();
-      } else if (command === "history") {
-        if (selected) {
-          const data = await api("/" + selected + "/history"), container = q("[data-execution-history]");
-          container.replaceChildren();
-          const heading = document.createElement("p");
-          heading.textContent = "Latest " + data.executions.length + " executions";
-          container.append(heading);
-          for (const row of data.executions) {
-            const line = document.createElement("div"), button2 = document.createElement("button");
-            line.className = "ide-history-row";
-            const text = document.createElement("span");
-            text.textContent = [row.started_at, row.mode, row.plugin_version, row.status, row.duration === null ? "" : row.duration + "s"].join(" \xB7 ");
-            button2.type = "button";
-            button2.textContent = "Inspect " + row.id.slice(0, 8);
-            button2.onclick = async () => {
-              try {
-                const response = await fetch(base.replace(/\/plugins$/, "") + "/executions/" + row.id, { credentials: "same-origin" });
-                if (!response.ok) throw Error("Execution is unavailable.");
-                log(await response.json());
-              } catch (error) {
-                message(error.message);
-              }
-            };
-            line.append(text, button2);
-            container.append(line);
-          }
-          container.hidden = false;
-          output.hidden = true;
-          q(".ide-bottom").open = true;
-        }
-      } else if (command === "console") q(".ide-bottom").open = true;
-      else if (command === "focus") root.classList.toggle("ide-focused");
-      else if (command === "explorer" || command === "docs") {
-        if (command === "docs" && innerWidth <= 1100) {
-          const open = root.classList.toggle("ide-docs-open");
-          button.setAttribute("aria-expanded", String(open));
-          return;
-        }
-        const hidden = root.classList.toggle("ide-hide-" + command);
-        prefs[command] = !hidden;
-        button.setAttribute("aria-expanded", String(!hidden));
-        remember();
-      } else if (command === "new-file" || command === "new-directory") {
-        const path = prompt(command === "new-file" ? "New relative file path" : "New relative folder path");
-        if (path) {
-          await fileOperation(command === "new-file" ? "create" : "directory", path);
-          if (command === "new-file") await openFile(path);
-        }
-      } else if (command === "rename") {
-        if (!current) return;
-        if (!await guard()) return;
-        const path = prompt("New relative path", current);
-        if (path && path !== current) {
-          const previous = current;
-          await fileOperation("rename", current, { target: path });
-          buffers.delete(previous);
-          current = null;
-          await openFile(path);
-        }
-      } else if (command === "delete-file") {
-        if (!current || !confirm("Delete " + current + "?")) return;
-        await fileOperation("delete", current);
-        buffers.delete(current);
-        current = null;
-        view?.destroy();
-        view = null;
-        tabLabels();
-        if (buffers.size) await openBuffer(buffers.keys().next().value);
-      } else if (command === "close-file") {
-        if (!current || !await guard()) return;
-        buffers.delete(current);
-        current = null;
-        view?.destroy();
-        view = null;
-        tabLabels();
-        if (buffers.size) await openBuffer(buffers.keys().next().value);
-      } else if (command === "upload") {
-        if (!selected) return;
-        const file = await chooseFile();
-        if (file) {
-          const path = prompt("Relative path for upload", file.name);
-          if (path) {
-            const extra = new FormData();
-            extra.set("file", file);
-            const result = await api("/" + selected + "/files", { operation: "upload", path, revision: plugin.revision }, extra);
-            plugin.revision = result.revision;
-            await refreshDetail();
-          }
-        }
-      } else if (command === "import") {
-        if (!await guard()) return;
-        const file = await chooseFile(".zip");
-        if (file) {
-          const extra = new FormData();
-          extra.set("archive", file);
-          const response = await fetch(base.replace(/\/plugins$/, "/import"), { method: "POST", credentials: "same-origin", body: (extra.set("csrf", csrf), extra) });
-          if (!response.ok) throw new Error("Import rejected: " + (new DOMParser().parseFromString(await response.text(), "text/html").querySelector("p")?.textContent || response.statusText));
-          const result = await response.json();
-          await reload();
-          await selectPlugin(result.id);
-        }
-      } else if (command === "delete-plugin") {
-        if (!selected || !await guard() || !confirm("Delete this plugin registration? Execution history is retained.")) return;
-        await api("/" + selected + "/delete", { revision: plugin.revision });
-        selected = null;
-        plugin = null;
-        buffers.clear();
-        current = null;
-        view?.destroy();
-        view = null;
-        tree.replaceChildren();
-        tabLabels();
-        await reload();
-        message("Plugin deleted.");
-      }
-    } catch (error) {
-      message(error.message);
-    }
-  });
-  root.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-debug]");
-    if (button) {
-      saveAll().then(() => debuggerUI.action(button.dataset.debug)).catch((e) => message(e.message));
-    }
-  });
-  q("[data-case]").addEventListener("change", async () => {
-    const select = q("[data-artifact]");
-    select.replaceChildren(new Option("None", ""));
-    if (!q("[data-case]").value) return;
-    try {
-      const response = await fetch(base.replace(/\/plugins$/, "") + "/cases/" + Number(q("[data-case]").value) + "/artifacts", { credentials: "same-origin" });
-      if (!response.ok) throw Error("Artifact listing requires case asset permission.");
-      const value = await response.json();
-      for (const item of value.artifacts) select.add(new Option(item.path + " (" + item.size + " bytes)", item.path));
-    } catch (error) {
-      message(error.message);
-    }
-  });
-  q("[data-plugin-search]").addEventListener("input", renderPlugins);
-  q("[data-wrap]").checked = prefs.wrap !== false;
-  q("[data-wrap]").onchange = (event) => {
-    prefs.wrap = event.target.checked;
-    for (const b of buffers.values()) if (b.state) b.state = b.state.update({ effects: wrap.reconfigure(prefs.wrap ? EditorView.lineWrapping : []) }).state;
-    if (view) view.dispatch({ effects: wrap.reconfigure(prefs.wrap ? EditorView.lineWrapping : []) });
-    remember();
-  };
-  q("[data-indent]").value = prefs.indent || "4";
-  q("[data-indent]").onchange = (event) => {
-    prefs.indent = event.target.value;
-    for (const b of buffers.values()) if (b.state) b.state = b.state.update({ effects: indent.reconfigure(indentUnit.of(prefs.indent === "tab" ? "	" : " ".repeat(Number(prefs.indent)))) }).state;
-    if (view) view.dispatch({ effects: indent.reconfigure(indentUnit.of(prefs.indent === "tab" ? "	" : " ".repeat(Number(prefs.indent)))) });
-    remember();
-  };
-  window.addEventListener("pagehide", () => {
-    language.close();
-    debuggerUI.stop();
-    clearInterval(runTimer);
-  });
-  window.addEventListener("beforeunload", (event) => {
-    if (dirty()) {
-      event.preventDefault();
-      event.returnValue = "";
-    }
-  });
-  document.addEventListener("click", async (event) => {
-    const link = event.target.closest("a[href]");
-    if (!link || event.defaultPrevented || event.ctrlKey || event.metaKey || link.target === "_blank" || link.hasAttribute("download") || link.href.includes("/file?") || link.href === location.href || !dirty()) return;
-    event.preventDefault();
-    if (await guard()) location.href = link.href;
-  });
-  try {
-    await reload();
-    message("Select a plugin, import an archive, or create a new draft.");
-  } catch (error) {
-    message(error.message);
-  }
+
+ async function refreshDetail(){const pid=selected,result=await api('/'+pid);if(selected!==pid)return;plugin=result;q('[data-plugin-title]').textContent=plugin.name;fileTree();}
+ async function selectPlugin(id,navigation='push',targetIndex){if(id===selected){if(Number.isInteger(targetIndex))historyIndex=targetIndex;return true;}const generation=++selectionGeneration;if(!await guard()||generation!==selectionGeneration){q('[data-plugin-selector]').value=selected||'';return false;}await language.close();if(generation!==selectionGeneration)return;explorer.close();buffers.clear();current=null;view?.destroy();view=null;if(navigation==='history')historyIndex=targetIndex;selected=id;plugin=null;tree.replaceChildren();q('[data-plugin-title]').textContent='Loading…';q('[data-management-link]').href=managementUrl+'?plugin='+encodeURIComponent(id);q('[data-plugin-selector]').value=id;q('.ide-empty')?.remove();await refreshDetail();if(selected!==id||generation!==selectionGeneration)return;tabLabels();const path=plugin.files.find(f=>f.path===plugin.manifest?.entrypoint?.split(':')[0])?.path||plugin.files.find(f=>!f.directory)?.path;if(path)await openFile(path);layout.save({lastPlugin:id});q('[data-management-link]').href=managementUrl+'?plugin='+encodeURIComponent(id);const url=location.pathname+'?plugin='+encodeURIComponent(id);if(navigation==='push')window.history.pushState({mareEditor:{id,index:++historyIndex}},'',url);else if(navigation==='replace')window.history.replaceState({...window.history.state,mareEditor:{id,index:historyIndex}},'',url);message('Loaded '+plugin.name+'. Starting Python intelligence…');if(permissions.includes('edit')){try{await language.start();if(selected===id)message('Python intelligence ready.');}catch(error){if(selected===id&&generation===selectionGeneration){await language.close();message('Python intelligence unavailable: '+error.message);diagnostic(error.message);}}}return selected===id&&generation===selectionGeneration?true:undefined;}
+ async function reload(){const data=await api();permissions=data.permissions;root.querySelectorAll('[data-permission]').forEach(node=>node.hidden=!permissions.includes(node.dataset.permission));const select=q('[data-plugin-selector]');select.replaceChildren(new Option('Select a plugin',''));for(const row of data.plugins)select.add(new Option(row.name,row.id));select.value=selected||'';if(!data.plugins.length)message('No plugin packages found. Install a package through Plugins.');return data;}
+ async function fileOperation(operation,path,extra={}){if(!selected||!plugin)throw Error('Select a loaded plugin first.');const result=await api('/'+selected+'/files',{operation,path,revision:plugin.revision,...extra});plugin.revision=result.revision;await refreshDetail();}
+ async function run(){if(running)return;if(!selected||!plugin)throw Error('Select a loaded plugin first.');const pid=selected,draft=plugin;await saveAll();if(selected!==pid||plugin!==draft)throw Error('Plugin selection changed; run canceled.');if(dirty())throw Error('Newer edits remain unsaved; save them before Run.');running=true;consoleOpen();consoleTab('output');q('[data-command=run]').disabled=true;append('output',new Date().toISOString()+' Execution started: '+plugin.name+'\n');let previous={stdout:'',stderr:''};
+  function render(result){q('[data-execution-status]').textContent=result.status+(result.duration===undefined?'':' · '+result.duration+'s');for(const [stream,name] of [['stdout','output'],['stderr','debug']]){const text=result[stream]||'';append(name,text.startsWith(previous[stream])?text.slice(previous[stream].length):text);previous[stream]=text;}if(!('stdout' in result)&&result.output)diagnostic('Worker returned unclassified legacy output; update the worker to separate stdout and stderr.\n'+result.output);}
+  try{let result=await api('/'+pid+'/develop',{});runId=result.id;q('[data-command="cancel-run"]').disabled=false;diagnostic('Isolated execution started: '+runId);render(result);while(['Starting','Running'].includes(result.status)){await new Promise(resolve=>setTimeout(resolve,400));const response=await fetch(base.replace(/\/plugins$/,'')+'/executions/'+runId,{credentials:'same-origin',cache:'no-store'});if(!response.ok)throw Error('Unable to retrieve execution output.');result=await response.json();render(result);}if(result.status==='Succeeded')append('output','Execution completed in '+result.duration+'s.\n');else{diagnostic('Execution '+result.status+' ('+result.duration+'s).');consoleTab('debug');}}
+  finally{running=false;runId=null;q('[data-command=run]').disabled=false;q('[data-command=cancel-run]').disabled=true;}}
+ root.addEventListener('click',async event=>{const tab=event.target.closest('[data-console-tab]');if(tab){consoleTab(tab.dataset.consoleTab);return;}const button=event.target.closest('[data-command]');if(!button)return;try{const action=button.dataset.command;if(action==='save')await saveAll();else if(action==='run')await run();else if(action==='cancel-run'&&runId){button.disabled=true;const response=await fetch(base.replace(/\/plugins$/,'')+'/executions/'+runId+'/cancel',{method:'POST',credentials:'same-origin',headers:{'X-CSRFToken':csrf},body:new URLSearchParams({csrf:csrf,payload:'{}'})});if(!response.ok)throw Error('Unable to cancel execution.');diagnostic('Execution cancellation requested.');}else if(action==='console')consoleOpen(consolePanel.hidden);else if(action==='clear-console'){outputs[activeConsole]='';q(activeConsole==='output'?'[data-output]':'[data-debug-output]').textContent='';}else if(action==='copy-console')await navigator.clipboard.writeText(outputs[activeConsole]);else if(action==='refresh'){if(saving)await saving;await refreshDetail();message('Explorer refreshed. Unsaved buffers were retained.');}else if(action==='new-file')explorer.newFile();else if(action==='new-directory')explorer.newFolder();else if(action==='rename')explorer.rename();else if(action==='delete-file')await explorer.remove();}
+
+  catch(error){if(button.dataset.command==='run'){consoleOpen();consoleTab('debug');q('[data-execution-status]').textContent='Failed';}fail(error);}});
+ root.querySelector('[aria-label="Console tabs"]').addEventListener('keydown',event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();consoleTab(event.key==='Home'?'output':event.key==='End'?'debug':activeConsole==='output'?'debug':'output');q('[data-console-tab='+activeConsole+']').focus();}});
+ q('[data-plugin-selector]').onchange=event=>{if(event.target.value)selectPlugin(event.target.value).catch(fail);else event.target.value=selected||'';};
+ q('[data-word-wrap]').checked=prefs.wrap;q('[data-word-wrap]').onchange=event=>{prefs.wrap=event.target.checked;layout.save({wordWrap:prefs.wrap});const effect=wrap.reconfigure(prefs.wrap?EditorView.lineWrapping:[]);view?.dispatch({effects:effect});for(const buffer of buffers.values())if(buffer.state&&buffer.state!==view?.state)buffer.state=buffer.state.update({effects:effect}).state;};
+ consoleOpen(!!layout.prefs.consoleOpen);consoleTab(activeConsole);
+ window.addEventListener('popstate',async event=>{if(restoringHistory){restoringHistory=false;return;}const state=event.state?.mareEditor;if(!state)return;const delta=state.index-historyIndex;try{const accepted=await selectPlugin(state.id,'history',state.index);if(accepted===false&&delta){restoringHistory=true;window.history.go(-delta);}}catch(error){fail(error);}});
+ window.addEventListener('beforeunload',event=>{if(dirty()){event.preventDefault();event.returnValue='';}});window.addEventListener('pagehide',()=>language.close());
+ document.addEventListener('click',async event=>{const link=event.target.closest('a[href]');if(!link||event.defaultPrevented||event.ctrlKey||event.metaKey||link.target==='_blank'||link.hasAttribute('download')||link.href.includes('/file?')||link.href===location.href||!dirty())return;event.preventDefault();if(await guard())location.href=link.href;});
+ try{const response=await fetch(base.replace(/\/plugins$/,'/discovery'),{method:'POST',credentials:'same-origin',body:(()=>{const form=new FormData();form.set('csrf',csrf);return form;})()});if(!response.ok)diagnostic('Directory discovery unavailable; existing registered packages remain available.');const data=await reload(),id=root.dataset.selected||data.plugins.find(row=>row.id===layout.prefs.lastPlugin)?.id||data.plugins[0]?.id;if(id)await selectPlugin(id,'replace');}catch(error){fail(error);}
 }
-export {
-  mountDeveloperEditor
-};
+export {mountDeveloperEditor};

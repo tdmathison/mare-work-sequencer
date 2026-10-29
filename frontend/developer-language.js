@@ -1,9 +1,13 @@
-import { autocompletion } from "@codemirror/autocomplete";
-import { hoverTooltip, keymap } from "@codemirror/view";
+import {StateEffect,StateField} from '@codemirror/state';
+import { autocompletion, acceptCompletion, startCompletion } from "@codemirror/autocomplete";
+import { hoverTooltip, keymap, showTooltip } from "@codemirror/view";
 import { setDiagnostics } from "@codemirror/lint";
 import { DeveloperProtocol } from "./developer-protocol";
 function languageService({ root, base, csrf, plugin, view, current, contents, log, symbol, open }) {
-  let protocol, version = 0, timer;
+  let protocol, version = 0, timer, ready=false, epoch=0;
+  const signatureEffect=StateEffect.define();
+  const signatureField=StateField.define({create:()=>null,update(value,tr){if(tr.docChanged||tr.selection)value=null;for(const effect of tr.effects)if(effect.is(signatureEffect))value=effect.value;return value;},provide:field=>showTooltip.computeN([field],state=>{const value=state.field(field);return value?[{pos:value.pos,above:true,strictSide:false,create:()=>{const dom=document.createElement('div');dom.className='ide-signature';dom.textContent=value.text;return {dom};}}]:[];})});
+  function signature(text){const v=view();if(v)v.dispatch({effects:signatureEffect.of(text?{text,pos:v.state.selection.main.head}:null)});}
   const opened = /* @__PURE__ */ new Map();
   const uri = (path) => "file:///work/" + path.split("/").map(encodeURIComponent).join("/");
   const position = (v, offset) => {
@@ -11,7 +15,7 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
     return { line: line.number - 1, character: offset - line.from };
   };
   async function sync() {
-    if (!protocol || !current()) return;
+    if (!protocol || !ready || !current()) return;
     const path = current();
     if (!path.endsWith(".py")) return;
     const text = contents();
@@ -21,7 +25,7 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
     opened.set(path, text);
   }
   async function request(method, offset) {
-    if (!protocol) return null;
+    if (!protocol || !ready || !current()?.endsWith(".py")) return null;
     await sync();
     return protocol.request(method, { textDocument: { uri: uri(current()) }, position: position(view(), offset), context: { includeDeclaration: true } });
   }
@@ -43,9 +47,9 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
     if (path?.startsWith("file:///work/")) await open(decodeURIComponent(path.slice(13)), target.range?.start?.line || target.targetRange?.start?.line || 0);
     else symbol("Definition is in an installed dependency; see SDK documentation.");
   }
-  const extension = [autocompletion({ override: [async (context) => {
-    if (!protocol) return null;
-    const result = await request("textDocument/completion", context.pos);
+  const extension = [signatureField, keymap.of([{key:"Tab",run:acceptCompletion},{key:"Escape",run:()=>{signature(null);return false;}}]), autocompletion({ activateOnTyping:true, override: [async (context) => {
+    if (!protocol || !ready) return null;
+    let result;try{result=await request("textDocument/completion", context.pos);}catch(error){log(error.message);return null;}
     const items = Array.isArray(result) ? result : result?.items || [];
     const word = context.matchBefore(/[\w]*/);
     return { from: word?.from ?? context.pos, options: items.map((item) => ({ label: item.label, type: item.kind === 3 ? "function" : item.kind === 2 ? "method" : item.kind === 7 ? "class" : "variable", detail: item.detail, info: async () => {
@@ -56,7 +60,7 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
       return dom;
     }, apply: item.insertTextFormat === 2 ? item.label : item.insertText || item.label })) };
   }] }), hoverTooltip(async (v, offset) => {
-    if (!protocol) return null;
+    if (!protocol || !ready) return null;
     const result = await request("textDocument/hover", offset);
     if (!result) return null;
     return { pos: offset, create: () => {
@@ -72,11 +76,12 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
     navigate("textDocument/references").catch((e) => log(e.message));
     return true;
   } }, { key: "Mod-Shift-Space", run: () => {
-    request("textDocument/signatureHelp", view().state.selection.main.head).then((result) => symbol(result?.signatures?.map((s) => s.label + "\n" + plain(s.documentation)).join("\n") || "No signature available.")).catch((e) => log(e.message));
+    request("textDocument/signatureHelp", view().state.selection.main.head).then((result) => signature(result?.signatures?.map((s) => s.label + "\n" + plain(s.documentation)).join("\n") || "No signature available.")).catch((e) => log(e.message));
     return true;
   } }])];
   async function start() {
-    protocol = new DeveloperProtocol({ base, csrf, id: plugin(), mode: "language", onOutput: log, onEvent: (message) => {
+    const generation=++epoch;
+    const session = new DeveloperProtocol({ base, csrf, id: plugin(), mode: "language", onOutput: log, onEvent: (message) => {
       if (message.method === "textDocument/publishDiagnostics" && message.params.uri === uri(current())) {
         const v = view();
         if (!v) return;
@@ -88,12 +93,19 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
         v.dispatch(setDiagnostics(v.state, diagnostics));
       }
     } });
-    await protocol.start();
-    await protocol.request("initialize", { capabilities: { textDocument: { completion: { completionItem: { snippetSupport: false } }, hover: { contentFormat: ["plaintext"] } } } });
-    await protocol.notify("initialized", {});
+    protocol=session;
+    await session.start();
+    if(generation!==epoch){await session.close();return;}
+    await session.request("initialize", { processId:null, rootUri:"file:///work", workspaceFolders:[{uri:"file:///work",name:"Plugin"}], capabilities: { textDocument: { completion: { completionItem: { snippetSupport: false } }, hover: { contentFormat: ["plaintext"] } } } });
+    if(generation!==epoch){await session.close();return;}
+    await session.notify("initialized", {});
+    if(generation!==epoch){await session.close();return;}
+    ready=true;
     await sync();
   }
   return { extension, start, changed() {
+    const active=view();
+    if(ready&&active&&active.state.doc.sliceString(Math.max(0,active.state.selection.main.head-1),active.state.selection.main.head)==='.')startCompletion(active);
     clearTimeout(timer);
     timer = setTimeout(async () => {
       try {
@@ -101,7 +113,7 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
         const v = view();
         if (protocol && v && /[,(]/.test(v.state.doc.sliceString(Math.max(0, v.state.selection.main.head - 1), v.state.selection.main.head))) {
           const result = await request("textDocument/signatureHelp", v.state.selection.main.head);
-          if (result?.signatures?.length) symbol(result.signatures.map((s) => s.label).join("\n"));
+          if (result?.signatures?.length) signature(result.signatures.map((s) => s.label).join("\n"));
         }
       } catch (e) {
         log(e.message);
@@ -112,9 +124,12 @@ function languageService({ root, base, csrf, plugin, view, current, contents, lo
     symbol(await protocol.request("textDocument/documentSymbol", { textDocument: { uri: uri(current()) } }));
   }, async close() {
     clearTimeout(timer);
-    await protocol?.close();
-    protocol = null;
+    ++epoch;
+    const session=protocol;
+    protocol=null;
+    ready=false;
     opened.clear();
+    await session?.close();
   } };
 }
 export {

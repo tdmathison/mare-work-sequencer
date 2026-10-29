@@ -2,6 +2,8 @@
 
 from flask import abort, g, render_template, request, session, url_for
 from authorization import has_permission
+from dashboard_directory import DASHBOARDS
+from navigation import SETTINGS_CATEGORY_ENDPOINTS
 
 
 def register_shell(app, db):
@@ -55,91 +57,17 @@ def register_shell(app, db):
                 tools.append(
                     dict(
                         label=tool.name,
+                        identifier=tool.identifier,
+                        icon=tool.icon,
                         url=url_for("tools_workspace", tool_id=tool.identifier),
                         active=endpoint == "tools_workspace"
-                        and ((request.view_args or {}).get("tool_id") or "cyberchef")
-                        == tool.identifier,
-                    )
-                )
-        if (
-            tools
-            and endpoint == "tools_workspace"
-            and not (request.view_args or {}).get("tool_id")
-        ):
-            tools[0]["active"] = True
-        if tools:
-            add(
-                "Tools",
-                tools[0]["url"],
-                "⚒",
-                endpoint.startswith(("tools_", "yara_", "snort_")),
-                tools,
-            )
-        if can("plugins:read"):
-            add("Plugins", url_for("plugins_page"), "◇", endpoint == "plugins_page")
-        if can("metrics:read"):
-            add("Metrics", url_for("metrics"), "▥", endpoint == "metrics")
-        if user["role"] == "Administrator":
-            add("Users", url_for("users"), "♙", endpoint in ("users", "user_action"))
-        add(
-            "Settings",
-            url_for("account"),
-            "⚙",
-            endpoint in ("account", "settings_home", "audit_view"),
-            [
-                dict(
-                    label="General",
-                    url=url_for("account"),
-                    active=endpoint == "account",
-                )
-            ]
-            + (
-                [
-                    dict(
-                        label="Audit",
-                        url=url_for("audit_view"),
-                        active=endpoint == "audit_view",
-                    )
-                ]
-                if user["role"] == "Administrator"
-                else []
-            ),
-        )
-        if can("backups:manage"):
-            add(
-                "Import & Export",
-                url_for("import_export_page"),
-                "⇄",
-                endpoint.startswith(("backup_", "sync_import"))
-                or endpoint == "import_export_page",
-            )
-        developer = []
-        for label, permission, target in [
-            ("API", "developer:api", "api_page"),
-            ("SDK", "developer:sdk", "developer_sdk"),
-            ("Editor", "plugins:read", "developer_editor"),
-        ]:
-            if can(permission):
-                developer.append(
-                    dict(
-                        label=label,
-                        url=url_for(target),
-                        active=endpoint
-                        in (
-                            (target, "developer_api", "api_openapi")
-                            if label == "API"
-                            else (target,)
+                        and (
+                            (request.view_args or {}).get("tool_id") == tool.identifier
+                            if (request.view_args or {}).get("tool_id")
+                            else not tools
                         ),
                     )
                 )
-        if developer:
-            add(
-                "Developer",
-                developer[0]["url"],
-                "⌘",
-                any(c["active"] for c in developer),
-                developer,
-            )
         if can("tags:read"):
             add(
                 "Malware Families",
@@ -159,6 +87,21 @@ def register_shell(app, db):
                 "#",
                 endpoint.startswith(("tags_", "tag_")),
             )
+        add(
+            "Dashboards",
+            url_for("dashboards_directory"),
+            "▧",
+            endpoint == "dashboards_directory"
+            or any(item.endpoint == endpoint for item in DASHBOARDS),
+        )
+        if tools:
+            add(
+                "Tools",
+                tools[0]["url"],
+                "⚒",
+                endpoint.startswith(("tools_", "yara_", "snort_")),
+                tools,
+            )
         if can("cases:read") or can("tags:read"):
             add(
                 "Data Explorer",
@@ -166,12 +109,80 @@ def register_shell(app, db):
                 "⌗",
                 endpoint == "data_explorer",
             )
+
+        settings = [
+            dict(
+                label="General",
+                icon="⚙",
+                url=url_for("account"),
+                active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["general"],
+            )
+        ]
+        # Match the existing Administrator-only Users and Audit web routes.
+        if user["role"] == "Administrator":
+            settings.append(
+                dict(
+                    label="Users",
+                    icon="♙",
+                    url=url_for("users"),
+                    active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["users"],
+                )
+            )
+        if can("backups:manage"):
+            settings.append(
+                dict(
+                    label="Import & Export",
+                    icon="⇄",
+                    url=url_for("import_export_page"),
+                    active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["import-export"],
+                )
+            )
+        if user["role"] == "Administrator":
+            settings.append(
+                dict(
+                    label="Audit",
+                    icon="▤",
+                    url=url_for("audit_view"),
+                    active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["audit"],
+                )
+            )
         add(
-            "Dashboards",
-            url_for("dashboards_directory"),
-            "▧",
-            endpoint == "dashboards_directory",
+            "Settings",
+            url_for("account"),
+            "⚙",
+            any(child["active"] for child in settings),
+            settings,
         )
+
+        developer = []
+        for label, permission, target, icon in [
+            ("API", "developer:api", "api_page", "⇆"),
+            ("SDK", "developer:sdk", "developer_sdk", "▥"),
+            ("Editor", "plugins:read", "developer_editor", "✎"),
+            ("Plugins", "plugins:read", "plugins_page", "◇"),
+        ]:
+            if can(permission):
+                developer.append(
+                    dict(
+                        label=label,
+                        icon=icon,
+                        url=url_for(target),
+                        active=endpoint
+                        in (
+                            (target, "developer_api", "api_openapi")
+                            if label == "API"
+                            else (target,)
+                        ),
+                    )
+                )
+        if developer:
+            add(
+                "Developer",
+                developer[0]["url"],
+                "⌘",
+                any(child["active"] for child in developer),
+                developer,
+            )
         current = next((i["label"] for i in items if i["active"]), "MWS")
         return dict(sidebar_items=items, shell_current=current)
 
