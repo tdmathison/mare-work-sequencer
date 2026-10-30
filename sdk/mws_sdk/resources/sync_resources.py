@@ -526,6 +526,52 @@ class TagsResource(Resource):
         'Tag manage. POST /api/v1/tags/{tid}/rename. \n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically.'
         return self._transport.request('POST', 'tags/{tid}/rename'.replace('{tid}', path_value(tid, nested=False)), data=data, files=files, request_model=TagsRenameRequest, media='application/json', response_model=TagsRenameResponse)
 
+class TaskCollectionsResource(Resource):
+    """Authorized task_collections operations. Server-side RBAC remains authoritative."""
+    def from_tasks(self, cid: int, *, data: TaskCollectionsFromTasksRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsFromTasksResponse:
+        'Copy selected Case definitions into a global collection. POST /api/v1/cases/{cid}/task-collections. Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('POST', 'cases/{cid}/task-collections'.replace('{cid}', path_value(cid, nested=False)), data=data, files=files, request_model=TaskCollectionsFromTasksRequest, media='application/json', response_model=TaskCollectionsFromTasksResponse)
+
+    def apply(self, cid: int, collection_id: str, *, data: TaskCollectionsApplyRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsApplyResponse:
+        'Apply selected templates atomically to a Case. POST /api/v1/cases/{cid}/task-collections/{collection_id}/apply. Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('POST', 'cases/{cid}/task-collections/{collection_id}/apply'.replace('{cid}', path_value(cid, nested=False)).replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsApplyRequest, media='application/json', response_model=TaskCollectionsApplyResponse)
+
+    def case_groups(self, cid: int) -> TaskCollectionsCaseGroupsResponse:
+        'Read Case tasks, groups and source provenance. GET /api/v1/cases/{cid}/task-groups. Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.\n\nRequired role permission: cases:read.'
+        return self._transport.request('GET', 'cases/{cid}/task-groups'.replace('{cid}', path_value(cid, nested=False)), response_model=TaskCollectionsCaseGroupsResponse)
+
+    def remove_group(self, cid: int, gid: str, *, data: TaskCollectionsRemoveGroupRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsRemoveGroupResponse:
+        'Remove Case group and its copied tasks. DELETE /api/v1/cases/{cid}/task-groups/{gid}. Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('DELETE', 'cases/{cid}/task-groups/{gid}'.replace('{cid}', path_value(cid, nested=False)).replace('{gid}', path_value(gid, nested=False)), data=data, files=files, request_model=TaskCollectionsRemoveGroupRequest, media='application/json', response_model=TaskCollectionsRemoveGroupResponse)
+
+    def reorder(self, cid: int, *, data: TaskCollectionsReorderRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsReorderResponse:
+        'Reorder all tasks within one Case group. PUT /api/v1/cases/{cid}/task-order. Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('PUT', 'cases/{cid}/task-order'.replace('{cid}', path_value(cid, nested=False)), data=data, files=files, request_model=TaskCollectionsReorderRequest, media='application/json', response_model=TaskCollectionsReorderResponse)
+
+    def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None = None) -> TaskCollectionsListResponse:
+        'List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user.'
+        return self._transport.request('GET', 'task-collections', params=params, response_model=TaskCollectionsListResponse)
+
+    def create(self, *, data: TaskCollectionsCreateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsCreateResponse:
+        'Create a global task collection. POST /api/v1/task-collections. Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('POST', 'task-collections', data=data, files=files, request_model=TaskCollectionsCreateRequest, media='application/json', response_model=TaskCollectionsCreateResponse)
+
+    def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> None:
+        'Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('DELETE', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsDeleteRequest, media='application/json')
+
+    def get(self, collection_id: str) -> TaskCollectionsGetResponse:
+        'Read a task collection. GET /api/v1/task-collections/{collection_id}. Returns the current revision and ordered templates. Reading a collection never changes Case content.\n\nRequired role permission: any authenticated API user.'
+        return self._transport.request('GET', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), response_model=TaskCollectionsGetResponse)
+
+    def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsUpdateResponse:
+        'Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        return self._transport.request('PATCH', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsUpdateRequest, media='application/json', response_model=TaskCollectionsUpdateResponse)
+
+    def iter_all(self, *, params=None):
+        """Yield authorized records across offset pages without preloading the dataset."""
+        yield from self._iterate(self.list, 'collections', (), params)
+
 class TasksResource(Resource):
     """Authorized tasks operations. Server-side RBAC remains authoritative."""
     def list(self, case_id: int, *, params: TasksListParams | Mapping[str, Any] | None = None) -> TasksListResponse:

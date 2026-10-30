@@ -184,3 +184,11 @@ credentials remain outside the plugin/debuggee. Deployment and publishing are
 covered in the application's [Developer Workspace guide](../docs/DEVELOPER_WORKSPACE.md).
 `client.plugins.capabilities()` reports the registered tools and your authorized
 Developer plugin registrations; it does not execute plugins.
+
+## Task collections
+
+`client.task_collections` and its async equivalent support shared guidance CRUD,
+ordered template updates, creating/appending definitions from Case tasks, Case
+groups, reordering and atomic application with an idempotency key. Existing
+`client.tasks` methods remain supported. See the [task collection guide](../docs/TASK_COLLECTIONS.md#rest-api-and-python-sdk)
+and [explicit-write example](examples/task_collections.py).

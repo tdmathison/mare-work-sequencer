@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 from backup_areas import selection
 
-EXPORT_IDENTIFIERS = (("cases", "C"), ("tags", "T"), ("actors", "TA"), ("families", "MF"))
+EXPORT_IDENTIFIERS = (("cases", "C"), ("tags", "T"), ("actors", "TA"), ("families", "MF"), ("task_collections", "TC"))
 
 
 def archive_filename(areas, timezone_name=None, *, started_at=None):

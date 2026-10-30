@@ -57,7 +57,7 @@ SCHEMAS = {
                  **dict.fromkeys(('stage_name', 'created', 'report_path'), TEXT),
                  **dict.fromkeys(('owner_name', 'creator_name'), NULL_TEXT), 'creator_id': NULL_INT, 'owner_active': BOOL}),
     'Task': obj({**{key: value for key, value in TASK_FIELDS.items() if key != 'description'}, 'id': INT,
-                 'state': {**TEXT, 'enum': ['Not Started', 'In Progress', 'Completed']}, 'done': INT, 'created': TEXT}),
+                 'state': {**TEXT, 'enum': ['Not Started', 'In Progress', 'Completed']}, 'done': INT, 'created': TEXT,'group_id':NULL_TEXT,'source_collection_id':NULL_TEXT,'source_template_id':NULL_TEXT,'source_revision':NULL_INT,'position':INT}),
     'Note': obj({**NOTE_FIELDS, 'include_export': INT, 'id': INT, 'author': TEXT, 'created': TEXT}),
     'Draft': obj({'title': TITLE, 'body': MARKDOWN, 'updated': TEXT}, nullable=True),
     'Readiness': array(obj({'category': CATEGORY, 'label': TEXT, 'status': TEXT, 'reason': TEXT, 'count': INT})),

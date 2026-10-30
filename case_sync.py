@@ -76,6 +76,7 @@ def logical_snapshot(validated, folder):
             and p.stat().st_size == 0
         )
     }
+    records["tasks"].sort(key=lambda row:row.get("position",0))
     # Local task row IDs used in image section labels are not portable identity.
     for image in images:
         if image["section"].startswith("task-"):
@@ -87,6 +88,17 @@ def logical_snapshot(validated, folder):
             image["section"] = (
                 "task-index-" + str(matches[0]) if matches else "task-draft"
             )
+    # Optional collection metadata must not invalidate pre-collection revision
+    # fingerprints. Ordering is semantic; local position numbers are not identity.
+    for task in records['tasks']:
+        task.pop('position',None)
+        if not task.get('group_id'):
+            for key in ('group_id','source_template_id','source_collection_id','source_revision'):task.pop(key,None)
+    live_groups={g['id'] for g in records.get('task_groups',[])}
+    if records.get('task_application_history'):
+        records['task_application_history']=[a for a in records['task_application_history'] if json.loads(a['response']).get('group_id') not in live_groups]
+    for key in ('task_groups','task_application_history'):
+        if not records.get(key):records.pop(key,None)
     readiness = {row["category"]: row for row in records["readiness"]}
     records["readiness"] = []
     for category in CATEGORIES:
@@ -335,6 +347,8 @@ class CaseSync:
         for table in (
             "notes",
             "tasks",
+            "task_groups",
+            "task_collection_applications",
             "history",
             "deferred",
             "readiness",

@@ -51,6 +51,8 @@ FAMILY_COLUMNS = {
 }
 
 
+TASK_COUNT_TABLES={"task_collections","task_collection_revisions","task_groups","tasks"}
+
 def record_counts(connection):
     tables = {
         r[0]
@@ -62,7 +64,7 @@ def record_counts(connection):
             if table in tables
             else 0
         )
-        for table in COUNT_TABLES
+        for table in (*COUNT_TABLES, *(sorted(TASK_COUNT_TABLES) if "task_collections" in tables else ()))
     }
 
 
@@ -264,6 +266,8 @@ def validate_database(path, modern):
                 (MAX_REPORTS,),
             ).fetchone():
                 raise ValueError("Too many reports for one family.")
+        from task_collection_portable import validate_database as validate_tasks
+        validate_tasks(connection)
         return record_counts(connection), has_families
     except sqlite3.DatabaseError as exc:
         raise ValueError("Invalid installation database.") from exc
@@ -332,6 +336,9 @@ def restore_installation(archive_path, destination):
                     set(COUNT_TABLES) - ACTOR_TABLES if modern_reports else
                     set(COUNT_TABLES) - ACTOR_TABLES - {"family_reports"}
                 )
+                extras=set(manifest["counts"]) & TASK_COUNT_TABLES
+                if extras and extras!=TASK_COUNT_TABLES:raise ValueError("Incomplete task collection counts.")
+                expected_counts |= extras
                 if set(manifest["counts"]) != expected_counts or any(
                     type(value) is not int or value < 0
                     for value in manifest["counts"].values()
@@ -403,6 +410,15 @@ def restore_installation(archive_path, destination):
                 initialize_aliases(connection)
                 from threat_actors import initialize as initialize_actors
                 initialize_actors(connection)
+        # Upgrade this additive feature only after original hashes/counts validate.
+        # Other historical schema differences retain the existing upgrade-copy rule.
+        with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
+            tables={r[0] for r in upgraded.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            columns={r[1] for r in upgraded.execute('PRAGMA table_info(tasks)')}
+            if 'task_collections' not in tables and {'tasks','role_permissions','roles'}<=tables and {'body','state','priority'}<=columns:
+                from authorization import initialize_roles
+                from task_collections import initialize as initialize_collections
+                initialize_roles(upgraded);initialize_collections(upgraded)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():

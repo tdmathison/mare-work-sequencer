@@ -1229,6 +1229,110 @@ Required role permission: tags:manage.
 
 Execute affects real application data. Nothing executes automatically.
 
+### TaskCollectionsResource
+
+Authorized task_collections operations. Server-side RBAC remains authoritative.
+
+```python
+def from_tasks(self, cid: int, *, data: TaskCollectionsFromTasksRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsFromTasksResponse
+```
+
+Copy selected Case definitions into a global collection. POST /api/v1/cases/{cid}/task-collections. Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.
+
+Required role permission: any authenticated API user.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def apply(self, cid: int, collection_id: str, *, data: TaskCollectionsApplyRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsApplyResponse
+```
+
+Apply selected templates atomically to a Case. POST /api/v1/cases/{cid}/task-collections/{collection_id}/apply. Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def case_groups(self, cid: int) -> TaskCollectionsCaseGroupsResponse
+```
+
+Read Case tasks, groups and source provenance. GET /api/v1/cases/{cid}/task-groups. Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.
+
+Required role permission: cases:read.
+
+```python
+def remove_group(self, cid: int, gid: str, *, data: TaskCollectionsRemoveGroupRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsRemoveGroupResponse
+```
+
+Remove Case group and its copied tasks. DELETE /api/v1/cases/{cid}/task-groups/{gid}. Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def reorder(self, cid: int, *, data: TaskCollectionsReorderRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsReorderResponse
+```
+
+Reorder all tasks within one Case group. PUT /api/v1/cases/{cid}/task-order. Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None=None) -> TaskCollectionsListResponse
+```
+
+List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.
+
+Required role permission: any authenticated API user.
+
+```python
+def create(self, *, data: TaskCollectionsCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsCreateResponse
+```
+
+Create a global task collection. POST /api/v1/task-collections. Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.
+
+Required role permission: task_collections:create.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> None
+```
+
+Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.
+
+Required role permission: task_collections:delete.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def get(self, collection_id: str) -> TaskCollectionsGetResponse
+```
+
+Read a task collection. GET /api/v1/task-collections/{collection_id}. Returns the current revision and ordered templates. Reading a collection never changes Case content.
+
+Required role permission: any authenticated API user.
+
+```python
+def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsUpdateResponse
+```
+
+Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.
+
+Required role permission: task_collections:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def iter_all(self, *, params=None)
+```
+
+Yield authorized records across offset pages without preloading the dataset.
+
 ### TasksResource
 
 Authorized tasks operations. Server-side RBAC remains authoritative.
@@ -2789,6 +2893,110 @@ Required role permission: tags:manage.
 
 Execute affects real application data. Nothing executes automatically.
 
+### AsyncTaskCollectionsResource
+
+Authorized task_collections operations. Server-side RBAC remains authoritative.
+
+```python
+async def from_tasks(self, cid: int, *, data: TaskCollectionsFromTasksRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsFromTasksResponse
+```
+
+Copy selected Case definitions into a global collection. POST /api/v1/cases/{cid}/task-collections. Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.
+
+Required role permission: any authenticated API user.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def apply(self, cid: int, collection_id: str, *, data: TaskCollectionsApplyRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsApplyResponse
+```
+
+Apply selected templates atomically to a Case. POST /api/v1/cases/{cid}/task-collections/{collection_id}/apply. Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def case_groups(self, cid: int) -> TaskCollectionsCaseGroupsResponse
+```
+
+Read Case tasks, groups and source provenance. GET /api/v1/cases/{cid}/task-groups. Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.
+
+Required role permission: cases:read.
+
+```python
+async def remove_group(self, cid: int, gid: str, *, data: TaskCollectionsRemoveGroupRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsRemoveGroupResponse
+```
+
+Remove Case group and its copied tasks. DELETE /api/v1/cases/{cid}/task-groups/{gid}. Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def reorder(self, cid: int, *, data: TaskCollectionsReorderRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsReorderResponse
+```
+
+Reorder all tasks within one Case group. PUT /api/v1/cases/{cid}/task-order. Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.
+
+Required role permission: cases:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None=None) -> TaskCollectionsListResponse
+```
+
+List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.
+
+Required role permission: any authenticated API user.
+
+```python
+async def create(self, *, data: TaskCollectionsCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsCreateResponse
+```
+
+Create a global task collection. POST /api/v1/task-collections. Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.
+
+Required role permission: task_collections:create.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> None
+```
+
+Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.
+
+Required role permission: task_collections:delete.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def get(self, collection_id: str) -> TaskCollectionsGetResponse
+```
+
+Read a task collection. GET /api/v1/task-collections/{collection_id}. Returns the current revision and ordered templates. Reading a collection never changes Case content.
+
+Required role permission: any authenticated API user.
+
+```python
+async def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsUpdateResponse
+```
+
+Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.
+
+Required role permission: task_collections:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def iter_all(self, *, params=None)
+```
+
+Yield authorized records across offset pages without preloading the dataset.
+
 ### AsyncTasksResource
 
 Authorized tasks operations. Server-side RBAC remains authoritative.
@@ -3239,6 +3447,10 @@ SyncOutcome version-1 API fields.
 
 SyncResult version-1 API fields.
 
+### TaskCollection
+
+TaskCollection version-1 API fields.
+
 ### ActorsListParams
 
 ActorsListParams version-1 API fields.
@@ -3655,6 +3867,42 @@ TagsAssignResponse version-1 API fields.
 
 TagsRemoveResponse version-1 API fields.
 
+### TaskCollectionsFromTasksRequest
+
+TaskCollectionsFromTasksRequest version-1 API fields.
+
+### TaskCollectionsFromTasksResponse
+
+TaskCollectionsFromTasksResponse version-1 API fields.
+
+### TaskCollectionsApplyRequest
+
+TaskCollectionsApplyRequest version-1 API fields.
+
+### TaskCollectionsApplyResponse
+
+TaskCollectionsApplyResponse version-1 API fields.
+
+### TaskCollectionsCaseGroupsResponse
+
+TaskCollectionsCaseGroupsResponse version-1 API fields.
+
+### TaskCollectionsRemoveGroupRequest
+
+TaskCollectionsRemoveGroupRequest version-1 API fields.
+
+### TaskCollectionsRemoveGroupResponse
+
+TaskCollectionsRemoveGroupResponse version-1 API fields.
+
+### TaskCollectionsReorderRequest
+
+TaskCollectionsReorderRequest version-1 API fields.
+
+### TaskCollectionsReorderResponse
+
+TaskCollectionsReorderResponse version-1 API fields.
+
 ### ToolsYaraOpenParams
 
 ToolsYaraOpenParams version-1 API fields.
@@ -3963,6 +4211,38 @@ TagsRenameRequest version-1 API fields.
 
 TagsRenameResponse version-1 API fields.
 
+### TaskCollectionsListParams
+
+TaskCollectionsListParams version-1 API fields.
+
+### TaskCollectionsListResponse
+
+TaskCollectionsListResponse version-1 API fields.
+
+### TaskCollectionsCreateRequest
+
+TaskCollectionsCreateRequest version-1 API fields.
+
+### TaskCollectionsCreateResponse
+
+TaskCollectionsCreateResponse version-1 API fields.
+
+### TaskCollectionsDeleteRequest
+
+TaskCollectionsDeleteRequest version-1 API fields.
+
+### TaskCollectionsGetResponse
+
+TaskCollectionsGetResponse version-1 API fields.
+
+### TaskCollectionsUpdateRequest
+
+TaskCollectionsUpdateRequest version-1 API fields.
+
+### TaskCollectionsUpdateResponse
+
+TaskCollectionsUpdateResponse version-1 API fields.
+
 ### TemplatesListResponse
 
 TemplatesListResponse version-1 API fields.
@@ -4119,6 +4399,10 @@ IndicatorSectionRowMetaItem version-1 API fields.
 
 IndicatorsStix version-1 API fields.
 
+### TaskCollectionTasksItem
+
+TaskCollectionTasksItem version-1 API fields.
+
 ### ActorsListResponseProfilesItem
 
 ActorsListResponseProfilesItem version-1 API fields.
@@ -4162,6 +4446,22 @@ ReportsUpdateMappingsRequestMappings version-1 API fields.
 ### ReportsUpdateMappingsResponseMappings
 
 ReportsUpdateMappingsResponseMappings version-1 API fields.
+
+### TaskCollectionsFromTasksRequestTasksItem
+
+TaskCollectionsFromTasksRequestTasksItem version-1 API fields.
+
+### TaskCollectionsApplyResponseSourceTasksItem
+
+TaskCollectionsApplyResponseSourceTasksItem version-1 API fields.
+
+### TaskCollectionsCaseGroupsResponseGroupsItem
+
+TaskCollectionsCaseGroupsResponseGroupsItem version-1 API fields.
+
+### TaskCollectionsCaseGroupsResponseApplicationsItem
+
+TaskCollectionsCaseGroupsResponseApplicationsItem version-1 API fields.
 
 ### CoverageGetResponseRowsItem
 
@@ -4211,6 +4511,18 @@ SettingsUpdateResponseSettings version-1 API fields.
 
 TagsGetResponseTag version-1 API fields.
 
+### TaskCollectionsListResponsePermissions
+
+TaskCollectionsListResponsePermissions version-1 API fields.
+
+### TaskCollectionsCreateRequestTasksItem
+
+TaskCollectionsCreateRequestTasksItem version-1 API fields.
+
+### TaskCollectionsUpdateRequestTasksItem
+
+TaskCollectionsUpdateRequestTasksItem version-1 API fields.
+
 ### ToolsListResponseToolsItem
 
 ToolsListResponseToolsItem version-1 API fields.
@@ -4246,6 +4558,10 @@ CasesGetResponseCaseHistoryItem version-1 API fields.
 ### CasesGetResponseCaseDeferredItem
 
 CasesGetResponseCaseDeferredItem version-1 API fields.
+
+### TaskCollectionsCaseGroupsResponseGroupsItemSourceTasksItem
+
+TaskCollectionsCaseGroupsResponseGroupsItemSourceTasksItem version-1 API fields.
 
 ### CoverageGetResponseRowsItemIndicators
 

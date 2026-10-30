@@ -12,8 +12,8 @@ import backup_filenames as names
 from backup_areas import KEYS
 from test_backup_workspace import setup, post, export, wait
 
-MAPPING = (("cases", "C"), ("tags", "T"), ("actors", "TA"), ("families", "MF"))
-SELECTIONS = [list(items) for size in range(1, 5) for items in combinations(dict(MAPPING), size)]
+MAPPING = (("cases", "C"), ("tags", "T"), ("actors", "TA"), ("families", "MF"), ("task_collections", "TC"))
+SELECTIONS = [list(items) for size in range(1, len(MAPPING)+1) for items in combinations(dict(MAPPING), size)]
 
 
 class Clock(datetime):
@@ -36,7 +36,7 @@ def test_all_category_combinations_use_explicit_order_and_local_24_hour_time(clo
     # Reverse input order to prove that selection order never affects filenames.
     filename = names.archive_filename(list(reversed(areas)), "America/Los_Angeles")
     assert filename == "MWS_20260102-150405_" + suffix + ".zip"
-    assert re.fullmatch(r"MWS_\d{8}-\d{6}_(?:C|T|TA|MF)(?:_(?:C|T|TA|MF))*\.zip", filename)
+    assert re.fullmatch(r"MWS_\d{8}-\d{6}_(?:C|T|TA|MF|TC)(?:_(?:C|T|TA|MF|TC))*\.zip", filename)
 
 
 def test_no_categories_rejected_and_server_local_fallback(clock):
@@ -95,14 +95,14 @@ def test_name_is_fixed_at_job_creation_before_worker_starts(clock, monkeypatch):
 def test_complete_backup_and_legacy_job_download_names(clock):
     client, *_ = setup()
     archive, job = export(client, complete=True)
-    assert job["archive_name"] == "MWS_20260102-150405_C_T_TA_MF.zip"
+    assert job["archive_name"] == "MWS_20260102-150405_C_T_TA_MF_TC.zip"
     service = app.extensions["backup_workspace"]
     # Older durable jobs have no archive_name. Resolve using their original start.
     job.pop("archive_name")
     job["created_at"] = "2026-01-02T23:04:05+00:00"
     service.save(job)
     response = client.get("/backup-restore/jobs/" + job["id"] + "/download")
-    assert "MWS_20260102-150405_C_T_TA_MF.zip" in response.headers["Content-Disposition"]
+    assert "MWS_20260102-150405_C_T_TA_MF_TC.zip" in response.headers["Content-Disposition"]
     assert response.data == archive
 
 
@@ -120,7 +120,7 @@ def test_legacy_portable_endpoint_uses_same_name(clock):
     client, *_ = setup()
     response = post(client, "/import-export/export")
     assert response.status_code == 200
-    assert response.headers["Content-Disposition"] == "attachment; filename=MWS_20260102-150405_C_T_TA_MF.zip"
+    assert response.headers["Content-Disposition"] == "attachment; filename=MWS_20260102-150405_C_T_TA_MF_TC.zip"
     assert response.mimetype == "application/zip"
     with zipfile.ZipFile(io.BytesIO(response.data)) as source:
         assert "backup.json" in source.namelist()

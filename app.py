@@ -328,7 +328,7 @@ def completion_items(cid):
         items.append({'message': 'A completed analysis report is missing. Complete the Markdown report or generate/upload the Word report.',
                      'action': 'Open Report', 'target': 'panel-report', 'tab': 'report'})
     for t in db().execute('SELECT title FROM tasks WHERE case_id=? AND done=0', (cid,)):
-        items.append({'message': 'Open task: '+t['title']+'. Complete or close this task.',
+        items.append({'message': 'Open task: '+t['title']+'. Guidance only; task completion does not block the Case.', 'advisory':True,
                      'action': 'Open Tasks', 'target': 'case-tasks', 'tab': 'tasks'})
     for d in db().execute('SELECT stage FROM deferred WHERE case_id=? AND resolved=0', (cid,)):
         items.append({'message': 'Deferred work remains for ' +
@@ -340,7 +340,7 @@ def completion_items(cid):
 
 
 def review_issues(cid): return [item['message']
-                                for item in completion_items(cid)]
+                                for item in completion_items(cid) if not item.get('advisory')]
 
 
 def audit(action): run('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',
@@ -817,7 +817,7 @@ def delete_case(cid):
         if folder.exists():
             folder.rename(staged)
             moved = True
-        for table in ('notes', 'tasks', 'history', 'readiness', 'artifacts', 'drafts', 'deferred', 'report_jobs', 'report_images', 'figure_sequence', 'indicator_tables', 'indicator_sections', 'indicator_table_legacy', 'reference_tables'):
+        for table in ('notes', 'tasks', 'history', 'readiness', 'artifacts', 'drafts', 'deferred', 'report_jobs', 'report_images', 'figure_sequence', 'indicator_tables', 'indicator_sections', 'indicator_table_legacy', 'reference_tables','task_groups','task_collection_applications'):
             connection.execute(f'DELETE FROM {table} WHERE case_id=?', (cid,))
         connection.execute('DELETE FROM cases WHERE id=?', (cid,))
         connection.execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',
@@ -972,12 +972,14 @@ def task_fields():
 @app.post('/cases/<int:cid>/tasks')
 def tasks(cid):
     case(cid)
+    from task_collections import editable
+    editable(db(), g.user, cid)
     name, description, priority, _ = task_fields()
-    task = run("INSERT INTO tasks(case_id,title,body,priority,state,done,created) VALUES(?,?,?,?,'Not Started',0,?)",
-               (cid, name, description, priority, now()))
+    from task_collections import create_task
+    task=create_task(db(),g.user,cid,dict(title=name,body=description,priority=priority))
     for image in re.findall(r'assets/(report-image-[a-f0-9]{32}\.png)', description):
         run("UPDATE report_images SET section=? WHERE case_id=? AND name=? AND section='task-draft'",
-            (f'task-{task.lastrowid}', cid, image))
+            (f'task-{task["id"]}', cid, image))
     return redirect(f'/cases/{cid}?tab=tasks')
 
 
@@ -985,15 +987,18 @@ def tasks(cid):
 def edit_task(cid, tid):
     case(cid)
     name, description, priority, state = task_fields()
-    run('UPDATE tasks SET title=?,body=?,priority=?,state=?,done=? WHERE id=? AND case_id=?',
-        (name, description, priority, state, int(state == 'Completed'), tid, cid))
+    from task_collections import mutate_task
+    mutate_task(db(),g.user,cid,tid,dict(title=name,body=description,priority=priority,state=state))
     return redirect(f'/cases/{cid}?tab=tasks')
 
 
 @app.post('/cases/<int:cid>/tasks/<int:tid>')
 def toggle(cid, tid):
     case(cid)
-    run("UPDATE tasks SET state=CASE WHEN done=1 THEN 'Not Started' ELSE 'Completed' END,done=1-done WHERE id=? AND case_id=?", (tid, cid))
+    from task_collections import mutate_task
+    task=db().execute('SELECT done FROM tasks WHERE id=? AND case_id=?',(tid,cid)).fetchone()
+    if task is None:abort(404)
+    mutate_task(db(),g.user,cid,tid,{'state':'Not Started' if task['done'] else 'Completed'})
     return redirect(f'/cases/{cid}?tab=tasks')
 
 
@@ -1436,6 +1441,9 @@ from family_dashboard import register_family_dashboard
 register_family_dashboard(app, db)
 from actor_dashboard import register_actor_dashboard
 register_actor_dashboard(app, db)
+
+from task_collection_routes import register as register_task_collections
+register_task_collections(app, db)
 
 from backups import validate_metadata
 from import_sync import ImportSync

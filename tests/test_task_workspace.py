@@ -71,7 +71,11 @@ def test_task_markdown_images_full_dialogs_and_backup_restore():
     assert '<h2>Decoder task</h2>' in preview and '<strong>Investigate</strong>' in preview and name in preview
     backup=post('/backup');assert backup.status_code==200
     response=client.post('/import-export/import-raw',data={'csrf':'task-media-token','backup':(io.BytesIO(backup.data),'task-backup.zip')})
-    assert response.location=='/'
+    from sync_helpers import apply_preview
+    response=apply_preview(client,response,'task-media-token')
+    assert response.status_code==302
+    with app.app_context():
+        assert db().execute('SELECT status FROM sync_imports ORDER BY rowid DESC LIMIT 1').fetchone()[0]=='complete'
     with app.app_context():
         new=db().execute('SELECT id FROM cases ORDER BY id DESC LIMIT 1').fetchone()[0]
         new_task=db().execute('SELECT * FROM tasks WHERE case_id=?',(new,)).fetchone()

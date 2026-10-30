@@ -67,6 +67,11 @@ class Task(APIModel):
     state: Literal['Not Started', 'In Progress', 'Completed'] | None = None
     done: int | None = None
     created: str | None = None
+    group_id: str | None = None
+    source_collection_id: str | None = None
+    source_template_id: str | None = None
+    source_revision: int | None = None
+    position: int | None = None
 
 class Note(APIModel):
     """Note version-1 API fields."""
@@ -187,6 +192,22 @@ class SyncResult(APIModel):
     status: Literal['preview', 'complete'] | None = None
     cases: list[SyncCase] | None = None
     outcomes: list[SyncOutcome] | None = None
+
+class TaskCollection(APIModel):
+    """TaskCollection version-1 API fields."""
+    id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    category: str | None = None
+    revision: int | None = None
+    tasks: list[TaskCollectionTasksItem] | None = None
+    creator_uuid: str | None = None
+    creator_name: str | None = None
+    created: str | None = None
+    updated: str | None = None
+    task_count: int | None = None
+    can_edit: bool | None = None
+    can_delete: bool | None = None
 
 class ActorsListParams(APIModel):
     """ActorsListParams version-1 API fields."""
@@ -846,6 +867,67 @@ class TagsRemoveResponse(APIModel):
     """TagsRemoveResponse version-1 API fields."""
     message: str | None = None
 
+class TaskCollectionsFromTasksRequest(APIModel):
+    """TaskCollectionsFromTasksRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    task_ids: list[int] = ...
+    collection_id: str | None = None
+    name: str | None = None
+    description: str | None = None
+    category: str | None = None
+    revision: int | None = None
+    tasks: list[TaskCollectionsFromTasksRequestTasksItem] | None = None
+
+class TaskCollectionsFromTasksResponse(APIModel):
+    """TaskCollectionsFromTasksResponse version-1 API fields."""
+    collection: TaskCollection | None = None
+
+class TaskCollectionsApplyRequest(APIModel):
+    """TaskCollectionsApplyRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    revision: int = ...
+    template_ids: list[str] = ...
+    mode: Literal['missing', 'copy'] | None = None
+    request_key: str = ...
+
+class TaskCollectionsApplyResponse(APIModel):
+    """TaskCollectionsApplyResponse version-1 API fields."""
+    group_id: str | None = None
+    task_ids: list[int] | None = None
+    count: int | None = None
+    source_collection_id: str | None = None
+    source_revision: int | None = None
+    source_fingerprint: str | None = None
+    source_tasks: list[TaskCollectionsApplyResponseSourceTasksItem] | None = None
+    added: str | None = None
+    replayed: bool | None = None
+
+class TaskCollectionsCaseGroupsResponse(APIModel):
+    """TaskCollectionsCaseGroupsResponse version-1 API fields."""
+    tasks: list[Task] | None = None
+    groups: list[TaskCollectionsCaseGroupsResponseGroupsItem] | None = None
+    applications: list[TaskCollectionsCaseGroupsResponseApplicationsItem] | None = None
+    editable: bool | None = None
+
+class TaskCollectionsRemoveGroupRequest(APIModel):
+    """TaskCollectionsRemoveGroupRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    confirm: bool = ...
+
+class TaskCollectionsRemoveGroupResponse(APIModel):
+    """TaskCollectionsRemoveGroupResponse version-1 API fields."""
+    ok: bool | None = None
+
+class TaskCollectionsReorderRequest(APIModel):
+    """TaskCollectionsReorderRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    group_id: str | None = None
+    task_ids: list[int] = ...
+
+class TaskCollectionsReorderResponse(APIModel):
+    """TaskCollectionsReorderResponse version-1 API fields."""
+    ok: bool | None = None
+
 class ToolsYaraOpenParams(APIModel):
     """ToolsYaraOpenParams version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
@@ -1336,6 +1418,57 @@ class TagsRenameResponse(APIModel):
     """TagsRenameResponse version-1 API fields."""
     message: str | None = None
 
+class TaskCollectionsListParams(APIModel):
+    """TaskCollectionsListParams version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    limit: int | None = Field(None, ge=1, le=500)
+    offset: int | None = Field(None, ge=0)
+    q: str | None = None
+    category: str | None = None
+
+class TaskCollectionsListResponse(APIModel):
+    """TaskCollectionsListResponse version-1 API fields."""
+    collections: list[TaskCollection] | None = None
+    permissions: TaskCollectionsListResponsePermissions | None = None
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+
+class TaskCollectionsCreateRequest(APIModel):
+    """TaskCollectionsCreateRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    name: str = ...
+    description: str | None = None
+    category: str | None = None
+    revision: int | None = None
+    tasks: list[TaskCollectionsCreateRequestTasksItem] = ...
+
+class TaskCollectionsCreateResponse(APIModel):
+    """TaskCollectionsCreateResponse version-1 API fields."""
+    collection: TaskCollection | None = None
+
+class TaskCollectionsDeleteRequest(APIModel):
+    """TaskCollectionsDeleteRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    revision: int = ...
+
+class TaskCollectionsGetResponse(APIModel):
+    """TaskCollectionsGetResponse version-1 API fields."""
+    collection: TaskCollection | None = None
+
+class TaskCollectionsUpdateRequest(APIModel):
+    """TaskCollectionsUpdateRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    name: str = ...
+    description: str | None = None
+    category: str | None = None
+    revision: int = ...
+    tasks: list[TaskCollectionsUpdateRequestTasksItem] = ...
+
+class TaskCollectionsUpdateResponse(APIModel):
+    """TaskCollectionsUpdateResponse version-1 API fields."""
+    collection: TaskCollection | None = None
+
 class TemplatesListResponse(APIModel):
     """TemplatesListResponse version-1 API fields."""
     templates: list[Template] | None = None
@@ -1637,6 +1770,12 @@ class IndicatorsStix(APIModel):
     issues: list[IndicatorsStixIssuesItem] | None = None
     notices: list[IndicatorsStixNoticesItem] | None = None
 
+class TaskCollectionTasksItem(APIModel):
+    """TaskCollectionTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
+
 class ActorsListResponseProfilesItem(APIModel):
     """ActorsListResponseProfilesItem version-1 API fields."""
     id: str | None = None
@@ -1752,6 +1891,36 @@ class ReportsUpdateMappingsResponseMappings(APIModel):
     attack: str | None = Field(None, max_length=100000)
     mbc: str | None = Field(None, max_length=100000)
 
+class TaskCollectionsFromTasksRequestTasksItem(APIModel):
+    """TaskCollectionsFromTasksRequestTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
+
+class TaskCollectionsApplyResponseSourceTasksItem(APIModel):
+    """TaskCollectionsApplyResponseSourceTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
+
+class TaskCollectionsCaseGroupsResponseGroupsItem(APIModel):
+    """TaskCollectionsCaseGroupsResponseGroupsItem version-1 API fields."""
+    id: str | None = None
+    case_id: int | None = None
+    name: str | None = None
+    source_collection_id: str | None = None
+    source_revision: int | None = None
+    added: str | None = None
+    position: int | None = None
+    source_fingerprint: str | None = None
+    source_tasks: list[TaskCollectionsCaseGroupsResponseGroupsItemSourceTasksItem] | None = None
+
+class TaskCollectionsCaseGroupsResponseApplicationsItem(APIModel):
+    """TaskCollectionsCaseGroupsResponseApplicationsItem version-1 API fields."""
+    source_collection_id: str | None = None
+    template_ids: list[str] | None = None
+    added: str | None = None
+
 class CoverageGetResponseRowsItem(APIModel):
     """CoverageGetResponseRowsItem version-1 API fields."""
     id: str | None = None
@@ -1853,6 +2022,24 @@ class TagsGetResponseTag(APIModel):
     name: str | None = None
     created_at: str | None = None
 
+class TaskCollectionsListResponsePermissions(APIModel):
+    """TaskCollectionsListResponsePermissions version-1 API fields."""
+    create: bool | None = None
+    update: bool | None = None
+    delete: bool | None = None
+
+class TaskCollectionsCreateRequestTasksItem(APIModel):
+    """TaskCollectionsCreateRequestTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
+
+class TaskCollectionsUpdateRequestTasksItem(APIModel):
+    """TaskCollectionsUpdateRequestTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
+
 class ToolsListResponseToolsItem(APIModel):
     """ToolsListResponseToolsItem version-1 API fields."""
     id: str | None = None
@@ -1923,6 +2110,12 @@ class CasesGetResponseCaseDeferredItem(APIModel):
     stage: int | None = None
     reason: str | None = None
     resolved: int | None = None
+
+class TaskCollectionsCaseGroupsResponseGroupsItemSourceTasksItem(APIModel):
+    """TaskCollectionsCaseGroupsResponseGroupsItemSourceTasksItem version-1 API fields."""
+    id: str | None = None
+    name: str = ...
+    description: str | None = None
 
 class CoverageGetResponseRowsItemIndicators(APIModel):
     """CoverageGetResponseRowsItemIndicators version-1 API fields."""

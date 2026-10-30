@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "build:editors": "esbuild frontend/markdown-editor.js --bundle --minify --format=iife --target=es2020 --supported:template-literal=false --outfile=static/vendor/codemirror/markdown-editor.js --legal-comments=external && esbuild frontend/text-worker.js --bundle --minify --format=iife --target=es2020 --outfile=static/text-worker.js && node frontend/build-notices.cjs",
+    "test:task-collections": "node tests/browser/task-collections.cjs",
     "test:editors": "node tests/browser/markdown-editor.cjs",
     "build:api-docs": "node frontend/build-api-docs.cjs",
     "test:api-docs": "node tests/browser/api-documentation.cjs",

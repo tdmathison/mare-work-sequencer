@@ -21,6 +21,10 @@ DEST.joinpath('openapi.json').write_text(json.dumps(spec,indent=2)+'\n')
 
 # Existing operation names intentionally map to stable, friendly resource methods.
 NAMES={
+ 'task_collection_list_get':('task_collections','list'), 'task_collection_list_post':('task_collections','create'),
+ 'task_collection_item_get':('task_collections','get'), 'task_collection_item_patch':('task_collections','update'), 'task_collection_item_delete':('task_collections','delete'),
+ 'task_collection_case_get':('task_collections','case_groups'), 'task_collection_apply_post':('task_collections','apply'),
+ 'task_collection_from_tasks_post':('task_collections','from_tasks'), 'task_collection_order_put':('task_collections','reorder'), 'task_collection_group_delete_delete':('task_collections','remove_group'),
 'tag_item_get':('tags','get'), 'role_item_get':('roles','get'), 'user_item_get':('users','get'), 'case_task_get':('tasks','get'), 'case_note_get':('notes','get'), 'me_get':('authentication','me'),'tokens_get':('authentication','list_tokens'),'tokens_post':('authentication','create_token'),'revoke_token_delete':('authentication','revoke_token'),
 'permissions_get':('roles','permissions'),'roles_get':('roles','list'),'roles_post':('roles','create'),'role_item_patch':('roles','update'),'role_item_delete':('roles','delete'),
 'users_get':('users','list'),'users_post':('users','create'),'user_item_patch':('users','update'),'user_item_delete':('users','delete'),

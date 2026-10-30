@@ -147,7 +147,7 @@ Stop the service, replace application files while preserving the data directory,
 
 ## Task cards, package review, and report preview
 
-Case tabs are ordered Workbench, Tasks, Indicators, References, Package, Report, Review & Export. Tasks has an Add Task button that opens a Name/Description/Priority dialog. New tasks start in Not Started. Cards show name, description, priority, and state; Edit task opens a full-workspace dialog to update Markdown, priority, and state (Not Started, In Progress, or Completed). Priority options are Low, Normal, High, and Critical. Existing completed tasks remain completed on upgrade. Completion-checklist task links open the Tasks tab.
+Case tabs are ordered Workbench, Tasks, Indicators, References, Package, Report, Review & Export. Tasks has an Add Task button that opens a Name/Description/Priority dialog. New tasks start in Not Started. Compact, grouped rows show name, description, priority, and a separate status control; selection checkboxes never change completion. Edit task opens a full-workspace dialog to update Markdown, priority, and state (Not Started, In Progress, or Completed). Priority options are Low, Normal, High, and Critical. Existing completed tasks remain completed on upgrade. Completion-checklist task links open the Tasks tab.
 
 Asset uploads retain descriptions but no longer collect or export usage text. Package cards show the relevant directory's files and a Readiness menu. Not applicable no longer requires a reason. Backups remain hidden from file lists and archives.
 
@@ -2189,3 +2189,11 @@ workspace, resizable explorer and Output/Debug console, persistent layout prefer
 automatic Python/SDK completion and unpublished development runs. See the [Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md)
 for discovery, permissions, manifests, configuration, backups,
 rootless-worker deployment, and deployment verification requirements.
+
+### Reusable task collections
+
+Case Workbench → Tasks includes Case tasks and a global Collection library. Save
+selected task definitions as guidance, or add a collection through its preview
+drawer. Case copies retain independent progress and provenance; open tasks are
+advisory rather than completion gates. See [task collections](docs/TASK_COLLECTIONS.md)
+for migration, permission defaults, API/SDK usage and backup behavior.

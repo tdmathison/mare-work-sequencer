@@ -1,7 +1,7 @@
 <div class="completion-checklist" id="{{checklist_id}}">
   <div class="heading">
     <h2>Completion checklist</h2>
-    <span class="badge">{{completion|length}} outstanding actions</span>
+    <span class="badge">{{issues|length}} required actions</span>
   </div>
   <p class="muted">
     Generating a report adds content; it does not mark that content reviewed.
@@ -22,7 +22,8 @@
     </li>
     {% endfor %}
   </ol>
-  {% else %}
+  {% endif %}
+  {% if not issues %}
   <p class="state state-populated">
     All completion requirements are resolved. You can finish Packaging &
     Delivery from the Workbench.

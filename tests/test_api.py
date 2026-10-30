@@ -65,7 +65,8 @@ def test_authentication_and_errors(admin):
 def test_user_role_permissions_and_expiry():
     app.config['TESTING'] = True
     with app.app_context():
-        db().execute("INSERT INTO roles(name,description,builtin) VALUES('User','',1)")
+        db().execute("INSERT OR IGNORE INTO roles(name,description,builtin) VALUES('User','',1)")
+        db().execute("DELETE FROM role_permissions WHERE role_name='User'")
         db().commit()
     uid, headers = make_user('plainapi', role='User')
     client = app.test_client()

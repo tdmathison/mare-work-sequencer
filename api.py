@@ -389,7 +389,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
                     folder.rename(staged)
                     moved = True
                 with connection:
-                    for table in ('notes', 'tasks', 'history', 'readiness', 'artifacts', 'drafts', 'deferred', 'report_jobs', 'report_images', 'figure_sequence', 'indicator_tables', 'indicator_sections', 'indicator_table_legacy', 'reference_tables'):
+                    for table in ('notes', 'tasks', 'history', 'readiness', 'artifacts', 'drafts', 'deferred', 'report_jobs', 'report_images', 'figure_sequence', 'indicator_tables', 'indicator_sections', 'indicator_table_legacy', 'reference_tables','task_groups','task_collection_applications'):
                         connection.execute(
                             f'DELETE FROM {table} WHERE case_id=?', (case_id,))
                     connection.execute(
@@ -521,7 +521,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         case(case_id)
         if request.method == 'GET':
             limit, offset = page()
-            return {'tasks': [dict(row) for row in db().execute('SELECT id,title,body,priority,state,done,created FROM tasks WHERE case_id=? ORDER BY id LIMIT ? OFFSET ?', (case_id, limit, offset))], 'limit': limit, 'offset': offset, 'total': db().execute('SELECT count(*) FROM tasks WHERE case_id=?', (case_id,)).fetchone()[0]}
+            return {'tasks': [dict(row) for row in db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY position,id LIMIT ? OFFSET ?', (case_id, limit, offset))], 'limit': limit, 'offset': offset, 'total': db().execute('SELECT count(*) FROM tasks WHERE case_id=?', (case_id,)).fetchone()[0]}
         editable_case(case_id)
         value = body()
         title = value.get('title', '')
@@ -530,10 +530,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         if not isinstance(title, str) or not title.strip() or len(title) > 200 or not isinstance(description, str) or len(description) > 20000 or priority not in ('Low', 'Normal', 'High', 'Critical'):
             return jsonify(error='Invalid task fields.'), 400
         title = title.strip()
-        cursor = run("INSERT INTO tasks(case_id,title,body,priority,state,done,created) VALUES(?,?,?,?,'Not Started',0,?)",
-                     (case_id, title, description, priority, now()))
-        audit(f'Added task to case {case_id}')
-        return jsonify(task=dict(db().execute('SELECT id,title,body,priority,state,done,created FROM tasks WHERE id=?', (cursor.lastrowid,)).fetchone())), 201
+        from task_collections import create_task
+        return {'task':create_task(db(),g.user,case_id,dict(title=title,body=description,priority=priority))},201
 
     @api.route('/cases/<int:case_id>/tasks/<int:task_id>', methods=['GET', 'PATCH', 'DELETE'])
     @require({'GET':'cases:read', 'PATCH': 'cases:update', 'DELETE': 'cases:update'})
@@ -546,8 +544,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         if request.method == 'GET':
             return jsonify(task=dict(task))
         if request.method == 'DELETE':
-            run('DELETE FROM tasks WHERE id=? AND case_id=?', (task_id, case_id))
-            audit(f'Deleted task {task_id} from case {case_id}')
+            from task_collections import mutate_task
+            mutate_task(db(),g.user,case_id,task_id,{},delete=True)
             return '', 204
         value = body()
         title = value.get('title', task['title'])
@@ -558,9 +556,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         if not isinstance(title, str) or not title.strip() or len(title) > 200 or not isinstance(description, str) or len(description) > 20000 or priority not in ('Low', 'Normal', 'High', 'Critical') or state not in ('Not Started', 'In Progress', 'Completed'):
             return jsonify(error='Invalid task fields.'), 400
         title = title.strip()
-        run('UPDATE tasks SET title=?,body=?,priority=?,state=?,done=? WHERE id=? AND case_id=?',
-            (title, description, priority, state, int(state == 'Completed'), task_id, case_id))
-        audit(f'Updated task {task_id} in case {case_id}')
+        from task_collections import mutate_task
+        mutate_task(db(),g.user,case_id,task_id,dict(title=title,body=description,priority=priority,state=state))
         return {'task': dict(db().execute('SELECT id,title,body,priority,state,done,created FROM tasks WHERE id=?', (task_id,)).fetchone())}
 
     @api.route('/cases/<int:case_id>/notes', methods=['GET', 'POST'])

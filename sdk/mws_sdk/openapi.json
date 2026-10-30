@@ -11741,6 +11741,951 @@
         "x-required-permission": "tags:assign"
       }
     },
+    "/cases/{cid}/task-collections": {
+      "post": {
+        "summary": "Copy selected Case definitions into a global collection",
+        "description": "Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "$ref": "#/components/schemas/TaskCollection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "task_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "collection_id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "task_ids"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_from_tasks_post",
+        "tags": [
+          "Cases"
+        ],
+        "x-required-permission": null
+      }
+    },
+    "/cases/{cid}/task-collections/{collection_id}/apply": {
+      "post": {
+        "summary": "Apply selected templates atomically to a Case",
+        "description": "Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "group_id": {
+                      "type": "string"
+                    },
+                    "task_ids": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer"
+                      }
+                    },
+                    "count": {
+                      "type": "integer"
+                    },
+                    "source_collection_id": {
+                      "type": "string"
+                    },
+                    "source_revision": {
+                      "type": "integer"
+                    },
+                    "source_fingerprint": {
+                      "type": "string"
+                    },
+                    "source_tasks": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name"
+                        ]
+                      }
+                    },
+                    "added": {
+                      "type": "string"
+                    },
+                    "replayed": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "template_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "missing",
+                      "copy"
+                    ]
+                  },
+                  "request_key": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "revision",
+                  "template_ids",
+                  "request_key"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_apply_post",
+        "tags": [
+          "Cases"
+        ],
+        "x-required-permission": "cases:update"
+      }
+    },
+    "/cases/{cid}/task-groups": {
+      "get": {
+        "summary": "Read Case tasks, groups and source provenance",
+        "description": "Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.\n\nRequired role permission: cases:read.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tasks": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Task"
+                      }
+                    },
+                    "groups": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "case_id": {
+                            "type": "integer"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "source_collection_id": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "source_revision": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "added": {
+                            "type": "string"
+                          },
+                          "position": {
+                            "type": "integer"
+                          },
+                          "source_fingerprint": {
+                            "type": "string"
+                          },
+                          "source_tasks": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "description": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "name"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "applications": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "source_collection_id": {
+                            "type": "string"
+                          },
+                          "template_ids": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "added": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "editable": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "operationId": "task_collection_case_get",
+        "tags": [
+          "Cases"
+        ],
+        "x-required-permission": "cases:read"
+      }
+    },
+    "/cases/{cid}/task-groups/{gid}": {
+      "delete": {
+        "summary": "Remove Case group and its copied tasks",
+        "description": "Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "gid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "confirm"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_group_delete_delete",
+        "tags": [
+          "Cases"
+        ],
+        "x-required-permission": "cases:update"
+      }
+    },
+    "/cases/{cid}/task-order": {
+      "put": {
+        "summary": "Reorder all tasks within one Case group",
+        "description": "Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "group_id": {
+                    "type": "string"
+                  },
+                  "task_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "required": [
+                  "task_ids"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_order_put",
+        "tags": [
+          "Cases"
+        ],
+        "x-required-permission": "cases:update"
+      }
+    },
     "/cases/{cid}/yara/file": {
       "get": {
         "summary": "Yara open",
@@ -18664,6 +19609,753 @@
         "x-required-permission": "tags:manage"
       }
     },
+    "/task-collections": {
+      "get": {
+        "summary": "List global task collections",
+        "description": "Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collections": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TaskCollection"
+                      }
+                    },
+                    "permissions": {
+                      "type": "object",
+                      "properties": {
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "update": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "limit": {
+                      "type": "integer"
+                    },
+                    "offset": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 100
+            },
+            "description": "Clamped to 1\u2013500."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "description": "Negative offsets are clamped to zero."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "task_collection_list_get",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": null
+      },
+      "post": {
+        "summary": "Create a global task collection",
+        "description": "Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "$ref": "#/components/schemas/TaskCollection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "name",
+                  "tasks"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_list_post",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": "task_collections:create"
+      }
+    },
+    "/task-collections/{collection_id}": {
+      "delete": {
+        "summary": "Delete a global collection; retain Case copies",
+        "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "204": {
+            "description": "Successful response; no body."
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "revision"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_item_delete",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": "task_collections:delete"
+      },
+      "get": {
+        "summary": "Read a task collection",
+        "description": "Returns the current revision and ordered templates. Reading a collection never changes Case content.\n\nRequired role permission: any authenticated API user.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "$ref": "#/components/schemas/TaskCollection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "operationId": "task_collection_item_get",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": null
+      },
+      "patch": {
+        "summary": "Update ordered collection definitions",
+        "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "$ref": "#/components/schemas/TaskCollection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict with current state, revision, or active job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "category": {
+                    "type": "string"
+                  },
+                  "revision": {
+                    "type": "integer"
+                  },
+                  "tasks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "revision",
+                  "name",
+                  "tasks"
+                ]
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_item_patch",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": "task_collections:update"
+      }
+    },
     "/templates": {
       "get": {
         "summary": "List your Word templates",
@@ -22458,6 +24150,25 @@
           },
           "created": {
             "type": "string"
+          },
+          "group_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_collection_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_template_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_revision": {
+            "type": "integer",
+            "nullable": true
+          },
+          "position": {
+            "type": "integer"
           }
         }
       },
@@ -22930,6 +24641,68 @@
             "items": {
               "$ref": "#/components/schemas/SyncOutcome"
             }
+          }
+        }
+      },
+      "TaskCollection": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          },
+          "creator_uuid": {
+            "type": "string",
+            "nullable": true
+          },
+          "creator_name": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string"
+          },
+          "updated": {
+            "type": "string"
+          },
+          "task_count": {
+            "type": "integer"
+          },
+          "can_edit": {
+            "type": "boolean"
+          },
+          "can_delete": {
+            "type": "boolean"
           }
         }
       }

@@ -20,4 +20,5 @@ assert.deepEqual(model({areas:['tags']},{}).included,['tags']);
 assert.deepEqual(model({},{}).included,[]);
 assert.equal(model({}, {added:100}).totals.added,0,'Old aggregates cannot fabricate per-record success');
 assert.equal(model({}, {records:[{category:'cases',action:'replaced'}]}).totals.replaced,1);
+const collections=model({areas:['task_collections']},{records:[{category:'task_collections',identifier:'collection-1',name:'Guidance',action:'added'}]});assert.deepEqual(collections.included,['task_collections']);assert.equal(collections.totals.added,1);
 console.log('Import presentation adapter: all categories, exact totals, duplicates, updates, errors, empty and legacy results passed.');

@@ -41,6 +41,7 @@ class MWSClient:
     search: sync_resources.SearchResource
     settings: sync_resources.SettingsResource
     tags: sync_resources.TagsResource
+    task_collections: sync_resources.TaskCollectionsResource
     tasks: sync_resources.TasksResource
     templates: sync_resources.TemplatesResource
     tools: sync_resources.ToolsResource
@@ -79,6 +80,7 @@ class AsyncMWSClient:
     search: async_resources.AsyncSearchResource
     settings: async_resources.AsyncSettingsResource
     tags: async_resources.AsyncTagsResource
+    task_collections: async_resources.AsyncTaskCollectionsResource
     tasks: async_resources.AsyncTasksResource
     templates: async_resources.AsyncTemplatesResource
     tools: async_resources.AsyncToolsResource

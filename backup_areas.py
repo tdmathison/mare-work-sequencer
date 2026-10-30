@@ -40,6 +40,7 @@ class Area:
 
 
 AREAS = (
+    Area("task_collections", "Task Collections", "task_collections", "Global reusable task definitions and revision history; independent of Case copies."),
     Area(
         "cases",
         "Case data",

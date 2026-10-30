@@ -82,7 +82,7 @@ def records(meta, name, fields):
                 if not isinstance(value, int):
                     raise ValueError('Invalid numeric case record.')
             else:
-                value = text(value if value is not None else '')
+                value = text(value if value is not None else '',MAX_METADATA if field in ('source_tasks','response') else 1000000)
             out[field] = value
         result.append(out)
     return result
@@ -113,7 +113,9 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
         raise ValueError('Invalid references table.')
     clean = {
         'notes': records(meta, 'notes', {'title': '', 'body': '', 'author': '', 'created': '', 'include_export': 0}),
-        'tasks': records(meta, 'tasks', {'title': '', 'body': '', 'state': 'Not Started', 'priority': 'Normal', 'created': ''}),
+        'tasks': records(meta, 'tasks', {'title': '', 'body': '', 'state': 'Not Started', 'priority': 'Normal', 'created': '', 'group_id':'','source_template_id':'','source_collection_id':'','source_revision':0,'position':0}),
+        'task_groups': records(meta,'task_groups',{'id':'','name':'','source_collection_id':'','source_revision':0,'added':'','position':0,'template_ids':'[]','source_fingerprint':'','source_tasks':'[]'}),
+        'task_application_history':records(meta,'task_application_history',{'source_collection_id':'','template_ids':'[]','response':'{}','added':''}),
         'history': records(meta, 'history', {'stage': 0, 'author': '', 'created': '', 'outcome': 'Done', 'reason': ''}),
         'deferred': records(meta, 'deferred', {'stage': 0, 'reason': '', 'resolved': 0}),
         'readiness': records(meta, 'readiness', {'category': '', 'status': 'Pending', 'reason': ''}),
@@ -121,7 +123,27 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
     for row in clean['notes']:
         if row['include_export'] not in (0, 1):
             raise ValueError('Invalid note state.')
+    group_ids=set()
+    for group in clean['task_groups']:
+        if not re.fullmatch('[a-f0-9]{32}',group['id']) or group['id'] in group_ids or not group['name'].strip() or len(group['name'])>200 or not re.fullmatch('[a-f0-9]{32}',group['source_collection_id']) or not 1<=group['source_revision']<2**31:raise ValueError('Invalid task group snapshot.')
+        group_ids.add(group['id'])
+        fingerprint=group['source_fingerprint'];snapshots=json.loads(group['source_tasks'])
+        if fingerprint and not re.fullmatch('[a-f0-9]{64}',fingerprint):raise ValueError('Invalid source fingerprint.')
+        from task_collection_portable import validate_source_tasks
+        validate_source_tasks(snapshots)
+        ids=json.loads(group['template_ids'])
+        if not isinstance(ids,list) or len(ids)>500 or any(not isinstance(i,str) or not re.fullmatch('[a-f0-9]{32}',i) for i in ids):raise ValueError('Invalid template provenance.')
+    for application in clean['task_application_history']:
+        ids=json.loads(application['template_ids']);response=json.loads(application['response'])
+        if not re.fullmatch('[a-f0-9]{32}',application['source_collection_id']) or not isinstance(ids,list) or len(ids)>500 or any(not isinstance(i,str) or not re.fullmatch('[a-f0-9]{32}',i) for i in ids) or not isinstance(response,dict) or not re.fullmatch('[a-f0-9]{32}',str(response.get('group_id',''))):raise ValueError('Invalid task application history.')
+        from task_collection_portable import validate_source_tasks
+        validate_source_tasks(response.get('source_tasks',[]))
+        if response.get('source_fingerprint') and not re.fullmatch('[a-f0-9]{64}',str(response['source_fingerprint'])):raise ValueError('Invalid source fingerprint.')
     for row in clean['tasks']:
+        if row['group_id'] and row['group_id'] not in group_ids:raise ValueError('Task group snapshot is missing.')
+        for key in ('source_collection_id','source_template_id'):
+            if row[key] and not re.fullmatch('[a-f0-9]{32}',row[key]):raise ValueError('Invalid task provenance.')
+        if row['source_revision']<0 or row['position']<0:raise ValueError('Invalid task ordering or revision.')
         if row['state'] not in ('Not Started', 'In Progress', 'Completed') or row['priority'] not in ('Low', 'Normal', 'High', 'Critical'):
             raise ValueError('Invalid task state.')
         text(row['title'], 200)
@@ -165,6 +187,20 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         for table in ('notes', 'tasks', 'history', 'deferred', 'readiness', 'artifacts'):
             data['records'][table] = [{k: row[k] for k in row.keys() if k not in (
                 'id', 'case_id', 'usage')} for row in db().execute(f'SELECT * FROM {table} WHERE case_id=?', (cid,))]
+        data['records']['task_groups']=[dict(r) for r in db().execute('SELECT id,name,source_collection_id,source_revision,added,position FROM task_groups WHERE case_id=? ORDER BY position,id',(cid,))]
+        applications=[dict(r) for r in db().execute('SELECT * FROM task_collection_applications WHERE case_id=?',(cid,))]
+        data['records']['task_application_history']=[]
+        for application in applications:
+            response=json.loads(application['response'])
+            response={k:response[k] for k in ('group_id','source_collection_id','source_revision','source_fingerprint','source_tasks','added') if k in response}
+            data['records']['task_application_history'].append(dict(source_collection_id=application['source_collection_id'],template_ids=application['template_ids'],response=json.dumps(response),added=application['added']))
+        data['records']['task_application_history'].sort(key=lambda a:(a['added'],json.loads(a['response'])['group_id']))
+        for group in data['records']['task_groups']:
+            group['template_ids']=json.dumps([tid for a in applications if json.loads(a['response']).get('group_id')==group['id'] for tid in json.loads(a['template_ids'])])
+            source=next((json.loads(a['response']) for a in applications if json.loads(a['response']).get('group_id')==group['id']),{})
+            group['source_fingerprint']=source.get('source_fingerprint','')
+            group['source_tasks']=json.dumps(source.get('source_tasks',[]))
+        for task in data['records']['tasks']:task['source_revision']=task.get('source_revision') or 0
         data['records']['artifacts'] = [r for r in data['records']['artifacts'] if (package(
             cid)/r['path']).is_file() and r['path'].split('/')[0] in CATEGORIES and not is_backup(r['path'])]
         data['images'] = [dict(row) for row in db().execute('SELECT section,name,figure FROM report_images WHERE case_id=?', (cid,)) if (
@@ -341,7 +377,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
 
     @app.post('/import-export/export')
     def backup_export():
-        areas = set(getattr(g, "backup_areas", ("cases","families","tags","actors")))
+        areas = set(getattr(g, "backup_areas", ("cases","families","tags","actors","task_collections")))
         try:
             filename = getattr(g, "backup_archive_name", None) or archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"))
         except ValueError as exc:
@@ -360,6 +396,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 from flask import abort
                 abort(403)
             index['family_library'] = library
+            if 'task_collections' in areas:
+                from task_collection_portable import export as export_collections
+                index['task_collections']=export_collections(db())
             needed={f['tag'] for f in library['families'] + library.get('actors',[])}
             if 'cases' in areas:needed.update(r[0] for r in db().execute('SELECT DISTINCT t.name FROM tags t JOIN case_tags ct ON ct.tag_id=t.id'))
             registry=[dict(r) for r in db().execute('SELECT t.name,i.identity,t.created_at FROM tags t JOIN family_tag_identities i ON i.tag_id=t.id ORDER BY t.name') if 'tags' in areas or r['name'] in needed]
@@ -455,6 +494,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 from backup_areas import validate_tags as validate_registry
                 registry=validate_registry(index['tag_registry'])
                 (temporary/'tag-registry.json').write_bytes(json_bytes(registry))
+            if 'task_collections' in index:
+                from task_collection_portable import validate as validate_collections
+                (temporary/'task-collections.json').write_bytes(json_bytes(validate_collections(index['task_collections'])))
             entries = index.get('cases')
             if index.get('schema') not in (SCHEMA, 'mare-case-backup/2', 'mare-case-backup/1') or not isinstance(entries, list) or len(entries) > 1000:
                 raise ValueError(
@@ -621,6 +663,11 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         return plans, tag_catalog
 
     def shared_preview(directory):
+        collection_path=Path(directory)/'task-collections.json'
+        if collection_path.exists():
+            from task_collection_portable import plan as collection_plan
+            conflicts,_=collection_plan(db(),json.loads(collection_path.read_text()),getattr(g,'backup_choices',{}))
+            if conflicts:raise ValueError('Resolve task collection conflicts in Backup & Restore.')
         if getattr(g,'backup_workspace',False):
             from backup_areas import resolve
             conflicts,mappings,library=resolve(db(),ROOT,directory,getattr(g,'backup_choices',{}))
@@ -643,8 +690,11 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         return counts
 
     def shared_restore(directory):
+        shared_preview(directory)  # Recheck every shared section before publishing any.
+        from task_collection_portable import restore as restore_collections
+        collection_results=restore_collections(db(),g.user,directory,getattr(g,'backup_choices',{}))
         path=Path(directory)/'family-library.json'
-        if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0}
+        if not path.exists():return {'legacy':True,'profiles':0,'osint':0,'reports':0,'records':collection_results}
         shared_preview(directory)  # Recheck permissions/conflicts at apply time.
         from family_portable import restore_library
         registry_path=Path(directory)/'resolved-tags.json'
@@ -663,20 +713,35 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 action="unchanged" if exists else "added", details="Verified existing tag reused." if exists else "Tag identity added."))
         result=restore_library(db(),ROOT,Path(directory)/'library',incoming,registry=registry)
         # Publish outcomes only after the shared storage transaction committed.
-        result["records"] = completed_records
+        result["records"] = completed_records+collection_results
         db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared research profile library restored: '+json.dumps({key:value for key,value in result.items() if key != 'records'}),now()))
         db().commit()
         return result
 
     def restore_records(connection, cid, validated):
         c, sections, refs, rows, images, sequence, tags = validated
-        for table in ('notes','tasks','history','deferred','readiness','artifacts','indicator_tables','indicator_sections','reference_tables','report_images','figure_sequence'):
+        for table in ('notes','tasks','history','deferred','readiness','artifacts','indicator_tables','indicator_sections','reference_tables','report_images','figure_sequence','task_groups','task_collection_applications'):
             connection.execute(f'DELETE FROM {table} WHERE case_id=?', (cid,))
         connection.execute('DELETE FROM case_tags WHERE case_id=?', (cid,))
         restore_tags(connection, tags, cid)
+        rows={k:[dict(r) for r in v] for k,v in rows.items()}
+        groups=rows.pop('task_groups',[])
+        application_history=rows.pop('task_application_history',[])
+        history_groups={json.loads(a['response'])['group_id'] for a in application_history}
+        for group in groups:
+            templates=group.pop('template_ids')
+            source_fingerprint=group.pop('source_fingerprint')
+            source_tasks=json.loads(group.pop('source_tasks'))
+            columns=list(group)
+            connection.execute('INSERT INTO task_groups(case_id,'+','.join(columns)+') VALUES('+','.join('?' for _ in range(len(columns)+1))+')',[cid]+[group[k] for k in columns])
+            response={'group_id':group['id'],'source_collection_id':group['source_collection_id'],'source_revision':group['source_revision'],'added':group['added'],'source_fingerprint':source_fingerprint,'source_tasks':source_tasks}
+            if group['id'] not in history_groups:application_history.append(dict(response=json.dumps(response),source_collection_id=group['source_collection_id'],template_ids=templates,added=group['added']))
+        for application in application_history:
+            connection.execute('INSERT INTO task_collection_applications VALUES(?,?,?,?,?,?,?)',(cid,'restored-'+__import__('uuid').uuid4().hex,'restored',application['response'],application['source_collection_id'],application['template_ids'],application['added']))
         for table, values in rows.items():
             for record in values:
                 if table == 'tasks':
+                    for key in ('group_id','source_template_id','source_collection_id'):record[key]=record[key] or None
                     record['done'] = int(
                         record['state'] == 'Completed')
                 if table == 'artifacts':

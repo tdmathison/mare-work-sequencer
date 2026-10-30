@@ -1,7 +1,7 @@
 """Whitelisted archive descriptions and explicit importer outcome presentation."""
 import json
 
-CATEGORIES = {"cases": "cases", "tags": "tags", "actors": "threat_actors", "families": "malware_families"}
+CATEGORIES = {"cases": "cases", "tags": "tags", "actors": "threat_actors", "families": "malware_families", "task_collections":"task_collections"}
 
 
 def record(category, identifier, name, **fields):
@@ -16,7 +16,7 @@ def profile(category, value):
 def database_records(source):
     """Read display fields only, never credentials, file paths or private keys."""
     result = []
-    fields = {"cases": ("number", "name", "stage", "created"), "tags": ("id", "name"),
+    fields = {"task_collections":("id","name","description","revision","tasks"),"cases": ("number", "name", "stage", "created"), "tags": ("id", "name"),
               "actors": ("id", "name", "aliases", "short_description"),
               "families": ("id", "name", "aliases", "short_description")}
     for category, table in CATEGORIES.items():
@@ -27,6 +27,8 @@ def database_records(source):
         for row in source.execute('SELECT ' + ','.join(selected) + f' FROM "{table}"'):
             value = dict(zip(selected, row))
             item = record(category, value.get("number", value.get("id")), value["name"])
+            if category=="task_collections":
+                item.update(description=value.get("description",""),revision=value.get("revision"),task_count=len(json.loads(value.get("tasks","[]"))))
             for field in ("stage", "created", "short_description", "aliases"):
                 if field in value:
                     item["description" if field == "short_description" else field] = value[field]

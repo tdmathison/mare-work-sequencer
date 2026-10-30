@@ -18,6 +18,10 @@ def isolated_state(monkeypatch):
     with app.app_context():
         from threat_actors import initialize as initialize_actors
         initialize_actors(db())
+        from authorization import initialize_roles
+        from task_collections import initialize as initialize_collections
+        initialize_roles(db())
+        initialize_collections(db())
     for directory in ('cases','users','report-jobs','sync-staging','sync-recovery','family-reports','family-report-staging','actor-reports','actor-report-staging'):shutil.rmtree(ROOT/directory,ignore_errors=True)
     for directory in ('sync-staging','sync-recovery'):(ROOT/directory).mkdir(mode=0o700,exist_ok=True)
     yield

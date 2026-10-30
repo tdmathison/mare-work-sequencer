@@ -210,3 +210,14 @@ Record error text in the normal view excludes internal file paths and traces.
 Archive structures, import permissions, audit logging, stale-plan checks and ZIP
 safety protections are unchanged. Browser storage retains only job identifiers
 and the active export/import tab, never record contents or passphrases.
+
+## Task Collections
+
+The selectable **Task Collections** data type exports global definitions and
+revision history independently of Cases, using the filename code `TC`. Preview
+shows collection and definition counts. Stable IDs drive repeat imports and
+explicit keep/replace conflicts; names never merge collections. Case-only archives
+carry copied tasks, ordering, states and group/provenance snapshots without
+publishing global collections. Complete recovery preserves all collection and
+application records. Older archives lacking collections remain valid. See
+[task collection backup details](TASK_COLLECTIONS.md#backup-and-restore).

@@ -1,4 +1,8 @@
 PERMISSIONS = {
+    'task_collections:create': 'Create global task collections',
+    'task_collections:update': 'Edit your own task collections',
+    'task_collections:delete': 'Delete your own task collections',
+    'task_collections:manage': 'Manage all global task collections',
     'developer:api': 'View interactive API documentation',
     'developer:sdk': 'View Python SDK documentation',
     'plugins:read': 'Access plugin editor and owned plugins',
@@ -43,6 +47,7 @@ PERMISSIONS = {
 }
 
 USER_PERMISSIONS = {
+    'task_collections:create', 'task_collections:update', 'task_collections:delete',
     'tags:read', 'tags:create', 'tags:assign',
     'cases:read', 'cases:create', 'cases:update', 'cases:delete', 'cases:workflow',
     'cases:assets', 'cases:export', 'indicators:read', 'indicators:write',

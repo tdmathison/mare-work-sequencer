@@ -2066,6 +2066,152 @@
     "description": "\n\nRequired role permission: tags:assign.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
+    "resource": "task_collections",
+    "name": "from_tasks",
+    "operation_id": "task_collection_from_tasks_post",
+    "path": "cases/{cid}/task-collections",
+    "method": "POST",
+    "permission": null,
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TaskCollectionsFromTasksRequest",
+    "response": "TaskCollectionsFromTasksResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Copy selected Case definitions into a global collection",
+    "description": "Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.\n\nRequired role permission: any authenticated API user.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "apply",
+    "operation_id": "task_collection_apply_post",
+    "path": "cases/{cid}/task-collections/{collection_id}/apply",
+    "method": "POST",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "TaskCollectionsApplyRequest",
+    "response": "TaskCollectionsApplyResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "task_ids",
+    "summary": "Apply selected templates atomically to a Case",
+    "description": "Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "case_groups",
+    "operation_id": "task_collection_case_get",
+    "path": "cases/{cid}/task-groups",
+    "method": "GET",
+    "permission": "cases:read",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TaskCollectionsCaseGroupsResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": "tasks",
+    "summary": "Read Case tasks, groups and source provenance",
+    "description": "Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.\n\nRequired role permission: cases:read."
+  },
+  {
+    "resource": "task_collections",
+    "name": "remove_group",
+    "operation_id": "task_collection_group_delete_delete",
+    "path": "cases/{cid}/task-groups/{gid}",
+    "method": "DELETE",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "gid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "TaskCollectionsRemoveGroupRequest",
+    "response": "TaskCollectionsRemoveGroupResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Remove Case group and its copied tasks",
+    "description": "Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "reorder",
+    "operation_id": "task_collection_order_put",
+    "path": "cases/{cid}/task-order",
+    "method": "PUT",
+    "permission": "cases:update",
+    "paths": [
+      {
+        "name": "cid",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ],
+    "request": "TaskCollectionsReorderRequest",
+    "response": "TaskCollectionsReorderResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Reorder all tasks within one Case group",
+    "description": "Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
     "resource": "tools",
     "name": "yara_open",
     "operation_id": "ext_yara_open_get_27c901fb_get",
@@ -3145,6 +3291,118 @@
     "collection": null,
     "summary": "Tag manage",
     "description": "\n\nRequired role permission: tags:manage.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "list",
+    "operation_id": "task_collection_list_get",
+    "path": "task-collections",
+    "method": "GET",
+    "permission": null,
+    "paths": [],
+    "request": null,
+    "response": "TaskCollectionsListResponse",
+    "query": "TaskCollectionsListParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "collections",
+    "summary": "List global task collections",
+    "description": "Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "task_collections",
+    "name": "create",
+    "operation_id": "task_collection_list_post",
+    "path": "task-collections",
+    "method": "POST",
+    "permission": "task_collections:create",
+    "paths": [],
+    "request": "TaskCollectionsCreateRequest",
+    "response": "TaskCollectionsCreateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Create a global task collection",
+    "description": "Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "delete",
+    "operation_id": "task_collection_item_delete",
+    "path": "task-collections/{collection_id}",
+    "method": "DELETE",
+    "permission": "task_collections:delete",
+    "paths": [
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "TaskCollectionsDeleteRequest",
+    "response": null,
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Delete a global collection; retain Case copies",
+    "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "get",
+    "operation_id": "task_collection_item_get",
+    "path": "task-collections/{collection_id}",
+    "method": "GET",
+    "permission": null,
+    "paths": [
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": null,
+    "response": "TaskCollectionsGetResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Read a task collection",
+    "description": "Returns the current revision and ordered templates. Reading a collection never changes Case content.\n\nRequired role permission: any authenticated API user."
+  },
+  {
+    "resource": "task_collections",
+    "name": "update",
+    "operation_id": "task_collection_item_patch",
+    "path": "task-collections/{collection_id}",
+    "method": "PATCH",
+    "permission": "task_collections:update",
+    "paths": [
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "TaskCollectionsUpdateRequest",
+    "response": "TaskCollectionsUpdateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Update ordered collection definitions",
+    "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "templates",

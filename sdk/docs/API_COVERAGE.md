@@ -82,6 +82,11 @@ Generated from registered routes and reviewed OpenAPI contracts. All rows are im
 | GET | `/api/v1/cases/{cid}/tags` | tags:read | None | TagsForCaseResponse | `client.tags.for_case` | Implemented |
 | POST | `/api/v1/cases/{cid}/tags/{tid}/assign` | tags:assign | None | TagsAssignResponse | `client.tags.assign` | Implemented |
 | POST | `/api/v1/cases/{cid}/tags/{tid}/remove` | tags:assign | None | TagsRemoveResponse | `client.tags.remove` | Implemented |
+| POST | `/api/v1/cases/{cid}/task-collections` | Authenticated / handler checks | TaskCollectionsFromTasksRequest | TaskCollectionsFromTasksResponse | `client.task_collections.from_tasks` | Implemented |
+| POST | `/api/v1/cases/{cid}/task-collections/{collection_id}/apply` | cases:update | TaskCollectionsApplyRequest | TaskCollectionsApplyResponse | `client.task_collections.apply` | Implemented |
+| GET | `/api/v1/cases/{cid}/task-groups` | cases:read | None | TaskCollectionsCaseGroupsResponse | `client.task_collections.case_groups` | Implemented |
+| DELETE | `/api/v1/cases/{cid}/task-groups/{gid}` | cases:update | TaskCollectionsRemoveGroupRequest | TaskCollectionsRemoveGroupResponse | `client.task_collections.remove_group` | Implemented |
+| PUT | `/api/v1/cases/{cid}/task-order` | cases:update | TaskCollectionsReorderRequest | TaskCollectionsReorderResponse | `client.task_collections.reorder` | Implemented |
 | GET | `/api/v1/cases/{cid}/yara/file` | cases:assets | ToolsYaraOpenParams | ToolsYaraOpenResponse | `client.tools.yara_open` | Implemented |
 | POST | `/api/v1/cases/{cid}/yara/file` | cases:assets | ToolsYaraSaveRequest | ToolsYaraSaveResponse | `client.tools.yara_save` | Implemented |
 | GET | `/api/v1/cases/{cid}/yara/files` | cases:assets | ToolsYaraFilesParams | ToolsYaraFilesResponse | `client.tools.yara_files` | Implemented |
@@ -129,6 +134,11 @@ Generated from registered routes and reviewed OpenAPI contracts. All rows are im
 | POST | `/api/v1/tags/{tid}/delete` | tags:manage | TagsDeleteRequest | TagsDeleteResponse | `client.tags.delete` | Implemented |
 | POST | `/api/v1/tags/{tid}/merge` | tags:manage | TagsMergeRequest | TagsMergeResponse | `client.tags.merge` | Implemented |
 | POST | `/api/v1/tags/{tid}/rename` | tags:manage | TagsRenameRequest | TagsRenameResponse | `client.tags.rename` | Implemented |
+| GET | `/api/v1/task-collections` | Authenticated / handler checks | TaskCollectionsListParams | TaskCollectionsListResponse | `client.task_collections.list` | Implemented |
+| POST | `/api/v1/task-collections` | task_collections:create | TaskCollectionsCreateRequest | TaskCollectionsCreateResponse | `client.task_collections.create` | Implemented |
+| DELETE | `/api/v1/task-collections/{collection_id}` | task_collections:delete | TaskCollectionsDeleteRequest | No body | `client.task_collections.delete` | Implemented |
+| GET | `/api/v1/task-collections/{collection_id}` | Authenticated / handler checks | None | TaskCollectionsGetResponse | `client.task_collections.get` | Implemented |
+| PATCH | `/api/v1/task-collections/{collection_id}` | task_collections:update | TaskCollectionsUpdateRequest | TaskCollectionsUpdateResponse | `client.task_collections.update` | Implemented |
 | GET | `/api/v1/templates` | templates:manage | None | TemplatesListResponse | `client.templates.list` | Implemented |
 | POST | `/api/v1/templates` | templates:manage | TemplatesUploadRequest | TemplatesUploadResponse | `client.templates.upload` | Implemented |
 | DELETE | `/api/v1/templates/{template_id}` | templates:manage | None | No body | `client.templates.delete` | Implemented |

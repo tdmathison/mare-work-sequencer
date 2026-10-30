@@ -39,35 +39,7 @@
 </dialog>
 {% endmacro %}
 
-<section class="panel task-toolbar">
-    <div class="heading">
-        <h2>Tasks</h2>
-        <button type="button" id="add-task-button" data-open-task="add-task-dialog" {% if c.workspace_locked %}disabled{% endif %}>Add Task</button>
-    </div>
-</section>
-<div class="case-grid task-grid" id="case-tasks">
-    {% for t in tasks %}
-        <article class="panel case-card task-card" id="task-{{t.id}}">
-            <div class="heading">
-                <span class="task-priority priority-{{t.priority|lower}}">{{t.priority}} priority</span>
-                <span class="state task-state-{{t.state|replace(' ','-')|lower}}">{{t.state}}</span>
-            </div>
-            <h2>{{t.title}}</h2>
-            <p class="task-body">{{(t.body or 'No description.')|truncate(240)}}</p>
-            <small>Created {{t.created}}</small>
-            <div class="report-actions">
-                <button type="button" data-open-task="edit-task-dialog-{{t.id}}" {% if c.workspace_locked %}disabled{% endif %}>Edit task</button>
-            </div>
-        </article>
-    {% else %}
-        <section class="panel">
-            <h2>No tasks yet</h2>
-            <p>Add a task to track a unit of work.</p>
-        </section>
-    {% endfor %}
-</div>
+{% include 'task_collection_workspace.html' %}
 {{task_editor()}}
-{% for t in tasks %}
-    {{task_editor(t)}}
-{% endfor %}
+{% for t in tasks %}{{task_editor(t)}}{% endfor %}
 <script defer src="{{url_for('static',filename='tasks.js')}}"></script>

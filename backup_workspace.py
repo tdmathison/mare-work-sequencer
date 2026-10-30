@@ -502,6 +502,8 @@ class BackupWorkspace:
                 index = read_json(z, "backup.json")
                 library = index["family_library"]
                 counts = {
+                    "task_collections":len(index.get("task_collections",[])),
+                    "task_templates":sum(len(c["tasks"]) for c in index.get("task_collections",[])),
                     "cases": len(index["cases"]),
                     "malware_families": len(library["families"]),
                     "threat_actors": len(library.get("actors", [])),
@@ -688,6 +690,7 @@ class BackupWorkspace:
             from backup_presentation import database_records
             with closing(sqlite3.connect(restored / "workflow.sqlite3")) as source:
                 display_records = database_records(source)
+                counts["task_templates"]=sum(r.get("task_count",0) for r in display_records if r["category"]=="task_collections")
             areas = sorted(KEYS)
             mode = "replace"
             operation = None
@@ -709,6 +712,12 @@ class BackupWorkspace:
             conflicts, mapping, library = resolve(
                 self.db(), self.root, probe, data.get("choices", {})
             )
+            collection_file=probe/'task-collections.json'
+            from task_collection_portable import plan as collection_plan
+            collection_rows=json.loads(collection_file.read_text()) if collection_file.exists() else []
+            collection_conflicts,collection_records=collection_plan(self.db(),collection_rows,data.get('choices',{}))
+            conflicts.extend(collection_conflicts)
+            display_records.extend(collection_records)
             shared_actions = {
                 'incoming_actors': len(source_library.get('actors', [])),
                 'kept_destination_actors': len(source_library.get('actors', [])) - len(library.get('actors', [])),
@@ -812,6 +821,9 @@ class BackupWorkspace:
                     predicted_action="conflict" if not resolved else "new" if resolved["outcome"] == "Add tag" else "unchanged",
                     details=resolved["outcome"] if resolved else "Resolve tag identity conflict."))
             counts = {
+                "task_collections":len(collection_rows),
+                "task_templates":sum(len(c["tasks"]) for c in collection_rows),
+                "tasks":sum(len(p[1][3]["tasks"]) for p in plans),
                 "cases": len(plans),
                 "malware_families": len(library["families"]),
                 "threat_actors": len(library.get("actors", [])),
@@ -827,6 +839,7 @@ class BackupWorkspace:
             areas = (manifest or {}).get("areas") or [
                 key
                 for key, n in [
+                    ("task_collections",len(collection_rows)),
                     ("cases", len(plans)),
                     ("families", len(library["families"])),
                     ("actors", len(library.get("actors",[]))),
