@@ -1,0 +1,7 @@
+{# Shared Workbench tab design. Links retain native routing and leave guards. #}
+{% macro bar(label, classes='', links=false, attributes={}) -%}
+<{{'nav' if links else 'div'}} class="mws-tabs {{classes}}" {% if links %}data-tabs-links=""{% else %}role="tablist"{% endif %} aria-label="{{label}}"{% for key,value in attributes.items() if not (links and key=='data-tabs-links') %} {{key}}="{{value}}"{% endfor %}>{{caller()}}</{{'nav' if links else 'div'}}>
+{%- endmacro %}
+{% macro item(label, identifier, active=false, href=none, controls=none, disabled=false, title='', icon=none, badge=none, attributes={}) -%}
+<{{'a' if href else 'button'}} class="mws-tab" id="{{identifier}}"{% if href %} href="{{href}}"{% if active %} aria-current="page"{% endif %}{% if disabled %} aria-disabled="true" tabindex="-1"{% endif %}{% else %} type="button" role="tab"{% if controls %} aria-controls="{{controls}}"{% endif %} aria-selected="{{'true' if active else 'false'}}" tabindex="{{0 if active else -1}}"{% if disabled %} disabled{% endif %}{% endif %}{% if title %} title="{{title}}"{% endif %}{% for key,value in attributes.items() %} {{key}}="{{value}}"{% endfor %}>{% if icon %}<span class="mws-tab-icon" aria-hidden="true">{{icon}}</span> {% endif %}{{label}}{% if badge is not none %} <span class="mws-tab-count">{{badge}}</span>{% endif %}</{{'a' if href else 'button'}}>
+{%- endmacro %}

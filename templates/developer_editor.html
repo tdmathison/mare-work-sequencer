@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% block page_class %}developer-page developer-viewport{% endblock %}
 {% block content %}
+{% include 'developer_navigation.html' %}
 <link rel="stylesheet" href="{{url_for('static',filename='developer-workspace.css')}}">
 <section id="developer-workspace" data-developer-editor data-base="{{url_for('developer_plugin_list')}}" data-csrf="{{csrf}}" data-selected="{{selected_plugin}}">
 <script src="{{url_for('static',filename='developer-layout.js')}}"></script>

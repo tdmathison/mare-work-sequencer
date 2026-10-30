@@ -42,14 +42,14 @@ def test_exact_hierarchy_and_existing_destinations():
     assert [i["label"] for i in settings] == [
         "General",
         "Users",
-        "Import & Export",
         "Audit",
+        "Import & Export",
     ]
     assert [i["url"] for i in settings] == [
         "/settings/general",
         "/settings/users",
-        "/settings/import-export",
         "/settings/audit",
+        "/settings/import-export",
     ]
     assert {i["label"]: i.get("icon") for i in settings} == {
         "General": "⚙",

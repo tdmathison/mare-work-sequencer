@@ -14,10 +14,8 @@
   }
   complete.onchange=()=>{if(complete.checked)selected.forEach(c=>c.checked=true);selection();};
   selected.forEach(c=>c.onchange=()=>{if(!c.checked)complete.checked=false;selection();});selection();
-  for(const tab of document.querySelectorAll('[data-tab]'))tab.onclick=()=>{
-    for(const item of document.querySelectorAll('[data-tab]')){const current=item===tab;item.setAttribute('aria-selected',String(current));item.tabIndex=current?0:-1;$(item.dataset.tab+'-panel').hidden=!current;}remember();
-  };
-  document.querySelector('.backup-tabs').onkeydown=event=>{if(['ArrowLeft','ArrowRight','Home','End'].includes(event.key)){event.preventDefault();const tabs=[...document.querySelectorAll('[data-tab]')];const next=event.key==='Home'?tabs[0]:event.key==='End'?tabs[1]:tabs.find(t=>t.getAttribute('aria-selected')!=='true');next.click();next.focus();}};
+  const workflowTabs=document.querySelector('.backup-tabs');
+  window.MwsTabs.bind(workflowTabs,tab=>{window.MwsTabs.setActive(workflowTabs,tab);remember();});
   async function request(url,data){
     const options=data?{method:'POST',body:data}:{};const r=await fetch(url,{...options,cache:'no-store'});
     if(r.redirected&&new URL(r.url).pathname.endsWith('/login'))throw Error('Your session ended. For complete replacement, sign in using a restored administrator account.');

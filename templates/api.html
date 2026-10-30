@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+{% include 'developer_navigation.html' %}
 <link rel="stylesheet" href="{{url_for('static', filename='vendor/swagger-ui/swagger-ui.css')}}" />
 <link rel="stylesheet" href="{{url_for('static', filename='api-documentation.css')}}" />
 <script defer src="{{url_for('static', filename='vendor/swagger-ui/swagger-ui-bundle.js')}}"></script>

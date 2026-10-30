@@ -14,15 +14,9 @@
       try { guard = frame.contentWindow?.mareCanLeaveTool; } catch (_) { /* Cross-origin tools cannot expose a leave hook. */ }
       if (typeof guard === 'function') { selecting = true; try { if (!await guard()) return false; } catch (_) { return false; } finally { selecting = false; } }
     }
-    tabs.forEach(item => {
-      const active = item === tab;
-      item.setAttribute('aria-selected', String(active));
-      item.tabIndex = active ? 0 : -1;
-      const panel = document.getElementById(item.getAttribute('aria-controls'));
-      panel.hidden = !active;
-      const frame = panel.querySelector('iframe');
-      if (active && !frame.hasAttribute('src')) frame.src = frame.dataset.src;
-    });
+    window.MwsTabs.setActive(workspace.querySelector('.tool-tabs'),tab);
+    const frame=document.getElementById(tab.getAttribute('aria-controls')).querySelector('iframe');
+    if(!frame.hasAttribute('src'))frame.src=frame.dataset.src;
     document.querySelectorAll('[data-navigation-tool]').forEach(link => {
       if (link.dataset.navigationTool === tab.dataset.tool) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');
@@ -47,17 +41,7 @@
     if(await select(tab,false))historyIndex=state.index;
     else if(delta){restoringHistory=true;history.go(-delta);}
   });
-  tabs.forEach((tab, index) => {
-    tab.addEventListener('click', () => select(tab));
-    tab.addEventListener('keydown', event => {
-      let next;
-      if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-      if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
-      if (event.key === 'Home') next = 0;
-      if (event.key === 'End') next = tabs.length - 1;
-      if (next !== undefined) { event.preventDefault(); tabs[next].focus(); select(tabs[next]); }
-    });
-  });
+  window.MwsTabs.bind(workspace.querySelector('.tool-tabs'),tab=>select(tab));
   const expand = document.getElementById('tools-expand');
   function toggle(force) {
     const expanded = workspace.classList.toggle('expanded', force);

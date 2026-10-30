@@ -10,15 +10,10 @@
 .dropdown-navigation .dropdown-navigation-menu a:hover,.dropdown-navigation .dropdown-navigation-menu a[aria-current] {background:var(--panel-2);color:var(--accent);}
 .dropdown-navigation [hidden] {display:none!important;}
 @media(pointer:coarse) {.dropdown-navigation .dropdown-navigation-toggle {min-width:44px;}}
-.settings-shell .settings-categories {display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 30px;padding-bottom:16px;border-bottom:1px solid var(--line);}
-.settings-shell .settings-categories a {text-decoration:none;border:1px solid var(--line);padding:10px 18px;color:var(--muted);border-radius:4px;}
-.settings-shell .settings-categories a[aria-current=page] {border-color:var(--accent);color:var(--accent);background:var(--panel-2);}
 .settings-shell #settings-content {min-width:0;}
 .settings-shell #settings-unsaved {max-width:560px;width:calc(100% - 32px);background:var(--panel);color:var(--text);border:1px solid var(--accent-dim);padding:24px;}
 .settings-shell #settings-unsaved::backdrop {background:#0009;}
 .settings-shell .settings-dialog-actions {display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;}
-.settings-shell.backup-page .backup-tabs {margin-top:20px;}
-@media(max-width:600px) {.settings-shell .settings-categories a {padding:10px 12px;}}
 
 .dropdown-navigation .navigation-unavailable {display:block;padding:11px 12px;letter-spacing:normal;font-size:13px;color:var(--muted);}
 .dropdown-navigation .dropdown-navigation-menu hr {border:0;border-top:1px solid var(--line);margin:5px 6px;}

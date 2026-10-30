@@ -1,0 +1,9 @@
+/* Extracted from Case Workbench: one shared design for workspace navigation. */
+.mws-tabs{--mws-tabs-indicator:3px;--mws-tabs-padding-block:14px;--mws-tabs-padding-inline:20px;display:flex;gap:4px;border-bottom:1px solid var(--accent-dim);margin:8px 0 24px;flex-wrap:nowrap;overflow-x:auto;max-width:100%;min-width:0;flex-shrink:0}
+.mws-tabs>.mws-tab{display:inline-block;flex:none;background:transparent;color:var(--muted);border:0;border-radius:0;border-bottom:var(--mws-tabs-indicator) solid transparent;padding:var(--mws-tabs-padding-block) var(--mws-tabs-padding-inline);margin-top:22px;letter-spacing:.08em;font:inherit;font-size:14px;font-weight:650;text-decoration:none;white-space:nowrap;cursor:pointer}
+.mws-tabs>.mws-tab:is([aria-selected=true],[aria-current=page]){color:var(--accent);border-bottom-color:var(--accent);background:var(--panel)}
+.mws-tabs>.mws-tab:hover{color:var(--text);filter:brightness(1.1)}
+.mws-tabs>.mws-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+.mws-tabs>.mws-tab:is(:disabled,[aria-disabled=true]){opacity:.45;cursor:not-allowed}
+.mws-tab-count{font-size:.85em}.mws-tab-icon{font:inherit;line-height:1}
+@media(max-width:550px){.mws-tabs{--mws-tabs-padding-block:12px;--mws-tabs-padding-inline:12px}}

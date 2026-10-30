@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% block page_class %}sdk-page{% endblock %}{% block content %}
+{% include 'developer_navigation.html' %}
 <link rel="stylesheet" href="{{url_for('static',filename='developer-workspace.css')}}"><script defer src="{{url_for('static',filename='developer-docs.js')}}"></script>
 <div class="developer-heading"><h1>Python SDK</h1><span class="status">mws-sdk 1.0.0 · API v1</span><a href="{{url_for('api_page')}}">REST API</a></div>
 <div class="sdk-documentation"><aside aria-label="SDK documentation navigation"><label>Search documentation <input id="sdk-doc-search" type="search" placeholder="Find a section or method"></label><nav>{% for key,item in documents.items() %}<a href="{{url_for('developer_sdk',document=key)}}"{% if document==key %} aria-current="page"{% endif %}>{{item[0]}}</a>{% endfor %}</nav><nav id="sdk-doc-sections" aria-label="On this page">{% for section in sections %}<a href="#{{section.id}}" data-level="{{section.level}}">{{section.title}}</a>{% endfor %}</nav></aside><article id="sdk-doc-content" class="rendered-markdown">{{content}}</article></div>

@@ -37,7 +37,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   async function labels(panel) {return panel.locator('a').evaluateAll(links => links.map(link => [...link.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join('')));}
   const settings = await group('Settings');
   await settings.toggle.click();
-  assert.deepEqual(await labels(settings.panel), ['General', 'Users', 'Import & Export', 'Audit']);
+  assert.deepEqual(await labels(settings.panel), ['General', 'Users', 'Audit', 'Import & Export']);
   await settings.toggle.click(); // Persist closed; a direct active child must override it.
   await page.reload();
   assert.equal(await settings.toggle.getAttribute('aria-expanded'), 'false');

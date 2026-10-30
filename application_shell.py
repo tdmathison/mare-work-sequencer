@@ -128,15 +128,6 @@ def register_shell(app, db):
                     active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["users"],
                 )
             )
-        if can("backups:manage"):
-            settings.append(
-                dict(
-                    label="Import & Export",
-                    icon="⇄",
-                    url=url_for("import_export_page"),
-                    active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["import-export"],
-                )
-            )
         if user["role"] == "Administrator":
             settings.append(
                 dict(
@@ -144,6 +135,15 @@ def register_shell(app, db):
                     icon="▤",
                     url=url_for("audit_view"),
                     active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["audit"],
+                )
+            )
+        if can("backups:manage"):
+            settings.append(
+                dict(
+                    label="Import & Export",
+                    icon="⇄",
+                    url=url_for("import_export_page"),
+                    active=endpoint in SETTINGS_CATEGORY_ENDPOINTS["import-export"],
                 )
             )
         add(

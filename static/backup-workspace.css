@@ -1,7 +1,4 @@
 .backup-page h1 { margin-bottom:8px; }.backup-page .backup-eyebrow { font-size:11px;letter-spacing:.18em;color:var(--accent); }
-.backup-page .backup-tabs { display:flex;gap:24px;border-bottom:1px solid var(--line);margin:28px 0; }
-.backup-page .backup-tabs button { background:transparent;color:var(--muted);border-radius:0;border-bottom:2px solid transparent;padding:16px 6px; }
-.backup-page .backup-tabs [aria-selected=true] { color:var(--accent);border-bottom-color:var(--accent); }
 .backup-page .backup-panel { max-width:1240px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:32px; }
 .backup-page .backup-panel h2 { margin-top:0; }.backup-page .backup-complete { display:flex;align-items:flex-start;gap:16px;padding:22px;background:var(--panel-2);border:1px solid var(--accent-dim);border-radius:6px;margin:24px 0; }
 .backup-page input[type=checkbox] { display:inline-block;width:18px;height:18px;flex:none;margin:2px 0;accent-color:var(--accent); }

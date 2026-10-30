@@ -1,3 +1,4 @@
+{% from 'components/tabs.html' import bar, item %}
 {% extends 'base.html' %}{% from 'base.html' import token %}{% macro upload(cid,csrf,categories) %}
 <form class="asset-form" data-case-id="{{cid}}" method="post" enctype="multipart/form-data" action="/cases/{{cid}}/upload">
     <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
@@ -41,12 +42,13 @@
         <p class="notice">Assign an active owner in <a href="#case-details">Case details</a> to start or resume this case at its current stage.</p>
     {% endif %}
     
-    <div class="case-tabs" role="tablist" aria-label="Case sections" data-case-id="{{c.id}}">
+    {% call bar('Case sections', 'case-tabs', attributes={'data-case-id':c.id}) %}
         {% for key,label in [('workbench','Workbench'),('tasks','Tasks'),('indicators','Indicators'),('references','References'),('package','Package'),('report','Report'),('review','Review & Export')] %}
-            <button type="button" role="tab" id="tab-{{key}}" aria-controls="panel-{{key}}" aria-selected="{{'true' if key=='workbench' else 'false'}}" tabindex="{{0 if key=='workbench' else -1}}" {% if (c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'] %}disabled title="{{'Assign an active owner to resume' if c.owner_required and not c.owner_active else 'Start analysis to unlock this tab'}}"{% endif %}>{{label}}
-            </button>
+            {{item(label, 'tab-'+key, active=key=='workbench', controls='panel-'+key,
+                disabled=(c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'],
+                title=('Assign an active owner to resume' if c.owner_required and not c.owner_active else 'Start analysis to unlock this tab') if (c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'] else '')}}
         {% endfor %}
-    </div>
+    {% endcall %}
     <section id="panel-workbench" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-workbench">
         {% include 'case_tags.html' %}
         <div class="columns workbench-columns"><div>

@@ -1,10 +1,11 @@
+{% from 'components/tabs.html' import bar, item %}
 {% extends 'base.html' %}
 {% block page_class %}settings-shell {% block settings_page_class %}{% endblock %}{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-<nav class="settings-categories" aria-label="Settings categories">
-{% for tab in settings_tabs %}<a href="{{tab.url}}"{% if settings_category==tab.key %} aria-current="page"{% endif %}>{{tab.label}}</a>{% endfor %}
-</nav>
+{% call bar('Settings categories', 'settings-categories', links=true) %}
+{% for tab in settings_tabs %}{{item(tab.label, 'settings-tab-'+tab.key, active=settings_category==tab.key, href=tab.url)}}{% endfor %}
+{% endcall %}
 <section id="settings-content" data-category="{{settings_category}}">{% block settings_content %}{% endblock %}</section>
 {% if settings_category in ('general','users') %}
 <dialog id="settings-unsaved" aria-labelledby="settings-unsaved-heading">

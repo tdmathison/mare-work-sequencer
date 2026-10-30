@@ -1,0 +1,7 @@
+{# Use the authoritative, permission-filtered Developer sidebar destinations. #}
+{% from 'components/tabs.html' import bar, item %}
+{% for section in sidebar_items if section.label=='Developer' %}
+{% call bar('Developer sections', 'developer-navigation', links=true) %}
+{% for tab in section.children %}{{item(tab.label, 'developer-tab-'+tab.label|lower, active=tab.active, href=tab.url)}}{% endfor %}
+{% endcall %}
+{% endfor %}

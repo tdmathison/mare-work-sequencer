@@ -1,6 +1,8 @@
+{% from 'components/tabs.html' import bar, item %}
 {% extends 'base.html' %}
 {% block page_class %}developer-page developer-viewport{% endblock %}
 {% block content %}
+{% include 'developer_navigation.html' %}
 <link rel="stylesheet" href="{{url_for('static',filename='developer-workspace.css')}}">
 <section data-plugin-management data-base="{{url_for('developer_plugin_list')}}" data-csrf="{{csrf}}" data-editor="{{url_for('developer_editor')}}">
 <aside class="plugin-inventory" aria-label="Installed Plugins">
@@ -15,7 +17,7 @@
 <section class="plugin-detail-region" aria-label="Plugin details"><p data-management-empty>Select a plugin to inspect its manifest.</p>
 <div data-plugin-details hidden>
 <header class="plugin-detail-header"><div><h2 data-detail-name></h2><p data-detail-byline></p><p data-detail-description></p></div><div class="plugin-primary-actions"><button type="button" data-enable>Enable</button><button type="button" data-disable>Disable</button><a class="button-secondary" data-edit>Edit in Editor</a></div></header>
-<div class="plugin-detail-tabs" role="tablist" aria-label="Plugin details">{% for tab in ['Overview','Configuration','Permissions','Dependencies','Activity'] %}<button type="button" role="tab" id="plugin-tab-{{tab|lower}}" data-detail-tab="{{tab|lower}}" aria-controls="plugin-detail-panel" aria-selected="{{'true' if loop.first else 'false'}}" tabindex="{{0 if loop.first else -1}}">{{tab}}</button>{% endfor %}</div>
+{% call bar('Plugin details','plugin-detail-tabs') %}{% for tab in ['Overview','Configuration','Permissions','Dependencies','Activity'] %}{{item(tab,'plugin-tab-'+tab|lower,active=loop.first,controls='plugin-detail-panel',attributes={'data-detail-tab':tab|lower})}}{% endfor %}{% endcall %}
 <div id="plugin-detail-panel" role="tabpanel" aria-labelledby="plugin-tab-overview" tabindex="0" data-plugin-metadata></div>
 </div></section>
 </section>
