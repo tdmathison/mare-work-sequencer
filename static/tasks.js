@@ -9,7 +9,18 @@
       preview = section.querySelector("[data-task-preview]"),
       pane = section.querySelector(".markdown-preview"),
       editor = section.querySelector(".markdown-editor");
-    let sequence = 0;
+    let sequence = 0, checked = false;
+    form.addEventListener('submit', async event => {
+      if (checked) return;
+      event.preventDefault();
+      try {
+        await window.MareTaskCase.ensureEditable();
+        checked = true;
+        form.requestSubmit(event.submitter || undefined);
+      } catch (error) {
+        section.querySelector('[data-editor-status]').textContent = error.message;
+      } finally { checked = false; }
+    });
     function rawView() {
       sequence++;
       pane.hidden = true;

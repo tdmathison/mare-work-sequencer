@@ -351,3 +351,51 @@ def test_task_reordering_preserves_image_association_in_case_snapshots():
         snapshot=app.extensions['case_sync'].snapshot(cid)
         assert snapshot['records']['tasks'][1]['body']=='![Finding](assets/'+name+')'
         assert snapshot['images'][0]['section']=='task-index-1'
+
+
+def test_closed_case_stale_requests_readability_library_and_reopening():
+    import httpx
+    from mws_sdk import MWSClient, MWSConflictError
+    client,headers,cid,_=setup()
+    collection=create(client,headers);copied=application(client,headers,cid,collection).json
+    tid=copied['task_ids'][0]
+    with app.app_context():
+        before=[dict(row) for row in db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id',(cid,))]
+        run('UPDATE cases SET stage=3 WHERE id=?',(cid,))
+    payload={'revision':collection['revision'],'template_ids':[t['id'] for t in collection['tasks']],'request_key':uuid.uuid4().hex}
+    actions=[(f'/cases/{cid}/tasks',{'name':'Blocked'}),
+             (f'/cases/{cid}/tasks/{tid}/edit',{'name':'Blocked','state':'Completed'}),
+             (f'/cases/{cid}/tasks/{tid}',{}),
+             (f'/task-workspace/cases/{cid}/tasks/{tid}',{'payload':json.dumps({'operation':'delete'})}),
+             (f'/task-workspace/cases/{cid}/reorder',{'payload':json.dumps({'group_id':copied['group_id'],'task_ids':copied['task_ids'][::-1]})}),
+             (f'/task-workspace/cases/{cid}/groups/{copied["group_id"]}/delete',{'payload':json.dumps({'confirm':True})}),
+             (f'/task-workspace/cases/{cid}/collections/{collection["id"]}/apply',{'payload':json.dumps(payload)})]
+    for path,value in actions:
+        response=client.post(path,data={'csrf':'collection-token',**value})
+        assert response.status_code==409,(path,response.data)
+    with MWSClient('http://isolated.test',headers['Authorization'][7:],transport=httpx.WSGITransport(app=app),retries=0) as sdk:
+        with pytest.raises(MWSConflictError):sdk.tasks.create(cid,data={'title':'Blocked SDK'})
+    assert client.get(f'/cases/{cid}?tab=tasks').status_code==200
+    assert client.get(f'/api/v1/cases/{cid}/tasks/{tid}',headers=headers).json['task']['title']==before[0]['title']
+    assert client.get(f'/api/v1/cases/{cid}/task-groups',headers=headers).json['editable'] is False
+    # Global management is independent of the Case lock.
+    copied_global=client.post(f'/task-workspace/cases/{cid}/from-tasks',data={'csrf':'collection-token','payload':json.dumps({'name':'Copied from closed Case','task_ids':[tid]})})
+    assert copied_global.status_code==201
+    global_collection=create(client,headers,name='Still available')
+    assert client.patch('/api/v1/task-collections/'+global_collection['id'],headers=headers,json={**global_collection,'name':'Updated globally'}).status_code==200
+    with app.app_context():
+        assert [dict(row) for row in db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id',(cid,))]==before
+    assert client.post(f'/cases/{cid}/reopen',data={'csrf':'collection-token'}).status_code==302
+    assert client.get(f'/api/v1/cases/{cid}/task-groups',headers=headers).json['editable'] is True
+    assert client.patch(f'/api/v1/cases/{cid}/tasks/{tid}',headers=headers,json={'state':'Completed'}).status_code==200
+    assert application(client,headers,cid,collection,mode='copy').status_code==201
+
+
+def test_reopened_case_still_requires_task_edit_permission():
+    client,headers,cid,_=setup()
+    with app.app_context():run('UPDATE cases SET stage=3 WHERE id=?',(cid,))
+    assert client.post(f'/cases/{cid}/reopen',data={'csrf':'collection-token'}).status_code==302
+    with app.app_context():run("DELETE FROM role_permissions WHERE role_name='User' AND permission='cases:update'")
+    assert client.get(f'/api/v1/cases/{cid}/task-groups',headers=headers).json['editable'] is False
+    assert client.post(f'/api/v1/cases/{cid}/tasks',headers=headers,json={'title':'Forbidden'}).status_code==403
+    assert client.get(f'/api/v1/cases/{cid}/tasks',headers=headers).status_code==200

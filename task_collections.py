@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from flask import abort
 from authorization import has_permission
+from case_queries import CASE_QUERY
 
 STATES = ('Not Started', 'In Progress', 'Completed')
 MIGRATION = 'task-collections-v1'
@@ -47,12 +48,19 @@ def permission(con,user,action,record=None):
     if not broad and not has_permission(user,'task_collections:'+action,con): abort(403)
     if record is not None and not broad and record['creator_uuid']!=user['user_uuid']: abort(403)
 
+def case_state(con,cid):
+    row=con.execute(CASE_QUERY+' WHERE c.id=?',(cid,)).fetchone()
+    if row is None:abort(404)
+    return row
+
+def can_edit(con,user,row):
+    return has_permission(user,'cases:update',con) and not row['workspace_locked']
+
 def editable(con,user,cid):
-    if not has_permission(user,'cases:update',con): abort(403)
-    row=con.execute('SELECT c.*,u.active owner_active FROM cases c LEFT JOIN users u ON u.id=c.owner WHERE c.id=?',(cid,)).fetchone()
-    if row is None: abort(404)
-    if row['stage'] not in (1,2) or row['owner_required'] and not row['owner_active']:
-        abort(409,description='Start analysis or reopen the Case and assign an active owner before editing tasks.')
+    if not has_permission(user,'cases:update',con):abort(403)
+    row=case_state(con,cid)
+    if row['workspace_locked']:
+        abort(409,description='Start analysis or reopen the case to edit content.')
     return row
 
 def readable(con,user,cid):
@@ -178,7 +186,7 @@ def workspace(con,user,cid):
         a['template_ids']=json.loads(a['template_ids'])
     for group in groups:
         source=sources.get(group['id'],{});group['source_fingerprint']=source.get('source_fingerprint','');group['source_tasks']=source.get('source_tasks',[])
-    return dict(tasks=tasks,groups=groups,applications=applications)
+    return dict(tasks=tasks,groups=groups,applications=applications,editable=can_edit(con,user,case_state(con,cid)))
 
 def create_task(con,user,cid,value):
     with con:

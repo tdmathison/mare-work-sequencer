@@ -7,7 +7,8 @@
 {% endcall %}{% endif %}
 <p role="status" data-collection-notice>Loading tasks and collections…</p>
 {% if c %}<section id="task-case-view" role="tabpanel" aria-labelledby="tasks-case-view">
-<div class="heading task-actions"><h2>Case tasks <small data-task-total></small></h2><div class="report-actions"><button type="button" data-add-collection disabled>Add task collection</button><button type="button" id="add-task-button" data-open-task="add-task-dialog" disabled>Add Task</button></div></div>
+<p class="muted" data-case-task-readonly {% if not c.workspace_locked %}hidden{% endif %}>Start analysis or reopen the case to edit content.</p>
+<div class="heading task-actions"><h2>Case tasks <small data-task-total></small></h2><fieldset class="workflow-controls report-actions" data-case-task-actions {% if c.workspace_locked %}disabled{% endif %}><button type="button" data-add-collection disabled>Add task collection</button><button type="button" id="add-task-button" data-open-task="add-task-dialog" disabled>Add Task</button></fieldset></div>
 <div class="task-filters"><label>Search tasks<input type="search" data-task-search></label><label>Status<select data-task-status><option>All</option><option>Not Started</option><option>In Progress</option><option>Completed</option></select></label></div>
 <div class="task-selection"><span data-task-selection>0 selected</span><button type="button" data-clear-selection>Clear selection</button><button type="button" data-from-tasks disabled>Add to collection</button></div>
 <div id="case-tasks" data-task-groups></div>
@@ -26,7 +27,7 @@
 <label data-repeat-choice hidden>Previously added collection<select data-apply-mode><option value="missing">Add tasks not previously added from this collection</option><option value="copy">Add another copy as a separate group</option></select></label>
 <div data-drawer-tasks></div><p data-drawer-count></p>
 <p>Collection updates do not change existing case tasks.</p>
-<button type="button" data-confirm-collection disabled>Add 0 tasks</button>
+<fieldset class="workflow-controls" data-case-drawer-actions {% if c and c.workspace_locked %}disabled{% endif %}><button type="button" data-confirm-collection disabled>Add 0 tasks</button></fieldset>
 <p role="alert" data-drawer-error></p>
 </dialog>
 <dialog class="task-collection-editor panel" data-collection-editor aria-labelledby="collection-editor-title">

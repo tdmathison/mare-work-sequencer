@@ -35,9 +35,7 @@ def register(app,db):
             service.remove(db(),g.user,collection_id,value.get('revision'));return '',204
         return {'collection':service.save(db(),g.user,value,collection_id)}
     def case_workspace(cid):
-        result=service.workspace(db(),g.user,cid);c=db().execute('SELECT c.*,u.active owner_active FROM cases c LEFT JOIN users u ON u.id=c.owner WHERE c.id=?',(cid,)).fetchone()
-        result['editable']=has_permission(g.user,'cases:update',db()) and c['stage'] in (1,2) and (not c['owner_required'] or bool(c['owner_active']))
-        return result
+        return service.workspace(db(),g.user,cid)
     def application(cid,collection_id):return service.apply(db(),g.user,cid,collection_id,payload()),201
     def from_tasks(cid):return {'collection':service.from_case(db(),g.user,cid,payload())},201
     def change_task(cid,tid):

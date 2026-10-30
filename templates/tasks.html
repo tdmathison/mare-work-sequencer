@@ -30,11 +30,11 @@
                 <div class="report-image-list" aria-label="Task images"></div>
                 <p data-editor-status role="status"></p>
             </section>
+        </fieldset>
             <div class="dialog-actions">
-                <button>{{'Save task' if task else 'Create task'}}</button>
+                <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}><button>{{'Save task' if task else 'Create task'}}</button></fieldset>
                 <button type="button" data-close-task-dialog>Cancel</button>
             </div>
-        </fieldset>
     </form>
 </dialog>
 {% endmacro %}

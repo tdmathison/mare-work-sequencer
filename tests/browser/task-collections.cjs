@@ -1,6 +1,6 @@
 /* Actual session APIs, Case copies and collection authoring; no data fixtures for replies. */
 const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
-const {spawn}=require('node:child_process'),{chromium}=require('playwright');
+const {spawn,spawnSync}=require('node:child_process'),{chromium}=require('playwright');
 const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'mws-task-collections-')),real=fs.realpathSync(temporary),jobs=path.join(path.dirname(real),'.mare-backup-work-'+crypto.createHash('sha256').update(real).digest('hex').slice(0,16)),base='http://127.0.0.1:8811';
 const server=spawn('.venv/bin/python',['tests/browser/server.py'],{env:{...process.env,MARE_DATA_DIR:temporary,MARE_EDITOR_BROWSER_TEST:'1',MARE_EDITOR_TEST_PORT:'8811'},stdio:['ignore','ignore','pipe']});let browser,logs='';server.stderr.on('data',d=>logs+=d);
 (async()=>{for(let i=0;;i++){try{await fetch(base+'/login');break;}catch{if(i>100||server.exitCode!==null)throw Error(logs);await new Promise(r=>setTimeout(r,100));}}
@@ -24,5 +24,24 @@ const server=spawn('.venv/bin/python',['tests/browser/server.py'],{env:{...proce
  await libraryTab.click();page.once('dialog',dialog=>dialog.accept());await root.getByRole('button',{name:'Delete collection',exact:true}).click();await root.locator('[data-collection-notice]').filter({hasText:'Collection deleted'}).waitFor();assert.equal((await(await page.request.get(caseURL)).json()).tasks.length,5);
  await caseTab.click();const status=root.locator('.task-row select').first();await status.selectOption('Completed');await page.waitForFunction(async url=>(await(await fetch(url)).json()).tasks.some(t=>t.state==='Completed'),caseURL);
  const updatedRow=root.locator('.task-row').first();await updatedRow.getByRole('button',{name:'Edit task',exact:true}).click();const taskDialog=page.locator('dialog.task-workspace-dialog[open]');assert.equal(await taskDialog.locator('[name=state]').inputValue(),'Completed');await taskDialog.locator('[data-close-task-dialog]').click();
- await page.screenshot({path:'/tmp/mws-task-collections-mobile.png'});assert.deepEqual(errors,[]);console.log('Collection authoring/order/preview, independent selection, append and duplicate warning, atomic drawer application/retry, revision refresh, snapshots, status, and mobile geometry passed.');
+ // Closing in another session must lock already-open forms and collection drawers.
+ const setStage=stage=>{const result=spawnSync('.venv/bin/python',['-c','import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.execute("UPDATE cases SET stage=? WHERE id=1",(int(sys.argv[2]),)); c.commit()',path.join(temporary,'workflow.sqlite3'),String(stage)],{encoding:'utf8'});assert.equal(result.status,0,result.stderr);};
+ const closedCollectionResponse=await page.request.post(base+'/task-workspace/collections',{form:{csrf,payload:JSON.stringify({name:'Closure guidance',tasks:[{name:'Never applied while closed'}]})}});assert.equal(closedCollectionResponse.status(),201);await page.goto(base+'/cases/'+cid+'?tab=tasks');await root.locator('.task-row').first().waitFor();
+ await updatedRow.getByRole('button',{name:'Edit task',exact:true}).click();await taskDialog.locator('[name=name]').fill('Blocked stale edit');
+ const beforeClose=JSON.stringify((await(await page.request.get(caseURL)).json()).tasks);
+ setStage(3);await taskDialog.getByRole('button',{name:'Save task',exact:true}).click();
+ await taskDialog.locator('[data-editor-status]').filter({hasText:'reopen'}).waitFor();assert.ok(await taskDialog.getByRole('button',{name:'Save task',exact:true}).isDisabled());
+ await taskDialog.locator('[data-close-task-dialog]').click();
+ assert.equal(JSON.stringify((await(await page.request.get(caseURL)).json()).tasks),beforeClose);
+ for(const name of ['Add task collection','Add Task','Edit task','Delete task','Move up','Move down','Remove collection from case'])for(const control of await root.getByRole('button',{name,exact:true}).all())assert.ok(await control.isDisabled(),name);
+ assert.ok(await root.locator('.task-row select').first().isDisabled());
+ await libraryTab.click();assert.ok(await root.getByRole('button',{name:'Create collection',exact:true}).isEnabled());assert.ok(await root.getByRole('button',{name:'Edit collection',exact:true}).first().isEnabled());assert.ok(await root.getByRole('button',{name:'Add to case',exact:true}).first().isDisabled());
+ assert.equal((await page.request.post(base+'/cases/1/reopen',{form:{csrf}})).status(),200);
+ await page.reload();await page.locator('#case-tasks .task-row').first().waitFor();
+ await root.getByRole('button',{name:'Add task collection',exact:true}).click();await drawer.locator('[data-confirm-collection]').filter({hasText:'Add 1 tasks'}).waitFor();
+ setStage(3);await drawer.locator('[data-confirm-collection]').click();await drawer.locator('[data-drawer-error]').filter({hasText:'reopen'}).waitFor();assert.ok(await drawer.locator('[data-confirm-collection]').isDisabled());assert.equal(JSON.stringify((await(await page.request.get(caseURL)).json()).tasks),beforeClose);
+ await drawer.locator('[data-close-drawer]').click();
+ await page.request.post(base+'/cases/1/reopen',{form:{csrf}});await page.reload();await root.locator('.task-row').first().waitFor();assert.ok(await root.getByRole('button',{name:'Add Task',exact:true}).isEnabled());
+ await root.getByRole('button',{name:'Add Task',exact:true}).click();const addTask=page.locator('#add-task-dialog');await addTask.locator('[name=name]').fill('Task after reopening');await addTask.getByRole('button',{name:'Create task',exact:true}).click();await root.locator('.task-row').filter({hasText:'Task after reopening'}).waitFor();
+ await page.screenshot({path:'/tmp/mws-task-collections-mobile.png'});assert.deepEqual(errors,[]);console.log('Collection authoring/order/preview, independent selection, append and duplicate warning, atomic drawer application/retry, revision refresh, snapshots, status, closed-Case/stale-form guards, global-library access, reopening, and mobile geometry passed.');
 })().catch(error=>{console.error(error);console.error(logs.slice(-2500));process.exitCode=1;}).finally(async()=>{await browser?.close();server.kill();fs.rmSync(temporary,{recursive:true,force:true});fs.rmSync(jobs,{recursive:true,force:true});});
