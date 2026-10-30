@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from developer_worker.supervisor import Supervisor, container_command
+from plugin_runtime.supervisor import Supervisor, container_command
 
 IMAGE = "sha256:" + "a" * 64
 
@@ -16,7 +16,7 @@ def docker_info():
 
 
 def test_docker_argv_has_limits_without_podman_only_flags():
-    args = container_command(IMAGE, "job", "/snapshot", "/gateway", "develop", "docker")
+    args = container_command(IMAGE, "job", "/snapshot", "/gateway", "run", "docker")
     assert args[:3] == ["docker", "run", "--rm"]
     for flag in ("--network=none", "--user=10001:10001", "--read-only",
                  "--cap-drop=ALL", "--security-opt=no-new-privileges",
@@ -25,7 +25,7 @@ def test_docker_argv_has_limits_without_podman_only_flags():
         assert flag in args
     assert not any(arg.startswith("--timeout") for arg in args)
     assert not any(arg in args for arg in ("--privileged", "--pid=host", "--network=host"))
-    assert args[-2:] == [IMAGE, "develop"]
+    assert args[-2:] == [IMAGE, "run"]
 
 
 @pytest.mark.parametrize("change", [
@@ -36,8 +36,8 @@ def test_docker_argv_has_limits_without_podman_only_flags():
 ])
 def test_docker_fails_closed_without_isolation(monkeypatch, tmp_path, change):
     info = {**docker_info(), **change}
-    monkeypatch.setattr("developer_worker.supervisor.os.geteuid", lambda: 1000)
-    monkeypatch.setattr("developer_worker.supervisor.subprocess.run",
+    monkeypatch.setattr("plugin_runtime.supervisor.os.geteuid", lambda: 1000)
+    monkeypatch.setattr("plugin_runtime.supervisor.subprocess.run",
                         lambda *a, **kw: SimpleNamespace(stdout=json.dumps(info)))
     with pytest.raises(RuntimeError):
         Supervisor(tmp_path, IMAGE, "https://mws.example.test", "docker")
@@ -48,8 +48,8 @@ def test_docker_startup_checks_pinned_image_and_preserves_only_engine_config(mon
     def command(args, **kwargs):
         calls.append((args, kwargs))
         return SimpleNamespace(stdout=json.dumps(docker_info()))
-    monkeypatch.setattr("developer_worker.supervisor.subprocess.run", command)
-    monkeypatch.setattr("developer_worker.supervisor.os.geteuid", lambda: 1000)
+    monkeypatch.setattr("plugin_runtime.supervisor.subprocess.run", command)
+    monkeypatch.setattr("plugin_runtime.supervisor.os.geteuid", lambda: 1000)
     monkeypatch.setenv("DATABASE_PASSWORD", "forbidden")
     monkeypatch.setenv("DOCKER_HOST", "unix:///run/user/1000/docker.sock")
     supervisor = Supervisor(tmp_path, IMAGE, "https://mws.example.test", "docker")
@@ -64,9 +64,9 @@ def test_job_completion_waits_for_cleanup_and_reports_streams(monkeypatch, tmp_p
     import base64
     import io
     import subprocess
-    from developer_worker.supervisor import Job
+    from plugin_runtime.supervisor import Job
     import plugin_store as store
-    from test_plugin_workspace import metadata
+    from plugin_fixtures import metadata, package_entries
 
     calls = []
     def gateway(path, handler):
@@ -74,7 +74,7 @@ def test_job_completion_waits_for_cleanup_and_reports_streams(monkeypatch, tmp_p
         Path(path).touch()
         return SimpleNamespace(serve_forever=lambda: None, shutdown=lambda: None,
                                server_close=lambda: None)
-    monkeypatch.setattr("developer_worker.supervisor.UnixServer", gateway)
+    monkeypatch.setattr("plugin_runtime.supervisor.UnixServer", gateway)
     class Process:
         def __init__(self):
             self.stdout = io.BytesIO(b"hello\n")
@@ -100,12 +100,12 @@ def test_job_completion_waits_for_cleanup_and_reports_streams(monkeypatch, tmp_p
         from pathlib import Path
         assert all(file.stat().st_mode & 0o044 == 0o044 for file in Path(snapshot).iterdir())
         return Process()
-    monkeypatch.setattr("developer_worker.supervisor.subprocess.Popen", spawn)
-    monkeypatch.setattr("developer_worker.supervisor.subprocess.run", lambda args, **kw: calls.append(args))
+    monkeypatch.setattr("plugin_runtime.supervisor.subprocess.Popen", spawn)
+    monkeypatch.setattr("plugin_runtime.supervisor.subprocess.run", lambda args, **kw: calls.append(args))
     supervisor = SimpleNamespace(root=tmp_path, image=IMAGE, engine="docker",
                                  origin="https://example.invalid", environment={})
-    job = Job(supervisor, dict(mode="develop", context={},
-                              archive=base64.b64encode(store.archive(store.template_files(metadata(), "hello"))).decode()))
+    job = Job(supervisor, dict(mode="run", context={},
+                              archive=base64.b64encode(store.archive(package_entries(metadata()))).decode()))
     assert job.cleaned.wait(5)
     assert not job.folder.exists()
     result = job.poll()

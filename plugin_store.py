@@ -1,4 +1,4 @@
-"""Owner-scoped plugin drafts and immutable snapshots. Stored source is never executed."""
+"""Installed plugin package validation and immutable runtime snapshots."""
 
 import ast
 import hashlib
@@ -26,7 +26,6 @@ DATA_PERMISSIONS = frozenset(
         "reports:write",
     )
 )
-READ_PERMISSIONS = frozenset(p for p in DATA_PERMISSIONS if p.endswith(":read"))
 RESERVED = {
     ".git",
     ".env",
@@ -38,22 +37,7 @@ RESERVED = {
     "secrets",
     "plugin-config.json",
 }
-TEXT_SUFFIX = {
-    ".py",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-    ".md",
-    ".txt",
-    ".csv",
-    ".ini",
-    ".cfg",
-    ".xml",
-    ".html",
-    ".css",
-    ".js",
-}
+
 
 
 def now():
@@ -207,15 +191,15 @@ def manifest(value):
 
 
 def initialize(connection):
+    # Preserve the released registry schema/default for SQLite backup compatibility.
+    # New registrations explicitly become Installed; no draft API or lifecycle remains.
     connection.executescript(
         """
     CREATE TABLE IF NOT EXISTS developer_plugins(
       id TEXT PRIMARY KEY,owner_uuid TEXT NOT NULL,name TEXT NOT NULL,revision INTEGER NOT NULL DEFAULT 1,
       development TEXT NOT NULL DEFAULT 'Draft',enabled INTEGER NOT NULL DEFAULT 0,published_version TEXT,
       configuration TEXT NOT NULL DEFAULT '{}',secret_box BLOB,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,deleted INTEGER NOT NULL DEFAULT 0);
-    CREATE TABLE IF NOT EXISTS developer_files(
-      plugin_id TEXT NOT NULL REFERENCES developer_plugins(id) ON DELETE CASCADE,path TEXT NOT NULL,body BLOB NOT NULL,directory INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY(plugin_id,path));
+    CREATE TABLE IF NOT EXISTS plugin_packages(plugin_id TEXT PRIMARY KEY REFERENCES developer_plugins(id),archive BLOB NOT NULL);
     CREATE TABLE IF NOT EXISTS developer_versions(
       plugin_id TEXT NOT NULL REFERENCES developer_plugins(id),version TEXT NOT NULL,fingerprint TEXT NOT NULL,
       archive BLOB NOT NULL,manifest TEXT NOT NULL,publisher_uuid TEXT NOT NULL,created_at TEXT NOT NULL,
@@ -246,15 +230,36 @@ def initialize(connection):
         "INSERT OR IGNORE INTO schema_migrations VALUES('developer-package-discovery-v1')"
     )
     connection.commit()
+    retire_editor_schema(connection)
 
 
 def files(connection, pid):
-    return {
-        row["path"]: dict(body=bytes(row["body"]), directory=bool(row["directory"]))
-        for row in connection.execute(
-            "SELECT * FROM developer_files WHERE plugin_id=? ORDER BY path", (pid,)
-        )
-    }
+    row = connection.execute("SELECT archive FROM plugin_packages WHERE plugin_id=?", (pid,)).fetchone()
+    return inspect_archive(bytes(row[0]))[0] if row else {}
+
+
+def retire_editor_schema(connection):
+    """Forward-only upgrade. Preserve packages/configuration/history, revoke obsolete sessions."""
+    tables = {r[0] for r in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if 'developer_plugins' not in tables:
+        return
+    connection.execute("CREATE TABLE IF NOT EXISTS plugin_packages(plugin_id TEXT PRIMARY KEY REFERENCES developer_plugins(id),archive BLOB NOT NULL)")
+    if 'developer_files' in tables:
+        for (pid,) in connection.execute('SELECT id FROM developer_plugins').fetchall():
+            entries = {r[0]: dict(body=bytes(r[1]),directory=bool(r[2])) for r in connection.execute('SELECT path,body,directory FROM developer_files WHERE plugin_id=?',(pid,))}
+            if entries:
+                connection.execute('INSERT OR IGNORE INTO plugin_packages VALUES(?,?)',(pid,archive(entries)))
+        connection.execute('DROP TABLE developer_files')
+    connection.execute("UPDATE developer_plugins SET development=CASE WHEN published_version IS NULL THEN 'Uninstalled' ELSE 'Installed' END")
+    if 'developer_executions' in tables:
+        connection.execute("UPDATE api_tokens SET revoked=? WHERE id IN (SELECT grant_id FROM developer_executions WHERE mode!='run') AND revoked IS NULL",(now(),))
+        connection.execute("UPDATE developer_executions SET status='Canceled',ended_at=? WHERE mode!='run' AND status IN ('Starting','Running')",(now(),))
+    if 'role_permissions' in tables:
+        # Registration is still a normal folder-plugin permission; keep existing grants.
+        connection.execute("INSERT OR IGNORE INTO role_permissions SELECT role_name,'plugins:install' FROM role_permissions WHERE permission='plugins:create'")
+        connection.execute("DELETE FROM role_permissions WHERE permission IN ('plugins:create','plugins:edit','plugins:validate','plugins:test','plugins:debug','plugins:publish')")
+    connection.execute("INSERT OR IGNORE INTO schema_migrations VALUES('retire-developer-editor-v1')")
+    connection.commit()
 
 
 def validate_tree(entries):
@@ -409,7 +414,10 @@ def static_validation(entries):
                             "sqlite3",
                             "sqlalchemy",
                             "psycopg",
-                            "developer_workspace",
+                            "plugin_routes",
+                            "plugin_execution",
+                            "plugin_runtime",
+                            "developer_configuration",
                             "plugin_store",
                         )
                         for n in names
@@ -436,99 +444,3 @@ def static_validation(entries):
         diagnostics=diagnostics,
         scope="Static manifest/syntax checks only; isolated import/type checks and tests are required before publishing.",
     )
-
-
-TEMPLATES = {
-    "hello": (
-        "Hello World",
-        """def run(context):
-    context.log("Hello from an isolated MWS plugin")
-    case = context.client.cases.get(context.case_id).case if context.case_id else None
-    return {"message": "Hello World", "case": case.number if case else None}
-""",
-    ),
-    "indicators": (
-        "Indicator Enrichment",
-        """def run(context):
-    if context.case_id is None:
-        raise ValueError("Select a case before reading indicators")
-    indicators = context.client.indicators.get(context.case_id)
-    result = [{"type": row[0], "value": row[1]} for section in (indicators.sections or []) for row in section.rows if row[1].strip()]
-    context.log(f"Reviewed {len(result)} saved indicators; no external attribution inferred")
-    if context.inputs.get("submit_finding") and not context.dry_run:
-        context.client.notes.create(context.case_id, data={"title": "Indicator review", "body": f"Reviewed {len(result)} saved indicators."})
-    return {"indicators": result}
-""",
-    ),
-    "report": (
-        "Report Generator",
-        """def run(context):
-    if context.case_id is None:
-        raise ValueError("Select a case before generating a report")
-    case = context.client.cases.get(context.case_id).case
-    if case is None:
-        raise ValueError("The selected case is unavailable")
-    text = f"Analysis summary for {case.number}: {case.name}."
-    if not context.dry_run:
-        context.client.reports.update(context.case_id, data={"sections": {"executive_summary": text}})
-    return {"executive_summary": text, "dry_run": context.dry_run}
-""",
-    ),
-    "external": (
-        "External Integration",
-        """def run(context):
-    if context.dry_run:
-        return {"dry_run": True, "service": context.configuration.get("service", "research")}
-    try:
-        return context.external(context.configuration.get("service", "research"), "/health")
-    except Exception as error:
-        context.log(f"External integration unavailable: {type(error).__name__}")
-        return {"available": False}
-""",
-    ),
-}
-
-
-def template_files(value, template):
-    if template not in TEMPLATES:
-        raise ValueError("Choose a supported plugin template.")
-    if template == "external" and not value.get("configuration"):
-        value = {
-            **value,
-            "configuration": {
-                "service": {
-                    "type": "string",
-                    "default": "research",
-                    "description": "Administrator-approved connector name",
-                },
-                "api_key": {
-                    "type": "string",
-                    "secret": True,
-                    "description": "Optional credential used only by the approved connector gateway",
-                },
-            },
-        }
-    main = "from mws_sdk.plugin import PluginContext\n\n" + TEMPLATES[template][
-        1
-    ].replace("def run(context):", "def run(context: PluginContext):")
-    return {
-        "plugin.json": dict(
-            body=(json.dumps(value, indent=2) + "\n").encode(), directory=False
-        ),
-        "main.py": dict(body=main.encode(), directory=False),
-        "README.md": dict(
-            body=(
-                f"# {value['name']}\n\n{value['description']}\n\nEntry point: `main.py:run(context)`. Use the MWS SDK; do not access the application database.\n"
-            ).encode(),
-            directory=False,
-        ),
-        "requirements.txt": dict(
-            body=("mws-sdk>=1,<2\n" + "\n".join(value["dependencies"]) + "\n").encode(),
-            directory=False,
-        ),
-        "tests/test_plugin.py": dict(
-            body=b"def test_entrypoint_is_callable():\n    from main import run\n    assert callable(run)\n",
-            directory=False,
-        ),
-        "resources": dict(body=b"", directory=True),
-    }

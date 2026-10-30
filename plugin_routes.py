@@ -1,31 +1,13 @@
-"""Authenticated plugin draft API. No source is imported or executed here."""
+"""Owner-scoped installed folder-plugin management; no source editing API."""
 
-import io
 import json
 import sqlite3
-import zipfile
-import zlib
-from flask import abort, g, request, send_file
+from flask import abort, g, request
 from authorization import has_permission
 import plugin_store as store
 
 
-def register_workspace(app, db, audit):
-    def worker_status():
-        from developer_worker.client import call, Unavailable
-
-        try:
-            result = call("GET", "/health")
-            return {
-                "available": bool(result.get("ready")),
-                "message": (
-                    "Isolated worker ready."
-                    if result.get("ready")
-                    else "Isolated worker unavailable."
-                ),
-            }
-        except Unavailable as error:
-            return {"available": False, "message": str(error)}
+def register_plugins(app, db, audit):
 
     def permitted(permission):
         if not has_permission(g.user, "plugins:read", db()) or not has_permission(
@@ -82,33 +64,7 @@ def register_workspace(app, db, audit):
             return []
 
     def write_files(pid, entries):
-        db().executemany(
-            "INSERT INTO developer_files VALUES(?,?,?,?)",
-            [
-                (pid, p, item["body"], int(item["directory"]))
-                for p, item in entries.items()
-            ],
-        )
-
-    def create(value, entries):
-        timestamp = store.now()
-        try:
-            with db():
-                db().execute(
-                    "INSERT INTO developer_plugins(id,owner_uuid,name,created_at,updated_at) VALUES(?,?,?,?,?)",
-                    (
-                        value["id"],
-                        g.user["user_uuid"],
-                        value["name"],
-                        timestamp,
-                        timestamp,
-                    ),
-                )
-                write_files(value["id"], entries)
-        except sqlite3.IntegrityError:
-            abort(409, description="That plugin identifier is already registered.")
-        audit("Created plugin " + value["id"])
-        return {"id": value["id"]}, 201
+        db().execute("INSERT OR REPLACE INTO plugin_packages VALUES(?,?)", (pid,store.archive(entries)))
 
     def listed_record(row):
         result = record(row)
@@ -125,8 +81,8 @@ def register_workspace(app, db, audit):
                 )
         return result
 
-    @app.get("/developer/workspace/plugins")
-    def developer_plugin_list():
+    @app.get("/plugins/registry")
+    def plugin_list():
         permitted("plugins:read")
         return {
             "plugins": [
@@ -139,26 +95,19 @@ def register_workspace(app, db, audit):
             "permissions": [
                 p
                 for p in (
-                    "create",
-                    "edit",
-                    "validate",
-                    "test",
+                    "install",
                     "execute",
-                    "debug",
-                    "publish",
                     "versions",
                     "delete",
                     "configure",
                 )
                 if has_permission(g.user, "plugins:" + p, db())
             ],
-            "templates": [{"id": k, "name": v[0]} for k, v in store.TEMPLATES.items()],
             "data_permissions": sorted(store.DATA_PERMISSIONS),
-            "worker": worker_status(),
         }
 
-    @app.post("/developer/workspace/discovery")
-    def developer_plugin_discovery():
+    @app.post("/plugins/discovery")
+    def plugin_discovery():
         permitted("plugins:read")
         from pathlib import Path
         from plugin_discovery import discover
@@ -176,7 +125,7 @@ def register_workspace(app, db, audit):
             existing = (
                 db()
                 .execute(
-                    "SELECT owner_uuid,deleted FROM developer_plugins WHERE id=?",
+                    "SELECT * FROM developer_plugins WHERE id=?",
                     (value["id"],),
                 )
                 .fetchone()
@@ -189,12 +138,38 @@ def register_workspace(app, db, audit):
                             "error": "Identifier already registered or reserved; no package was overwritten.",
                         }
                     )
+                elif has_permission(g.user,"plugins:install",db()):
+                    fingerprint = store.fingerprint(entries)
+                    snapshot = db().execute("SELECT fingerprint FROM developer_versions WHERE plugin_id=? AND version=?",(value['id'],value['version'])).fetchone()
+                    if existing['source_location'] != location:
+                        invalid.append(dict(package=location,error="Identifier belongs to another installed package; no files were overwritten."))
+                    elif snapshot and snapshot[0] != fingerprint:
+                        invalid.append(dict(package=location,error="Installed files changed without a version increment. Increment plugin.json version and rescan."))
+                    elif not snapshot:
+                        try:
+                            with db():
+                                db().execute(
+                                    "INSERT INTO developer_versions VALUES(?,?,?,?,?,?,?)",
+                                    (value['id'], value['version'], fingerprint,
+                                     store.archive(entries), store.dumps(value),
+                                     g.user['user_uuid'], store.now()),
+                                )
+                                write_files(value['id'], entries)
+                                db().execute(
+                                    "UPDATE developer_plugins SET name=?,development='Installed',published_version=?,revision=revision+1,updated_at=? WHERE id=?",
+                                    (value['name'],value['version'],store.now(),value['id']),
+                                )
+                        except sqlite3.IntegrityError:
+                            invalid.append(dict(package=location,error="Version registered concurrently; refresh. No snapshot was overwritten."))
+                            continue
+                        registered.append(value['id'])
+                        audit("Reloaded installed plugin " + value['id'] + " " + value['version'])
                 continue
-            if not has_permission(g.user, "plugins:create", db()):
+            if not has_permission(g.user, "plugins:install", db()):
                 invalid.append(
                     {
                         "package": location,
-                        "error": "Registration requires plugins:create permission.",
+                        "error": "Registration requires plugins:install permission.",
                     }
                 )
                 continue
@@ -213,6 +188,8 @@ def register_workspace(app, db, audit):
                         ),
                     )
                     write_files(value["id"], entries)
+                    db().execute("INSERT INTO developer_versions VALUES(?,?,?,?,?,?,?)",(value['id'],value['version'],store.fingerprint(entries),store.archive(entries),store.dumps(value),g.user['user_uuid'],timestamp))
+                    db().execute("UPDATE developer_plugins SET development='Installed',published_version=? WHERE id=?",(value['version'],value['id']))
                 registered.append(value["id"])
                 audit("Discovered plugin " + value["id"])
             except sqlite3.IntegrityError:
@@ -224,47 +201,9 @@ def register_workspace(app, db, audit):
                 )
         return {"registered": registered, "invalid": invalid}
 
-    @app.post("/developer/workspace/plugins")
-    def developer_plugin_create():
-        permitted("plugins:create")
-        data = payload()
-        try:
-            value = store.manifest(
-                {
-                    **data.get("manifest", {}),
-                    "schema": "mws-plugin/1",
-                    "api_version": "v1",
-                    "sdk_version": ">=1,<2",
-                    "plugin_api": "1",
-                    "entrypoint": "main.py:run",
-                }
-            )
-            entries = store.template_files(value, data.get("template", "hello"))
-        except (ValueError, TypeError, AttributeError) as error:
-            abort(400, description=str(error))
-        return create(value, entries)
 
-    @app.post("/developer/workspace/import")
-    def developer_plugin_import():
-        permitted("plugins:create")
-        upload = request.files.get("archive")
-        if not upload:
-            abort(400, description="Select a plugin ZIP archive.")
-        try:
-            entries, value = store.inspect_archive(
-                upload.stream.read(store.MAX_TOTAL + 1)
-            )
-        except (
-            ValueError,
-            zipfile.BadZipFile,
-            RuntimeError,
-            NotImplementedError,
-        ) as error:
-            abort(400, description=str(error))
-        return create(value, entries)
-
-    @app.get("/developer/workspace/plugins/<pid>")
-    def developer_plugin_detail(pid):
+    @app.get("/plugins/registry/<pid>")
+    def plugin_detail(pid):
         row = owned(pid)
         entries = store.files(db(), pid)
         result = record(row)
@@ -329,138 +268,9 @@ def register_workspace(app, db, audit):
         )
         return result
 
-    @app.get("/developer/workspace/plugins/<pid>/file")
-    def developer_plugin_file(pid):
-        owned(pid)
-        try:
-            path = store.safe_path(request.args.get("path"))
-        except ValueError as error:
-            abort(400, description=str(error))
-        item = (
-            db()
-            .execute(
-                "SELECT * FROM developer_files WHERE plugin_id=? AND path=?",
-                (pid, path),
-            )
-            .fetchone()
-        )
-        if item is None or item["directory"]:
-            abort(404)
-        return send_file(
-            io.BytesIO(item["body"]),
-            mimetype="application/octet-stream",
-            as_attachment=True,
-            download_name=path.rsplit("/", 1)[-1],
-        )
 
-    @app.post("/developer/workspace/plugins/<pid>/files")
-    def developer_plugin_files(pid):
-        owned(pid, "plugins:edit")
-        data = payload()
-        try:
-            revision = int(data["revision"])
-            operation = data.get("operation", "save")
-            path = data.get("path", "")
-            changes = None
-            entries = store.files(db(), pid)
-            previous_permissions = requested_permissions(entries)
-            if operation in ("delete", "rename", "move", "copy"):
-                from plugin_file_operations import organize
-                entries, changes = organize(entries, operation, data.get("paths", [path]), data.get("destination", ""), data.get("target"))
-            elif operation in ("save", "create", "directory", "upload"):
-                from plugin_file_operations import destination_path
-                path = store.safe_path(path) if operation == "save" else destination_path(path)
-                if operation != "save" and (path in entries or operation != "directory" and any(p.startswith(path + "/") for p in entries)):
-                    raise ValueError("That path already exists.")
-                if operation == "save" and (
-                    path not in entries or entries[path]["directory"]
-                ):
-                    raise ValueError("Select an existing text file.")
-                if operation == "upload":
-                    upload = request.files.get("file")
-                    if not upload:
-                        raise ValueError("Select a file.")
-                    body = upload.stream.read(store.MAX_FILE + 1)
-                else:
-                    text = data.get("text", "")
-                    if not isinstance(text, str):
-                        raise ValueError("Expected text.")
-                    body = text.encode("utf-8")
-                entries[path] = {"body": body, "directory": operation == "directory"}
-            else:
-                raise ValueError("Unknown file operation.")
-            store.validate_tree(entries)
-            # Compare-and-swap occurs in the same transaction as replacement, preventing lost updates.
-            with db():
-                changed = db().execute(
-                    "UPDATE developer_plugins SET revision=revision+1,development='Draft',updated_at=? WHERE id=? AND owner_uuid=? AND revision=? AND deleted=0",
-                    (store.now(), pid, g.user["user_uuid"], revision),
-                )
-                if changed.rowcount != 1:
-                    abort(
-                        409,
-                        description="The plugin changed in another editor. Refresh before saving; your buffer has been retained.",
-                    )
-                try:
-                    metadata = store.manifest(
-                        json.loads(entries["plugin.json"]["body"])
-                    )
-                    if metadata["id"] == pid:
-                        db().execute(
-                            "UPDATE developer_plugins SET name=? WHERE id=?",
-                            (metadata["name"], pid),
-                        )
-                except (ValueError, KeyError, TypeError):
-                    pass  # Incomplete manifests remain editable drafts.
-                db().execute("DELETE FROM developer_files WHERE plugin_id=?", (pid,))
-                write_files(pid, entries)
-        except FileNotFoundError as error:
-            abort(404, description=str(error))
-        except (ValueError, KeyError, TypeError) as error:
-            abort(400, description=str(error))
-        audit("Edited plugin " + pid + " " + operation + " " + store.dumps({"paths": data.get("paths", [path]), "destination": data.get("target", data.get("destination"))}))
-        current_permissions = requested_permissions(entries)
-        if current_permissions != previous_permissions:
-            audit(
-                "Changed plugin permissions "
-                + pid
-                + ": "
-                + store.dumps(previous_permissions)
-                + " -> "
-                + store.dumps(current_permissions)
-            )
-        checked = store.static_validation(entries)
-        return {
-            "revision": revision + 1,
-            "fingerprint": store.fingerprint(entries),
-            "changes": changes,
-            "validation": {
-                "valid": checked["valid"],
-                "diagnostics": checked["diagnostics"],
-            },
-        }
-
-    @app.post("/developer/workspace/plugins/<pid>/static-validation")
-    def developer_plugin_validate(pid):
-        owned(pid, "plugins:validate")
-        entries = store.files(db(), pid)
-        result = store.static_validation(entries)
-        # Static checks do not grant publish eligibility; import/type validation requires the isolated worker.
-        audit("Static validation of plugin " + pid + ": " + str(result["valid"]))
-        return result
-
-    @app.get("/developer/workspace/plugins/<pid>/export")
-    def developer_plugin_export(pid):
-        owned(pid)
-        return send_file(
-            io.BytesIO(store.archive(store.files(db(), pid))),
-            mimetype="application/zip",
-            as_attachment=True,
-            download_name=pid + ".zip",
-        )
-
-    @app.post("/developer/workspace/plugins/<pid>/delete")
-    def developer_plugin_delete(pid):
+    @app.post("/plugins/registry/<pid>/delete")
+    def plugin_delete(pid):
         row = owned(pid, "plugins:delete")
         data = payload()
         if pid in app.config.get("PROTECTED_PLUGIN_IDS", ()):
@@ -495,17 +305,17 @@ def register_workspace(app, db, audit):
         audit("Deleted plugin registration " + row["id"])
         return {"deleted": True, "recoverable": True}
 
-    @app.get("/developer/workspace/plugins/<pid>/history")
-    def developer_plugin_history(pid):
+    @app.get("/plugins/registry/<pid>/history")
+    def plugin_history(pid):
         permitted("plugins:read")
-        # History remains accessible to its initiating owner after draft deletion.
+        # History remains accessible to its initiating owner after package deletion.
         rows = db().execute(
             """SELECT e.id,e.plugin_id,e.plugin_version,e.owner_uuid,e.case_id,e.mode,e.status,e.started_at,e.ended_at,e.duration,
             u.username AS initiating_user,
             CASE WHEN e.status IN ('Failed','Timed out','Output limit exceeded')
                 THEN substr(json_extract(e.details,'$.stderr'),-1000) ELSE NULL END AS diagnostic_tail
-            FROM developer_executions e LEFT JOIN users u ON u.user_uuid=e.owner_uuid
-            WHERE e.plugin_id=? AND e.owner_uuid=? ORDER BY e.started_at DESC LIMIT 100""",
+            FROM plugin_executions e LEFT JOIN users u ON u.user_uuid=e.owner_uuid
+            WHERE e.plugin_id=? AND e.owner_uuid=? AND e.mode='run' ORDER BY e.started_at DESC LIMIT 100""",
             (pid, g.user["user_uuid"]),
         )
         executions = []

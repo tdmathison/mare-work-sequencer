@@ -154,36 +154,51 @@ with MWSClient() as client:
     # client.authentication.revoke_token(old_token_id)
 ```
 
-### Native MWS plugin runtime
+### External plugin development
 
-Developer → Plugins discovers packages; Editor edits owner-scoped drafts using plugin API 1. The isolated
-worker supplies the typed `mws_sdk.plugin.PluginContext`; plugin source never runs
-inside Flask. Use its actual SDK client rather than constructing credentials:
+Use Python 3 in VS Code or another external environment. From a repository checkout:
 
-```python
-from mws_sdk.plugin import PluginContext
-
-
-def run(context: PluginContext):
-    cases = context.client.cases.list().cases
-    if not cases:
-        return {"message": "No accessible cases"}
-    case = cases[0]
-    if case is None:
-        return {"message": "Case unavailable"}
-    context.log(f"Reviewed {case.number}")
-    return {"number": case.number, "title": case.name}
+```sh
+python3 -m venv .venv-plugin
+.venv-plugin/bin/python -m pip install -e ./sdk
+.venv-plugin/bin/python -m pip install pytest
 ```
 
-Manifest permissions and the initiating user's current RBAC both apply. Test and
-debug sessions can only read their selected case; Editor development runs have no
-case association and can explicitly read authorized cases. Production runs use immutable
-published versions. `context.configuration` contains non-secret fields only;
-approved external connections use `context.external(service, path)` so connector
-credentials remain outside the plugin/debuggee. Deployment and publishing are
-covered in the application's [Developer Workspace guide](../docs/DEVELOPER_WORKSPACE.md).
-`client.plugins.capabilities()` reports the registered tools and your authorized
-Developer plugin registrations; it does not execute plugins.
+Select `.venv-plugin/bin/python` in VS Code. Install the Python/Pylance extensions
+if desired; IntelliSense uses the installed SDK's type annotations. No application
+editor or language service is required. Set `MWS_BASE_URL` to your HTTPS MWS origin
+and `MWS_API_KEY` to a short-lived API token with only the required permissions.
+Keep credentials in your shell/secret manager, outside source control and packages.
+For example, run a standalone script using the SDK's environment configuration:
+
+```python
+from mws_sdk import MWSClient
+
+with MWSClient() as client:
+    print(client.plugins.capabilities())
+```
+
+Copy `examples/hello_world_plugin` from the repository as a starting package:
+`plugin.json` declares `mws-plugin/1`, its validated identifier, SDK/API versions,
+permissions and `main.py:run` entrypoint; `main.py` defines `run(context)`.
+Test locally using pytest and a fixture implementing `mws_sdk.plugin.PluginContext`.
+Use an explicit case identifier when accessing case data. The installed runtime's
+SDK grants are scoped to that case, declared permissions and current user RBAC.
+`context.configuration` holds public configuration; approved connector credentials
+remain in the gateway and are accessed through `context.external(service,path)`.
+
+An administrator copies the complete package directory into `MARE_PLUGINS_DIR`
+(default: repository `plugins/`), then opens Developer → Plugins and refreshes.
+Discovery validates the manifest/source contract without executing Python. Configure
+required values, then Enable. To deploy changes, increment the manifest version,
+replace the directory atomically and rescan; existing executions retain their
+immutable snapshots. Source files are managed on disk, never through the web UI.
+The operator must review dependencies and include them in the approved runtime
+image; no dependency installation happens during execution.
+
+`client.plugins.capabilities()` reports available tools and authorized registered
+plugins. It does not execute code. Normal enabled-plugin runs remain isolated;
+see the repository's `docs/PLUGIN_RUNTIME.md` for deployment and lifecycle routes.
 
 ## Task collections
 

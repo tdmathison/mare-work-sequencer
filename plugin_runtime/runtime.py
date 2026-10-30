@@ -6,7 +6,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 import time
 import zipfile
@@ -39,7 +38,7 @@ class PluginContext:
         )
 
     def external(self, service: str, path: str) -> Any:
-        # Gateway holds connector credentials; they never enter the debuggee.
+        # Gateway holds connector credentials; they never enter the plugin.
         with httpx.Client(
             transport=httpx.HTTPTransport(uds="/gateway/api.sock"), trust_env=False
         ) as client:
@@ -56,16 +55,6 @@ def prepare():
         archive.extractall(
             "/work"
         )  # Supervisor validated paths, types and bounded expansion.
-    Path("/tmp/mws-pyrightconfig.json").write_text(
-        json.dumps(
-            {
-                "typeCheckingMode": "basic",
-                "pythonVersion": "3.12",
-                "exclude": ["**/__pycache__"],
-                "include": ["/work"],
-            }
-        )
-    )
     return json.loads(Path("/work/plugin.json").read_text())
 
 
@@ -83,7 +72,7 @@ def context():
         value.get("case_id"),
         value.get("inputs", {}),
         value.get("configuration", {}),
-        value.get("mode") != "run",
+        False,
     )
 
 
@@ -111,7 +100,7 @@ def run():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "mode", choices=["validate", "test", "run", "develop", "language", "debug"]
+        "mode", choices=["run"]
     )
     args = parser.parse_args()
     value = prepare()
@@ -121,30 +110,6 @@ def main():
         req = Requirement(text)
         if importlib.metadata.version(req.name) not in req.specifier:
             raise ValueError("Worker image dependency incompatible: " + req.name)
-    if args.mode == "language":
-        os.execvp("basedpyright-langserver", ["basedpyright-langserver", "--stdio"])
-    if args.mode == "debug":
-        os.execvp("python", ["python", "-m", "debugpy.adapter"])
-    if args.mode == "validate":
-        # basedpyright performs import resolution without importing operational source.
-        sys.exit(
-            subprocess.call(
-                [
-                    "basedpyright",
-                    "--project",
-                    "/tmp/mws-pyrightconfig.json",
-                    "--outputjson",
-                    "/work",
-                ]
-            )
-        )
-    if args.mode == "test":
-        sys.exit(
-            subprocess.call(
-                ["python", "-m", "pytest", "-q", "--tb=short", "/work/tests"],
-                cwd="/work",
-            )
-        )
     run()
 
 

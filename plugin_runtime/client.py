@@ -22,9 +22,9 @@ class UnixHTTP(http.client.HTTPConnection):
 
 
 def call(method, path, value=None):
-    location = os.environ.get("MARE_DEVELOPER_WORKER_SOCKET")
+    location = os.environ.get("MARE_PLUGIN_WORKER_SOCKET")
     if not location:
-        raise Unavailable("Isolated developer worker is not configured.")
+        raise Unavailable("Isolated plugin runtime is not configured.")
     connection = UnixHTTP(location)
     try:
         body = json.dumps(value).encode() if value is not None else None

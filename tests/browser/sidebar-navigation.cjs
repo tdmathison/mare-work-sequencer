@@ -43,7 +43,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   assert.equal(await settings.toggle.getAttribute('aria-expanded'), 'false');
   for (const [route, parent, child] of [
     ['/settings/users', 'Settings', 'Users'], ['/settings/import-export', 'Settings', 'Import & Export'],
-    ['/plugins', 'Developer', 'Plugins'], ['/developer/editor', 'Developer', 'Editor'],
+    ['/plugins', 'Developer', 'Plugins'],
   ]) {
     await page.goto(base + route);
     const active = sidebar.locator('.sidebar-item.is-active');
@@ -53,7 +53,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     assert.equal(await panel.getByRole('link', {name: child, exact: true}).getAttribute('aria-current'), 'page');
   }
   const developer = await group('Developer');
-  assert.deepEqual(await labels(developer.panel), ['API', 'SDK', 'Editor', 'Plugins']);
+  assert.deepEqual(await labels(developer.panel), ['API', 'SDK', 'Plugins']);
   await page.goto(base + '/dashboards');
   await Promise.all([page.waitForURL(base + '/metrics'), page.getByRole('link', {name: 'Open dashboard: Metrics', exact: true}).click()]);
   assert.equal(await sidebar.locator('[aria-current=page]').getAttribute('title'), 'Dashboards');

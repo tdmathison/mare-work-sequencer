@@ -36,7 +36,7 @@ if os.environ.get('MARE_PLUGIN_BROWSER_TEST'):
         for location,entries,manifest in packages:
             timestamp=plugin_store.now();pid=manifest['id']
             db().execute('INSERT INTO developer_plugins(id,owner_uuid,name,created_at,updated_at,published_version,source_location) VALUES(?,?,?,?,?,?,?)',(pid,owner,manifest['name'],timestamp,timestamp,manifest['version'],location))
-            db().executemany('INSERT INTO developer_files VALUES(?,?,?,?)',[(pid,path,item['body'],item['directory']) for path,item in entries.items()])
+            db().execute('INSERT INTO plugin_packages VALUES(?,?)',(pid,plugin_store.archive(entries)))
             db().execute('INSERT INTO developer_versions VALUES(?,?,?,?,?,?,?)',(pid,manifest['version'],plugin_store.fingerprint(entries),plugin_store.archive(entries),plugin_store.dumps(manifest),owner,timestamp))
         db().commit()
 

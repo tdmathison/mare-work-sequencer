@@ -378,7 +378,7 @@ def protect():
             return {'error': 'Change the temporary password in the web account before using the API.'}, 403
         g.user = user
         g.api_token_id = user['api_token_id']
-        from developer_execution import enforce_grant
+        from plugin_execution import enforce_grant
         enforce_grant(db())
         import time
         limit = int(os.environ.get('MARE_API_RATE_LIMIT', '600'))
@@ -1463,11 +1463,11 @@ register_api_extensions(app, db)
 from developer_pages import register_developer_pages
 from application_shell import register_shell
 register_developer_pages(app, db)
-from developer_workspace import register_workspace
-register_workspace(app, db, audit)
+from plugin_routes import register_plugins
+register_plugins(app, db, audit)
 register_shell(app, db)
 
-from developer_execution import register_execution
+from plugin_execution import register_execution
 register_execution(app, db, audit)
 from developer_configuration import register_configuration
 register_configuration(app, db, audit)

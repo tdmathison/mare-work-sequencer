@@ -1,4 +1,3 @@
-import {mountDeveloperEditor} from './developer-editor';
 import {mountYaraTool} from './yara-editor';
 import {mountSnortTool} from './snort-editor';
 import {mountPythonExamples} from './python-example';
@@ -266,5 +265,3 @@ mountPythonExamples({theme, highlighting});
 
 mountSnortTool({theme,highlighting});
 mountYaraTool({theme,highlighting});
-
-mountDeveloperEditor({theme,highlighting});

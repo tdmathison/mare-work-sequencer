@@ -13,10 +13,7 @@
     "test:explorer-selection": "node tests/browser/explorer-selection.cjs",
     "test:explorer-research": "node tests/browser/explorer-research.cjs",
     "test:explorer-coverage": "node tests/browser/explorer-coverage.cjs",
-    "test:developer": "node tests/browser/developer-workspace.cjs",
-    "test:developer-explorer": "node tests/browser/developer-explorer.cjs",
-    "test:developer-language": "node tests/browser/developer-language.cjs",
-    "test:developer-debug": "node tests/browser/developer-debug.cjs"
+    "test:plugins": "node tests/browser/plugin-pages.cjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

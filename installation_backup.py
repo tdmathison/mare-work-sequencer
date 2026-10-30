@@ -419,6 +419,9 @@ def restore_installation(archive_path, destination):
                 from authorization import initialize_roles
                 from task_collections import initialize as initialize_collections
                 initialize_roles(upgraded);initialize_collections(upgraded)
+        with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
+            from plugin_store import retire_editor_schema
+            retire_editor_schema(upgraded)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():

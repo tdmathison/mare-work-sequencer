@@ -47,7 +47,6 @@ def test_new_raw_tablists_require_an_explicit_audit_decision():
     # These are nested editor/mode controls, not copies of workspace navigation.
     allowed = {
         'case.html': ['Archive type'],
-        'developer_editor.html': ['Open files', 'Console tabs'],
         'indicators.html': ['Import format'],
         'report_workspace.html': ['Editor view'],
         'tasks.html': ['Task description view'],

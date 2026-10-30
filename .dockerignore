@@ -1,0 +1,13 @@
+# Only the SDK and trusted operational entrypoint belong in the runtime build context.
+*
+!sdk/
+!sdk/**
+!plugin_runtime/
+plugin_runtime/**
+!plugin_runtime/Containerfile
+!plugin_runtime/runtime.py
+**/__pycache__/
+**/*.pyc
+sdk/build/
+sdk/dist/
+sdk/*.egg-info/

@@ -2180,15 +2180,13 @@ SDK development tests require `python -m pip install -e '.[test]'`. Backend-only
 installations do not need httpx or pydantic; in-process SDK integration tests skip
 when those optional development dependencies are absent.
 
-### Developer Workspace
+### Developer tools and folder plugins
 
-The shared sidebar includes Developer → API, SDK, Editor and Plugins. Plugins
-is a full-height Control Center with inventory filters, configuration, permissions,
-dependencies and activity tabs. Editor provides a viewport-filling CodeMirror
-workspace, resizable explorer and Output/Debug console, persistent layout preferences,
-automatic Python/SDK completion and unpublished development runs. See the [Developer Workspace guide](docs/DEVELOPER_WORKSPACE.md)
-for discovery, permissions, manifests, configuration, backups,
-rootless-worker deployment, and deployment verification requirements.
+Developer contains API, SDK and Plugins. Author Python plugins externally with
+VS Code and the local SDK, then install their existing `plugin.json` package into
+`MARE_PLUGINS_DIR` and rescan in Plugins. See [external plugin development](docs/PLUGIN_DEVELOPMENT.md)
+and [isolated operational runtime](docs/PLUGIN_RUNTIME.md). SDK documentation,
+REST APIs and plugin discovery do not require an execution service.
 
 ### Reusable task collections
 

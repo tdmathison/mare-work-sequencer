@@ -1,0 +1,18 @@
+[Unit]
+Description=MWS isolated installed-plugin runtime (rootless Docker)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+# User unit belonging to the dedicated mws-plugin-worker rootless Docker account.
+EnvironmentFile=%h/.config/mws-plugin-worker/environment
+WorkingDirectory=/opt/mws-plugin-worker
+ExecStart=/usr/bin/python3 -m plugin_runtime.supervisor --engine docker --socket /run/mws-plugins/worker.sock --work %h/jobs --image ${MARE_PLUGIN_IMAGE} --api-origin ${MARE_WORKER_API_ORIGIN}
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+UMask=0007
+
+[Install]
+WantedBy=default.target

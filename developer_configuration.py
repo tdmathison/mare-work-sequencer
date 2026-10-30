@@ -75,7 +75,7 @@ def resolved(row, value, site_key, require=False):
 
 def register_configuration(app, db, audit):
     @app.route(
-        "/developer/workspace/plugins/<pid>/configuration", methods=["GET", "POST"]
+        "/plugins/registry/<pid>/configuration", methods=["GET", "POST"]
     )
     def developer_configuration(pid):
         if not has_permission(g.user, "plugins:read", db()) or not has_permission(

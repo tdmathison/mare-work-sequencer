@@ -4,7 +4,7 @@ import pytest
 from flask import template_rendered
 from app import app, db
 from authorization import initialize_roles
-from test_developer_shell import browser
+from plugin_fixtures import browser
 
 ORDER = [
     "MIP Board",
@@ -58,15 +58,14 @@ def test_exact_hierarchy_and_existing_destinations():
         "Audit": "▤",
     }
     developer = by_name["Developer"]["children"]
-    assert [i["label"] for i in developer] == ["API", "SDK", "Editor", "Plugins"]
+    assert [i["label"] for i in developer] == ["API", "SDK", "Plugins"]
     assert [i["url"] for i in developer] == [
         "/api",
         "/developer/sdk",
-        "/developer/editor",
         "/plugins",
     ]
-    assert developer[2]["url"] != developer[3]["url"]
-    assert developer[3]["icon"] == "◇"
+    assert len({item["url"] for item in developer}) == 3
+    assert developer[2]["icon"] == "◇"
     assert all(child.get("icon") for item in items for child in item["children"])
     tools = by_name["Tools"]["children"]
     assert [child["icon"] for child in tools] == [tool.icon for tool in app.extensions["analyst_tools"].values() if tool.enabled]
@@ -94,7 +93,6 @@ def test_exact_hierarchy_and_existing_destinations():
         ("/settings/general", "Settings", "General"),
         ("/settings/audit", "Settings", "Audit"),
         ("/plugins", "Developer", "Plugins"),
-        ("/developer/editor", "Developer", "Editor"),
         ("/api", "Developer", "API"),
         ("/developer/api", "Developer", "API"),
         ("/developer/sdk", "Developer", "SDK"),
@@ -127,7 +125,6 @@ def test_default_user_and_explicit_developer_access():
         "/settings/users",
         "/settings/import-export",
         "/plugins",
-        "/developer/editor",
         "/api",
     ):
         assert client.get(path).status_code == 403, path
@@ -136,8 +133,8 @@ def test_default_user_and_explicit_developer_access():
         db().execute("INSERT INTO role_permissions VALUES('User','plugins:read')")
         db().commit()
     _, items = navigation(client, "/plugins")
-    assert [i["label"] for i in items[-1]["children"]] == ["Editor", "Plugins"]
-    assert items[-1]["active"] and client.get("/developer/editor").status_code == 200
+    assert [i["label"] for i in items[-1]["children"]] == ["Plugins"]
+    assert items[-1]["active"] and client.get("/plugins").status_code == 200
     assert client.get("/api").status_code == 403
 
 

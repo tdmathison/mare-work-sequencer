@@ -1,0 +1,18 @@
+[Unit]
+Description=MARE isolated installed-plugin runtime (rootless Podman)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Install as a user service for the dedicated mws-plugin-worker account. Configure its
+# rootless Podman subordinate IDs and shared Unix-socket group before starting.
+EnvironmentFile=%h/.config/mws-plugin-worker/environment
+ExecStart=/usr/bin/python3 -m plugin_runtime.supervisor --socket /run/mws-plugins/worker.sock --work %h/jobs --image ${MARE_PLUGIN_IMAGE} --api-origin ${MARE_WORKER_API_ORIGIN}
+WorkingDirectory=/opt/mws-plugin-worker
+Restart=on-failure
+RestartSec=5
+UMask=0007
+
+[Install]
+WantedBy=default.target

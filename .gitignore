@@ -1,5 +1,6 @@
 .vscode
 .venv
+.venv-plugin/
 **/__pycache__/**
 data/
 vendor/cyberchef/dist/

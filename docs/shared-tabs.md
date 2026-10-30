@@ -56,7 +56,6 @@ stylesheet and verifies that Case Workbench, Tools and Settings all change.
 
 | Location | Reason |
 | --- | --- |
-| Developer Editor open files and Output/Debug console | Nested IDE controls with close/dirty state and console layout; not workspace navigation. |
 | Task/report Raw/Preview (`tasks.html`, `report_workspace.html`) | Segmented editor presentation modes inside editing surfaces. |
 | Case RAW/Standard archive selector (`case.html`) | Export-format selection, not section navigation. |
 | Indicator CSV/STIX import selector (`indicators.html`) | Input-format selection within a dialog. |

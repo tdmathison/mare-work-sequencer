@@ -5,7 +5,6 @@ engine socket, database, application directory or credentials enter a container.
 """
 
 import base64
-from collections import deque
 from http.server import BaseHTTPRequestHandler
 import io
 import json
@@ -25,7 +24,7 @@ import urllib.parse
 import zipfile
 
 MAX_OUTPUT = 256 * 1024
-MODES = {"validate", "test", "run", "develop", "language", "debug"}
+MODES = {"run"}
 
 
 def container_command(image, name, snapshot, gateway, mode, engine="podman"):
@@ -66,7 +65,6 @@ def container_command(image, name, snapshot, gateway, mode, engine="podman"):
         f"type=bind,src={snapshot},dst=/snapshot,ro=true",
         "--mount",
         f"type=bind,src={gateway},dst=/gateway,ro=true",
-        "-i",
         image,
         mode,
     ]
@@ -187,22 +185,10 @@ class Gateway(BaseHTTPRequestHandler):
         prefix = "/api/v1/cases/" + str(job.context.get("case_id"))
         if (
             not job.token
-            or not (
-                bool(
-                    re.fullmatch(
-                        r"/api/v1/cases(?:/\d+(?:/(?:indicators|references|report(?:/mappings)?|notes(?:/\d+)?|tasks(?:/\d+)?|readiness))?)?",
-                        path,
-                    )
-                )
-                if job.mode == "develop"
-                else (path == prefix or path.startswith(prefix + "/"))
-            )
+            or not (path == prefix or path.startswith(prefix + "/"))
             or any(c in decoded for c in ("\\", "..", "?", "#"))
         ):
             self.send_error(403, "Only the selected case is accessible.")
-            return
-        if job.mode != "run" and self.command != "GET":
-            self.send_error(403, "Development sessions are read-only.")
             return
         size = int(self.headers.get("Content-Length", "0"))
         if size < 0 or size > 2 * 1024 * 1024:
@@ -239,11 +225,6 @@ class Gateway(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def external(self, job):
-        if job.mode != "run":
-            self.send_error(
-                403, "External connections are unavailable in development sessions."
-            )
-            return
         try:
             size = int(self.headers.get("Content-Length", "0"))
             if not 0 < size <= 16000:
@@ -296,7 +277,7 @@ class Job:
     def __init__(self, supervisor, value):
         self.supervisor = supervisor
         self.id = uuid.uuid4().hex
-        self.name = "mws-dev-" + self.id
+        self.name = "mws-plugin-" + self.id
         self.mode = value["mode"]
         self.started = time.monotonic()
         self.ended = None
@@ -308,11 +289,7 @@ class Job:
         self.streams = {"stdout": bytearray(), "stderr": bytearray()}
         self.events = []
         self.readers = []
-        self.messages = deque()
-        self.message_bytes = 0
         self.lock = threading.RLock()
-        self.rpc_lock = threading.Lock()
-        self.sequence = 0
         self.process = None
         self.secrets = value.get("secrets", {})
         self.token = value.get("token", "")
@@ -339,7 +316,7 @@ class Job:
                 container_command(
                     supervisor.image, self.name, str(snapshot), str(gateway), self.mode, supervisor.engine
                 ),
-                stdin=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 start_new_session=True,
@@ -352,12 +329,7 @@ class Job:
             raise
         self.status = "Running"
         self.append(b"[diagnostic] Isolated execution started.\n", "stderr")
-        protocol = self.mode in ("language", "debug")
-        stdout_reader = threading.Thread(
-            target=self.read_protocol if protocol else self.read_output,
-            args=() if protocol else (self.process.stdout, "stdout"),
-            daemon=True,
-        )
+        stdout_reader = threading.Thread(target=self.read_output,args=(self.process.stdout,"stdout"),daemon=True)
         stderr_reader = threading.Thread(
             target=self.read_output, args=(self.process.stderr, "stderr"), daemon=True
         )
@@ -391,56 +363,10 @@ class Job:
                 break
             self.append(chunk, channel)
 
-    def read_protocol(self):
-        try:
-            while True:
-                headers = {}
-                while True:
-                    line = self.process.stdout.readline(8192)
-                    if not line:
-                        return
-                    if line in (b"\r\n", b"\n"):
-                        break
-                    name, value = line.decode().split(":", 1)
-                    headers[name.lower()] = value.strip()
-                length = int(headers.get("content-length", "0"))
-                if not 0 < length <= MAX_OUTPUT:
-                    raise ValueError("Protocol message too large.")
-                body = self.process.stdout.read(length)
-                if len(body) != length:
-                    return
-                message = json.loads(body)
-                with self.lock:
-                    if (
-                        len(self.messages) >= 250
-                        or self.message_bytes + length > MAX_OUTPUT
-                    ):
-                        raise ValueError("Protocol queue exceeded limit.")
-                    self.messages.append(message)
-                    self.message_bytes += length
-        except (OSError, ValueError):
-            self.stop("Protocol limit exceeded")
 
-    def exchange(self, message):
-        if self.mode not in ("language", "debug"):
-            raise ValueError("Not a development session.")
-        with self.rpc_lock:
-            body = json.dumps(message).encode()
-            if len(body) > MAX_OUTPUT:
-                raise ValueError("Protocol message exceeds limit.")
-            if self.status != "Running":
-                raise ValueError("Session ended.")
-            self.process.stdin.write(
-                b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n" + body
-            )
-            self.process.stdin.flush()
-        return self.poll()
 
     def poll(self):
         with self.lock:
-            messages = list(self.messages)
-            self.messages.clear()
-            self.message_bytes = 0
             output = bytes(self.output).decode("utf-8", "replace")
             streams = {
                 key: bytes(raw).decode("utf-8", "replace")
@@ -469,7 +395,6 @@ class Job:
             "output": output,
             **streams,
             "events": events,
-            "messages": messages,
         }
 
     def stop(self, status="Canceled"):
@@ -491,7 +416,7 @@ class Job:
                 self.process.kill()
 
     def monitor(self):
-        timeout = 600 if self.mode in ("language", "debug") else 60
+        timeout = 60
         try:
             try:
                 self.process.wait(timeout=timeout)
@@ -539,7 +464,7 @@ class Supervisor:
         self.image = image
         self.origin = origin.rstrip("/")
         self.connectors = json.loads(
-            os.environ.get("MARE_DEVELOPER_CONNECTORS_JSON", "{}")
+            os.environ.get("MARE_PLUGIN_CONNECTORS_JSON", "{}")
         )
         self.jobs = {}
         self.lock = threading.Lock()
@@ -579,7 +504,7 @@ class Supervisor:
                 set(host.get("cgroupControllers", []))
             ):
                 raise RuntimeError("Delegated cgroup v2 CPU, memory and PID controllers are required.")
-        container_command(image, "check", "/unused", "/unused", "validate", engine)
+        container_command(image, "check", "/unused", "/unused", "run", engine)
         self.health()
 
     def health(self):
@@ -632,7 +557,7 @@ class Handler(BaseHTTPRequestHandler):
             elif self.command == "POST" and self.path == "/jobs":
                 result = supervisor.create(value)
             else:
-                match = re.fullmatch(r"/jobs/([a-f0-9]{32})(/cancel|/rpc)?", self.path)
+                match = re.fullmatch(r"/jobs/([a-f0-9]{32})(/cancel)?", self.path)
                 if not match or match[1] not in supervisor.jobs:
                     raise ValueError("Session not found.")
                 job = supervisor.jobs[match[1]]
@@ -640,8 +565,6 @@ class Handler(BaseHTTPRequestHandler):
                     job.stop()
                     job.cleaned.wait(timeout=20)
                     result = job.poll()
-                elif match[2] == "/rpc" and self.command == "POST":
-                    result = job.exchange(value)
                 elif not match[2] and self.command == "GET":
                     result = job.poll()
                 else:
