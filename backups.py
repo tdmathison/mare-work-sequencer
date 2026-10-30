@@ -649,8 +649,22 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         from family_portable import restore_library
         registry_path=Path(directory)/'resolved-tags.json'
         registry=json.loads(registry_path.read_text()) if getattr(g,'backup_workspace',False) and registry_path.exists() else []
-        result=restore_library(db(),ROOT,Path(directory)/'library',json.loads(path.read_text()),registry=registry)
-        db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared research profile library restored: '+json.dumps(result),now()))
+        from backup_presentation import profile, record
+        incoming = json.loads(path.read_text())
+        completed_records = []
+        for category, key, table in (("families", "families", "malware_families"), ("actors", "actors", "threat_actors")):
+            for value in incoming.get(key, []):
+                exists = db().execute(f"SELECT 1 FROM {table} WHERE id=?", (value["id"],)).fetchone()
+                completed_records.append({**profile(category, value), "action": "unchanged" if exists else "added",
+                    "details": "Exact existing profile retained." if exists else "Validated profile and attachments added."})
+        for value in registry:
+            exists = db().execute("SELECT 1 FROM family_tag_identities WHERE identity=?", (value["target_identity"],)).fetchone()
+            completed_records.append(record("tags", value["source_identity"] if "source_identity" in value else value["identity"], value["name"],
+                action="unchanged" if exists else "added", details="Verified existing tag reused." if exists else "Tag identity added."))
+        result=restore_library(db(),ROOT,Path(directory)/'library',incoming,registry=registry)
+        # Publish outcomes only after the shared storage transaction committed.
+        result["records"] = completed_records
+        db().execute('INSERT INTO audit(actor,action,created) VALUES(?,?,?)',(g.user['username'],'Shared research profile library restored: '+json.dumps({key:value for key,value in result.items() if key != 'records'}),now()))
         db().commit()
         return result
 

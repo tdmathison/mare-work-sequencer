@@ -176,3 +176,37 @@ that setting is absent. The same name appears in the download header, completion
 message, job metadata and export audit entries. ZIP contents and import checks
 are unchanged; old filenames remain importable. Single-case RAW/Standard MIP
 filenames are unaffected.
+
+## Structured import review and results
+
+Import follows Select Archive → Review Contents → Import Options → Import Results.
+Drop or browse for a ZIP; the server validates its manifest, paths, sizes and
+relationships. Current and legacy archives use the same existing inspection and
+import services. Before submission, step buttons allow returning to the selected
+archive or review without clearing the file or resolution choices.
+
+The review shows included categories (including empty selected categories),
+whitelisted record descriptions, searchable/sortable tables with 25-row pages,
+and explicitly labeled predicted outcomes. Conflict decisions remain the existing
+case/tag/profile options. A new review confirmation is required before submission;
+complete replacement also requires the existing replacement acknowledgement.
+Active operations disable duplicate submission and archive changes.
+
+Results show recorded per-record outcomes, category summaries, start/end times,
+duration, expandable action groups, category/action filters and identifier/name
+search. Added is green, unchanged/skipped is blue, conflicts/errors are red, and
+updated/replaced is gold with an explicit label. Counts are calculated from
+recorded category outcomes; complete backups also replace system tables outside
+these four displayed categories. Unknown outcomes from older jobs are labeled
+“Outcome not recorded”, never inferred as successful. A JSON report is available
+as a secondary download; readable tables remain the primary interface.
+
+Preview `records` and result `records`, `started_at`, `completed_at`, and `duration`
+are additive fields; existing aggregate response fields remain available. Shared
+profile/tag outcomes are published only after their storage transaction succeeds.
+Case outcomes come from the existing import journal. If a later step fails,
+journaled successes remain visible alongside failures or unrecorded outcomes.
+Record error text in the normal view excludes internal file paths and traces.
+Archive structures, import permissions, audit logging, stale-plan checks and ZIP
+safety protections are unchanged. Browser storage retains only job identifiers
+and the active export/import tab, never record contents or passphrases.

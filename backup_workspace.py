@@ -398,6 +398,19 @@ class BackupWorkspace:
                     if isinstance(exc, ValueError)
                     else "Operation failed safely. Review server availability and retry; no archive content is logged."
                 )
+                if isinstance(exc, zipfile.BadZipFile):
+                    error = "The selected file is not a valid ZIP backup. Choose a supported MWS archive."
+                if operation == "apply" and data.get("preview"):
+                    from backup_presentation import outcomes as display_outcomes
+                    reviewed = data["preview"]
+                    journal = self.db().execute("SELECT plan,outcomes FROM sync_imports WHERE id=?", (reviewed.get("operation"),)).fetchone()
+                    shared = json.loads(journal["plan"]).get("shared", {}).get("records", []) if journal and json.loads(journal["plan"]).get("shared_applied") else None
+                    case_results = json.loads(journal["outcomes"]) if journal else []
+                    ended = stamp()
+                    data["result"] = dict(message=error, failed=1,
+                        records=display_outcomes(reviewed, case_results, shared),
+                        started_at=data.get("execution_started_at"), completed_at=ended,
+                        duration=max(0, (datetime.fromisoformat(ended)-datetime.fromisoformat(data["execution_started_at"])).total_seconds()))
                 self.update(data, state="failed", phase="Failed", error=error)
                 if getattr(g, "user", None):
                     try:
@@ -633,6 +646,7 @@ class BackupWorkspace:
         case_choices = []
         shared_actions = {}
         handoff = None
+        display_records = []
         for old in ("restored", "probe"):
             shutil.rmtree(folder / old, ignore_errors=True)
         if complete:
@@ -671,6 +685,9 @@ class BackupWorkspace:
                         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
                     ).fetchall()
                 }
+            from backup_presentation import database_records
+            with closing(sqlite3.connect(restored / "workflow.sqlite3")) as source:
+                display_records = database_records(source)
             areas = sorted(KEYS)
             mode = "replace"
             operation = None
@@ -775,6 +792,25 @@ class BackupWorkspace:
                         ),
                     }
                 )
+            from backup_presentation import record, profile
+            for index, (path, validated, meta) in enumerate(plans):
+                case = validated[0]
+                display_records.append(record("cases", case.get("number"), case["name"], index=index,
+                    stage=case.get("stage"), created=case.get("created"),
+                    predicted_action=cases[index]["classification"], details=cases[index].get("reason", "")))
+            for category, key, table in (("families", "families", "malware_families"), ("actors", "actors", "threat_actors")):
+                retained = {value["id"] for value in library.get(key, [])}
+                for value in source_library.get(key, []):
+                    exists = self.db().execute(f"SELECT 1 FROM {table} WHERE id=?", (value["id"],)).fetchone()
+                    action = "skipped" if value["id"] not in retained else "unchanged" if exists else "new"
+                    display_records.append({**profile(category, value), "predicted_action": action,
+                        "details": "Reviewed profile import; conflicts require explicit resolution."})
+            registry = json.loads((probe / "tag-registry.json").read_text()) if (probe / "tag-registry.json").exists() else []
+            for value in registry:
+                resolved = next((row for row in mapping if row["identity"] == value["identity"]), None)
+                display_records.append(record("tags", value["identity"], value["name"],
+                    predicted_action="conflict" if not resolved else "new" if resolved["outcome"] == "Add tag" else "unchanged",
+                    details=resolved["outcome"] if resolved else "Resolve tag identity conflict."))
             counts = {
                 "cases": len(plans),
                 "malware_families": len(library["families"]),
@@ -817,6 +853,8 @@ class BackupWorkspace:
         self.db().commit()
         sqlite3.Connection.commit(self.db())
         preview = dict(
+            records=display_records,
+            archive_size=(folder / "upload.zip").stat().st_size,
             filename=data["filename"],
             format=(manifest or {}).get(
                 "schema",
@@ -873,6 +911,7 @@ class BackupWorkspace:
 
     def apply(self, data, ack):
         folder = self.job_path(data["id"])
+        self.update(data, execution_started_at=stamp())
         preview = json.loads((folder / "preview.json").read_text())
         if preview["blocking"] or preview["conflicts"]:
             raise ValueError("Resolve blocking findings and generate a new preview.")
@@ -884,6 +923,10 @@ class BackupWorkspace:
                 "Destination or archive changed after preview. Refresh the plan before importing."
             )
         self.update(data, phase="Applying reviewed " + preview["mode"] + " plan")
+        # Legacy archives may import tag names through the case catalog rather
+        # than the shared identity registry. Keep before/after evidence for them.
+        prior_tags = {r["name"]: self.db().execute("SELECT id FROM tags WHERE name=?", (r["name"],)).fetchone()
+                      for r in preview.get("records", []) if r["category"] == "tags"}
         if preview["complete"]:
             if ack != "REPLACE":
                 raise ValueError("Acknowledge complete replacement in the preview.")
@@ -942,7 +985,7 @@ class BackupWorkspace:
                 row = (
                     self.db()
                     .execute(
-                        "SELECT status,outcomes FROM sync_imports WHERE id=?",
+                        "SELECT status,outcomes,plan FROM sync_imports WHERE id=?",
                         (operation,),
                     )
                     .fetchone()
@@ -987,6 +1030,22 @@ class BackupWorkspace:
                 "shared_actions": preview["shared_actions"],
                 "message": "Reviewed merge finished. Case outcomes and shared counts are shown separately.",
             }
+        from backup_presentation import outcomes as display_outcomes
+        shared = [] if preview["complete"] else json.loads(row["plan"]).get("shared", {}).get("records", [])
+        if not preview["complete"]:
+            known = {(r["category"], r["identifier"]) for r in shared}
+            for item in preview.get("records", []):
+                if item["category"] != "tags" or ("tags", item["identifier"]) in known:
+                    continue
+                actual = self.db().execute("SELECT id FROM tags WHERE name=?", (item["name"],)).fetchone()
+                before = prior_tags[item["name"]]
+                if actual and (before is None or actual[0] == before[0]):
+                    shared.append({**item, "action": "added" if before is None else "unchanged",
+                        "details": "Tag added by the completed catalog import." if before is None else "Verified existing tag retained by the completed catalog import."})
+        result["records"] = display_outcomes(preview, [] if preview["complete"] else outcomes, shared, replaced=preview["complete"])
+        result["started_at"] = data["execution_started_at"]
+        result["completed_at"] = stamp()
+        result["duration"] = max(0, (datetime.fromisoformat(result["completed_at"]) - datetime.fromisoformat(result["started_at"])).total_seconds())
         result["warnings"] = preview["warnings"]
         self.audit(
             "import partially failed" if result["failed"] else "import completed",
@@ -1257,7 +1316,7 @@ class BackupWorkspace:
                 abort(400)
             data["choices"] = choices
             self.update(
-                data, state="queued", phase="Revalidating preview", preview=None
+                data, state="queued", phase="Revalidating preview", preview=None, result=None, execution_started_at=None
             )
             self.submit(data, "inspect", request.form.get("passphrase", ""))
             return jsonify(id=jid), 202

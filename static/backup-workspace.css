@@ -13,3 +13,21 @@
 .backup-page #import-action,.backup-page #export-action { margin-top:16px; }.backup-page button:disabled { opacity:.4;cursor:default; }.backup-page #import-error { color:var(--danger);overflow-wrap:anywhere; }.backup-page [hidden] { display:none!important; }
 .backup-page details { overflow-wrap:anywhere; }.backup-page .backup-actions { display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin-top:20px; }
 @media(max-width:700px) { .backup-page .backup-panel { padding:20px; }.backup-page .backup-summary { grid-template-columns:1fr; }.backup-page .backup-complete { padding:16px; }.backup-page th,.backup-page td { padding:12px; } }
+/* Compact structured import workflow; tables reuse the application table styling. */
+.backup-page .import-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:18px 0}
+.backup-page .import-steps button{display:flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);padding:10px;font-size:12px;text-align:left;color:var(--muted)}
+.backup-page .import-steps [aria-current=step]{border-color:#4790d1;background:#16344e;color:#dceeff}.backup-page .import-steps .is-complete{color:#b9d8bb}
+.backup-page .import-steps span{color:var(--accent);font-weight:700}
+.backup-page .import-drop{display:block;border:1px dashed #62829c;background:var(--panel-2);padding:20px;text-align:center}.backup-page .import-drop input{display:block;margin:12px auto;max-width:100%}
+.backup-page [data-import-stage] h3{margin:18px 0 12px}.backup-page .import-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:12px 0}
+.backup-page .import-card{background:var(--panel-2);border:1px solid var(--line);padding:12px;min-width:0}.backup-page .import-card h4{margin:0 0 6px}.backup-page .import-card strong{display:block;font-size:18px}.backup-page .import-card .import-badge{margin:6px 4px 0 0}
+.backup-page .import-controls{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:12px 0}.backup-page .import-controls label{margin:0;flex:1;min-width:140px}.backup-page .import-controls input,.backup-page .import-controls select{width:100%;min-width:0}
+.backup-page .import-table-wrap{max-width:100%;overflow-x:auto}.backup-page .import-table-wrap table{table-layout:fixed;width:100%;font-size:13px}.backup-page .import-table-wrap td,.backup-page .import-table-wrap th{overflow-wrap:anywhere;white-space:normal;padding:9px}
+.backup-page .import-table-wrap details p{white-space:pre-wrap;margin:8px 0}.backup-page .import-badge{display:inline-block;font-size:12px;padding:3px 6px;border:1px solid currentColor;border-radius:3px;overflow-wrap:anywhere}
+.backup-page .action-added{--action-color:#8ed7a1;--action-bg:#163b2b}.backup-page .action-unchanged,.backup-page .action-skipped{--action-color:#8bbdf0;--action-bg:#17334c}.backup-page .action-error,.backup-page .action-conflict{--action-color:#ff9b9b;--action-bg:#44232c}.backup-page .action-updated,.backup-page .action-replaced,.backup-page .action-not_processed{--action-color:#e9cc80;--action-bg:#3c3523}
+.backup-page .import-badge,.backup-page .import-notice{color:var(--action-color,var(--text));background:var(--action-bg,var(--panel-2))}.backup-page .import-notice{padding:12px;border-left:3px solid var(--action-color,var(--accent));overflow-wrap:anywhere}
+.backup-page .import-result-group{border:1px solid var(--line);margin:8px 0}.backup-page .import-result-group>summary{padding:10px;color:var(--action-color);background:var(--action-bg);cursor:pointer}.backup-page .import-option-group{border-bottom:1px solid var(--line);padding:8px 0}.backup-page .import-option-group h4{margin:10px 0}.backup-page .import-pager{display:flex;gap:10px;align-items:center;margin-top:10px}
+.backup-page #import-result .backup-summary{gap:6px;margin:12px 0;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}.backup-page #import-result .backup-summary>div{padding:9px}.backup-page #import-result .backup-summary dt{margin-bottom:4px}
+@media(max-width:700px){.backup-page .import-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.backup-page .import-table-wrap td,.backup-page .import-table-wrap th{padding:6px}.backup-page .backup-actions{gap:8px}}
+
+.backup-page .import-report-download{margin-right:10px}.backup-page .import-result-category h4{margin:20px 0 10px}
