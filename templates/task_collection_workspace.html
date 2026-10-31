@@ -16,14 +16,14 @@
 <section id="task-library-view" {% if c %}role="tabpanel" aria-labelledby="tasks-library-view" hidden{% endif %}>
 <div class="heading"><h2>Collection library</h2><button type="button" data-new-collection hidden>Create collection</button></div>
 <p>Global collections — reusable guidance available across all cases. <a href="{{url_for('global_task_library')}}">Open global library</a></p>
-<div class="task-filters"><label>Search collections<input type="search" data-library-search></label><label>Category<select data-library-category><option value="">All categories</option></select></label></div>
+<div class="task-filters"><label>Search collections<input type="search" data-library-search></label><label>Origin<select data-library-origin><option value="all">All</option><option value="core">Core</option><option value="custom">Custom</option></select></label><label>Category<select data-library-category><option value="">All categories</option></select></label></div>
 <div data-collection-library></div>
 </section>
 <dialog class="task-collection-drawer panel" data-collection-drawer aria-labelledby="collection-drawer-title">
 <div class="heading"><h2 id="collection-drawer-title">Add task collection</h2><button type="button" data-close-drawer aria-label="Close collection drawer">Close</button></div>
-<div class="task-filters"><label>Search<input type="search" data-drawer-search></label><label>Category<select data-drawer-category><option value="">All categories</option></select></label></div>
+<div class="task-filters"><label>Search<input type="search" data-drawer-search></label><label>Origin<select data-drawer-origin><option value="all">All</option><option value="core">Core</option><option value="custom">Custom</option></select></label><label>Category<select data-drawer-category><option value="">All categories</option></select></label></div>
 <label>Collection<select data-drawer-collection></select></label>
-<p data-drawer-description></p><p data-drawer-history></p>
+<span class="core-collection-badge" data-drawer-core hidden>Core</span><p data-drawer-core-guidance class="workflow-notice" hidden></p><p data-drawer-description></p><p data-drawer-history></p>
 <label data-repeat-choice hidden>Previously added collection<select data-apply-mode><option value="missing">Add tasks not previously added from this collection</option><option value="copy">Add another copy as a separate group</option></select></label>
 <div data-drawer-tasks></div><p data-drawer-count></p>
 <p>Collection updates do not change existing case tasks.</p>
@@ -44,6 +44,6 @@
 <div class="dialog-actions"><button data-save-collection>Save collection</button></div><p role="alert" data-editor-error></p>
 </form>
 </dialog>
-<dialog class="task-collection-preview panel" data-collection-preview aria-labelledby="collection-preview-title"><div class="heading"><h2 id="collection-preview-title"></h2><button type="button" data-close-preview>Close</button></div><p data-preview-description></p><ol data-preview-tasks></ol></dialog>
+<dialog class="task-collection-preview panel" data-collection-preview aria-labelledby="collection-preview-title"><div class="heading"><h2 id="collection-preview-title"></h2><button type="button" data-close-preview>Close</button></div><span class="core-collection-badge" data-preview-core hidden>Core</span><p class="workflow-notice" data-preview-core-guidance hidden></p><p data-preview-description></p><ol data-preview-tasks></ol></dialog>
 </section>
 <script defer src="{{url_for('static',filename='task-collections.js')}}"></script>

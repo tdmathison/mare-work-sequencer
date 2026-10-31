@@ -21,6 +21,7 @@ DEST.joinpath('openapi.json').write_text(json.dumps(spec,indent=2)+'\n')
 
 # Existing operation names intentionally map to stable, friendly resource methods.
 NAMES={
+ 'task_collection_duplicate_post':('task_collections','duplicate'),
  'task_collection_list_get':('task_collections','list'), 'task_collection_list_post':('task_collections','create'),
  'task_collection_item_get':('task_collections','get'), 'task_collection_item_patch':('task_collections','update'), 'task_collection_item_delete':('task_collections','delete'),
  'task_collection_case_get':('task_collections','case_groups'), 'task_collection_apply_post':('task_collections','apply'),

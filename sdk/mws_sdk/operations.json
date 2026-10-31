@@ -3307,7 +3307,7 @@
     "binary": false,
     "collection": "collections",
     "summary": "List global task collections",
-    "description": "Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user."
+    "description": "Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.\n\nRequired role permission: any authenticated API user."
   },
   {
     "resource": "task_collections",
@@ -3350,7 +3350,7 @@
     "binary": false,
     "collection": null,
     "summary": "Delete a global collection; retain Case copies",
-    "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically."
+    "description": "Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "task_collections",
@@ -3402,7 +3402,33 @@
     "binary": false,
     "collection": null,
     "summary": "Update ordered collection definitions",
-    "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically."
+    "description": "Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically."
+  },
+  {
+    "resource": "task_collections",
+    "name": "duplicate",
+    "operation_id": "task_collection_duplicate_post",
+    "path": "task-collections/{collection_id}/duplicate",
+    "method": "POST",
+    "permission": "task_collections:create",
+    "paths": [
+      {
+        "name": "collection_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "request": "TaskCollectionsDuplicateRequest",
+    "response": "TaskCollectionsDuplicateResponse",
+    "query": null,
+    "media": "application/json",
+    "binary": false,
+    "collection": null,
+    "summary": "Duplicate a collection as editable custom guidance",
+    "description": "Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "templates",

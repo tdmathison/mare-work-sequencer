@@ -415,10 +415,11 @@ def restore_installation(archive_path, destination):
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             tables={r[0] for r in upgraded.execute("SELECT name FROM sqlite_master WHERE type='table'")}
             columns={r[1] for r in upgraded.execute('PRAGMA table_info(tasks)')}
-            if 'task_collections' not in tables and {'tasks','role_permissions','roles'}<=tables and {'body','state','priority'}<=columns:
+            if {'tasks','role_permissions','roles'}<=tables and {'body','state','priority'}<=columns:
                 from authorization import initialize_roles
                 from task_collections import initialize as initialize_collections
-                initialize_roles(upgraded);initialize_collections(upgraded)
+                if 'task_collections' not in tables:initialize_roles(upgraded)
+                initialize_collections(upgraded)
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from plugin_store import retire_editor_schema
             retire_editor_schema(upgraded)

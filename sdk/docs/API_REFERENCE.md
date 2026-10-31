@@ -1285,7 +1285,7 @@ Execute affects real application data. Nothing executes automatically.
 def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None=None) -> TaskCollectionsListResponse
 ```
 
-List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.
+List global task collections. GET /api/v1/task-collections. Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.
 
 Required role permission: any authenticated API user.
 
@@ -1303,7 +1303,7 @@ Execute affects real application data. Nothing executes automatically.
 def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> None
 ```
 
-Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.
+Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.
 
 Required role permission: task_collections:delete.
 
@@ -1321,9 +1321,19 @@ Required role permission: any authenticated API user.
 def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsUpdateResponse
 ```
 
-Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.
+Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.
 
 Required role permission: task_collections:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+def duplicate(self, collection_id: str, *, data: TaskCollectionsDuplicateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsDuplicateResponse
+```
+
+Duplicate a collection as editable custom guidance. POST /api/v1/task-collections/{collection_id}/duplicate. Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.
+
+Required role permission: task_collections:create.
 
 Execute affects real application data. Nothing executes automatically.
 
@@ -2949,7 +2959,7 @@ Execute affects real application data. Nothing executes automatically.
 async def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None=None) -> TaskCollectionsListResponse
 ```
 
-List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.
+List global task collections. GET /api/v1/task-collections. Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.
 
 Required role permission: any authenticated API user.
 
@@ -2967,7 +2977,7 @@ Execute affects real application data. Nothing executes automatically.
 async def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> None
 ```
 
-Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.
+Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.
 
 Required role permission: task_collections:delete.
 
@@ -2985,9 +2995,19 @@ Required role permission: any authenticated API user.
 async def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsUpdateResponse
 ```
 
-Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.
+Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.
 
 Required role permission: task_collections:update.
+
+Execute affects real application data. Nothing executes automatically.
+
+```python
+async def duplicate(self, collection_id: str, *, data: TaskCollectionsDuplicateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> TaskCollectionsDuplicateResponse
+```
+
+Duplicate a collection as editable custom guidance. POST /api/v1/task-collections/{collection_id}/duplicate. Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.
+
+Required role permission: task_collections:create.
 
 Execute affects real application data. Nothing executes automatically.
 
@@ -4242,6 +4262,14 @@ TaskCollectionsUpdateRequest version-1 API fields.
 ### TaskCollectionsUpdateResponse
 
 TaskCollectionsUpdateResponse version-1 API fields.
+
+### TaskCollectionsDuplicateRequest
+
+TaskCollectionsDuplicateRequest version-1 API fields.
+
+### TaskCollectionsDuplicateResponse
+
+TaskCollectionsDuplicateResponse version-1 API fields.
 
 ### TemplatesListResponse
 

@@ -9,13 +9,15 @@ import task_collections as service
 def export(con):
     rows=[]
     for record in con.execute('SELECT id FROM task_collections ORDER BY id'):
-        item=service.get(con,record[0]);item.pop('task_count',None)
+        item=service.get(con,record[0]);item.pop('task_count',None);item.pop('read_only',None)
         item['revisions']=[json.loads(r[0]) for r in con.execute('SELECT snapshot FROM task_collection_revisions WHERE collection_id=? ORDER BY revision',(item['id'],))]
+        for revision in item['revisions']:revision.setdefault('origin','custom')
         rows.append(item)
     return rows
 
 def validate(rows):
     if not isinstance(rows,list) or len(rows)>10000:raise ValueError('Invalid task collection library.')
+    rows=copy.deepcopy(rows)
     seen=set()
     for item in rows:
         if not isinstance(item,dict) or not re.fullmatch('[a-f0-9]{32}',str(item.get('id',''))) or item['id'] in seen:raise ValueError('Invalid or duplicate task collection identity.')
@@ -24,6 +26,13 @@ def validate(rows):
         if not isinstance(versions,list) or not 1<=len(versions)<=10000:raise ValueError('Invalid collection revision history.')
         previous=0
         for record in [*versions,item]:
+            if isinstance(record,dict):
+                record.setdefault('origin','custom')
+                for derived in ('read_only','task_count','can_edit','can_delete'):record.pop(derived,None)
+                allowed={'id','name','description','category','tasks','revision','creator_uuid','creator_name','created','updated','origin'}
+                if set(record)-allowed-({'revisions'} if record is item else set()):raise ValueError('Unsupported collection fields.')
+                if record['origin']!=item.get('origin','custom'):raise ValueError('Collection origin must not change across revisions.')
+                if record['origin'] not in ('core','custom'):raise ValueError('Invalid collection origin.')
             if not isinstance(record,dict) or record.get('id')!=item['id'] or type(record.get('revision')) is not int or not 1<=record['revision']<2**31:raise ValueError('Invalid task collection revision.')
             try:
                 service.string(record.get('name'),200,True);service.string(record.get('description'),20000);service.string(record.get('category'),100)
@@ -48,13 +57,18 @@ def mapped_creators(con,rows):
     return rows
 
 def plan(con,rows,choices):
-    validate(rows);rows=mapped_creators(con,rows);conflicts=[];records=[]
+    rows=mapped_creators(con,validate(rows));conflicts=[];records=[]
+    from core_task_collections import reserved_ids
     for item in rows:
-        local=con.execute('SELECT revision FROM task_collections WHERE id=?',(item['id'],)).fetchone()
+        local=con.execute('SELECT revision,origin FROM task_collections WHERE id=?',(item['id'],)).fetchone()
+        if item['id'] in reserved_ids() or item['origin']=='core' or local and local[1]=='core':
+            records.append(dict(category='task_collections',identifier=item['id'],name=item['name'],description=item['description'],task_count=len(item['tasks']),revision=item['revision'],predicted_action='skipped',protected_core=True,details='Protected Core definition managed by MWS; archive revision '+str(item['revision'])+' skipped'+('; installed revision '+str(local[0])+' retained' if local else '')+'. Case snapshots and provenance are unchanged.'))
+            continue
         identical=False
         if local:
-            existing=service.get(con,item['id']);existing.pop('task_count',None)
+            existing=service.get(con,item['id']);existing.pop('task_count',None);existing.pop('read_only',None)
             history=[json.loads(r[0]) for r in con.execute('SELECT snapshot FROM task_collection_revisions WHERE collection_id=? ORDER BY revision',(item['id'],))]
+            for revision in history:revision.setdefault('origin','custom')
             identical=existing=={k:v for k,v in item.items() if k!='revisions'} and history==item['revisions']
         key='task_collection:'+item['id'];choice=choices.get(key)
         if local and not identical and choice not in ('keep','replace'):
@@ -68,7 +82,7 @@ def restore(con,user,directory,choices):
     rows=mapped_creators(con,validate(json.loads(path.read_text())));conflicts,records=plan(con,rows,choices)
     if conflicts:raise ValueError('Resolve task collection conflicts and refresh the preview.')
     if not rows:return []
-    service.permission(con,user,'manage')
+    if any(not record.get('protected_core') for record in records):service.permission(con,user,'manage')
     with con:
         con.execute('BEGIN IMMEDIATE')
         for item,record in zip(rows,records):
@@ -78,9 +92,10 @@ def restore(con,user,directory,choices):
             # never trust a source numeric user ID. Unmapped creators remain unowned.
             owner_uuid=item['creator_uuid']
             con.execute('DELETE FROM task_collection_revisions WHERE collection_id=?',(item['id'],))
-            con.execute('INSERT OR REPLACE INTO task_collections VALUES(?,?,?,?,?,?,?,?,?,?)',tuple(json.dumps(item[k]) if k=='tasks' else owner_uuid if k=='creator_uuid' else item[k] for k in ('id','name','description','category','tasks','revision','creator_uuid','creator_name','created','updated')))
+            con.execute('INSERT OR REPLACE INTO task_collections (id,name,description,category,tasks,revision,creator_uuid,creator_name,created,updated,origin) VALUES(?,?,?,?,?,?,?,?,?,?,?)',tuple(json.dumps(item[k]) if k=='tasks' else owner_uuid if k=='creator_uuid' else item[k] for k in ('id','name','description','category','tasks','revision','creator_uuid','creator_name','created','updated','origin')))
             for revision in item['revisions']:con.execute('INSERT INTO task_collection_revisions VALUES(?,?,?)',(item['id'],revision['revision'],json.dumps(revision)))
-        if rows:service.event(con,user,'Restored global task collections: '+str(len(rows)))
+        changed=sum(record['predicted_action'] in ('new','updated') for record in records)
+        if changed:service.event(con,user,'Restored global task collections: '+str(changed))
     for r in records:
         action=r.pop('predicted_action');r['action']={'new':'added','updated':'updated'}.get(action,action)
     return records

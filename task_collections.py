@@ -41,9 +41,13 @@ def initialize(con):
             for event,reference in [('INSERT','NEW'),('UPDATE','NEW'),('DELETE','OLD')]:
                 con.execute(f"CREATE TRIGGER IF NOT EXISTS sync_dirty_{table}_{event} AFTER {event} ON {table} BEGIN INSERT OR IGNORE INTO sync_dirty SELECT {reference}.case_id WHERE EXISTS(SELECT 1 FROM cases WHERE id={reference}.case_id); END")
     con.commit()
+    from core_task_collections import install
+    install(con)
 
 def permission(con,user,action,record=None):
     if not user: abort(403)
+    if record is not None and record['read_only']:
+        abort(403,description='Core collections are read-only. Duplicate as a custom collection to customize them.')
     broad=has_permission(user,'task_collections:manage',con)
     if not broad and not has_permission(user,'task_collections:'+action,con): abort(403)
     if record is not None and not broad and record['creator_uuid']!=user['user_uuid']: abort(403)
@@ -85,15 +89,17 @@ def definitions(values,previous=()):
 def get(con,cid):
     row=con.execute('SELECT * FROM task_collections WHERE id=?',(cid,)).fetchone()
     if row is None:abort(404)
-    result=dict(row);result['tasks']=json.loads(result['tasks']);result['task_count']=len(result['tasks'])
+    result=dict(row);result['tasks']=json.loads(result['tasks']);result['task_count']=len(result['tasks']);result.setdefault('origin','custom')
+    from core_task_collections import reserved_ids
+    result['read_only']=result['origin']=='core' or cid in reserved_ids()
     return result
 
 def catalog(con,user):
     result=[]
     for row in con.execute('SELECT id FROM task_collections ORDER BY name COLLATE NOCASE,id'):
         item=get(con,row[0]);broad=has_permission(user,'task_collections:manage',con)
-        item['can_edit']=broad or item['creator_uuid']==user['user_uuid'] and has_permission(user,'task_collections:update',con)
-        item['can_delete']=broad or item['creator_uuid']==user['user_uuid'] and has_permission(user,'task_collections:delete',con)
+        item['can_edit']=not item['read_only'] and (broad or item['creator_uuid']==user['user_uuid'] and has_permission(user,'task_collections:update',con))
+        item['can_delete']=not item['read_only'] and (broad or item['creator_uuid']==user['user_uuid'] and has_permission(user,'task_collections:delete',con))
         result.append(item)
     return result
 
@@ -106,12 +112,20 @@ def save(con,user,value,cid=None):
         old=get(con,cid) if cid else None
         permission(con,user,'update' if old else 'create',old)
         if old and (type(value.get('revision')) is not int or value.get('revision')!=old['revision']):abort(409,description='Collection changed. Reload before saving.')
+        if value.get('origin','custom')!='custom' or value.get('read_only',False):abort(403,description='Core origin is managed by MWS, not collection CRUD.')
         tasks=definitions(value.get('tasks'),old['tasks'] if old else ())
-        item=dict(id=cid or identity(),name=string(value.get('name'),200,True),description=string(value.get('description',''),20000),category=string(value.get('category',''),100),tasks=tasks,revision=old['revision']+1 if old else 1,creator_uuid=old['creator_uuid'] if old else user['user_uuid'],creator_name=old['creator_name'] if old else user['username'],created=old['created'] if old else now(),updated=now())
-        con.execute('INSERT INTO task_collections VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,category=excluded.category,tasks=excluded.tasks,revision=excluded.revision,updated=excluded.updated',tuple(json.dumps(item[k]) if k=='tasks' else item[k] for k in ('id','name','description','category','tasks','revision','creator_uuid','creator_name','created','updated')))
+        item=dict(id=cid or identity(),name=string(value.get('name'),200,True),description=string(value.get('description',''),20000),category=string(value.get('category',''),100),tasks=tasks,revision=old['revision']+1 if old else 1,creator_uuid=old['creator_uuid'] if old else user['user_uuid'],creator_name=old['creator_name'] if old else user['username'],created=old['created'] if old else now(),updated=now(),origin='custom')
+        con.execute('INSERT INTO task_collections (id,name,description,category,tasks,revision,creator_uuid,creator_name,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,description=excluded.description,category=excluded.category,tasks=excluded.tasks,revision=excluded.revision,updated=excluded.updated',tuple(json.dumps(item[k]) if k=='tasks' else item[k] for k in ('id','name','description','category','tasks','revision','creator_uuid','creator_name','created','updated')))
         con.execute('INSERT INTO task_collection_revisions VALUES(?,?,?)',(item['id'],item['revision'],json.dumps(item)))
         event(con,user,('Updated' if old else 'Created')+' global task collection '+item['id']+' revision '+str(item['revision']))
     return get(con,item['id'])
+
+def duplicate(con,user,cid,value):
+    permission(con,user,'create')
+    source=get(con,cid)
+    return save(con,user,dict(name=value.get('name',source['name'][:190]+' (custom)'),
+        description=source['description'],category=source['category'],
+        tasks=[dict(name=t['name'],description=t['description']) for t in source['tasks']]))
 
 def remove(con,user,cid,revision):
     with con:

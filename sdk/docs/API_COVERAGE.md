@@ -139,6 +139,7 @@ Generated from registered routes and reviewed OpenAPI contracts. All rows are im
 | DELETE | `/api/v1/task-collections/{collection_id}` | task_collections:delete | TaskCollectionsDeleteRequest | No body | `client.task_collections.delete` | Implemented |
 | GET | `/api/v1/task-collections/{collection_id}` | Authenticated / handler checks | None | TaskCollectionsGetResponse | `client.task_collections.get` | Implemented |
 | PATCH | `/api/v1/task-collections/{collection_id}` | task_collections:update | TaskCollectionsUpdateRequest | TaskCollectionsUpdateResponse | `client.task_collections.update` | Implemented |
+| POST | `/api/v1/task-collections/{collection_id}/duplicate` | task_collections:create | TaskCollectionsDuplicateRequest | TaskCollectionsDuplicateResponse | `client.task_collections.duplicate` | Implemented |
 | GET | `/api/v1/templates` | templates:manage | None | TemplatesListResponse | `client.templates.list` | Implemented |
 | POST | `/api/v1/templates` | templates:manage | TemplatesUploadRequest | TemplatesUploadResponse | `client.templates.upload` | Implemented |
 | DELETE | `/api/v1/templates/{template_id}` | templates:manage | None | No body | `client.templates.delete` | Implemented |

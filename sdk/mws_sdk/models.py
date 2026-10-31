@@ -208,6 +208,8 @@ class TaskCollection(APIModel):
     task_count: int | None = None
     can_edit: bool | None = None
     can_delete: bool | None = None
+    origin: Literal['core', 'custom'] | None = None
+    read_only: bool | None = None
 
 class ActorsListParams(APIModel):
     """ActorsListParams version-1 API fields."""
@@ -1425,6 +1427,7 @@ class TaskCollectionsListParams(APIModel):
     offset: int | None = Field(None, ge=0)
     q: str | None = None
     category: str | None = None
+    origin: Literal['all', 'core', 'custom'] | None = None
 
 class TaskCollectionsListResponse(APIModel):
     """TaskCollectionsListResponse version-1 API fields."""
@@ -1467,6 +1470,15 @@ class TaskCollectionsUpdateRequest(APIModel):
 
 class TaskCollectionsUpdateResponse(APIModel):
     """TaskCollectionsUpdateResponse version-1 API fields."""
+    collection: TaskCollection | None = None
+
+class TaskCollectionsDuplicateRequest(APIModel):
+    """TaskCollectionsDuplicateRequest version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    name: str | None = None
+
+class TaskCollectionsDuplicateResponse(APIModel):
+    """TaskCollectionsDuplicateResponse version-1 API fields."""
     collection: TaskCollection | None = None
 
 class TemplatesListResponse(APIModel):

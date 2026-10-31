@@ -16,7 +16,7 @@ def profile(category, value):
 def database_records(source):
     """Read display fields only, never credentials, file paths or private keys."""
     result = []
-    fields = {"task_collections":("id","name","description","revision","tasks"),"cases": ("number", "name", "stage", "created"), "tags": ("id", "name"),
+    fields = {"task_collections":("id","name","description","revision","tasks","origin"),"cases": ("number", "name", "stage", "created"), "tags": ("id", "name"),
               "actors": ("id", "name", "aliases", "short_description"),
               "families": ("id", "name", "aliases", "short_description")}
     for category, table in CATEGORIES.items():
@@ -28,7 +28,8 @@ def database_records(source):
             value = dict(zip(selected, row))
             item = record(category, value.get("number", value.get("id")), value["name"])
             if category=="task_collections":
-                item.update(description=value.get("description",""),revision=value.get("revision"),task_count=len(json.loads(value.get("tasks","[]"))))
+                item.update(description=value.get("description",""),revision=value.get("revision"),task_count=len(json.loads(value.get("tasks","[]"))),origin=value.get("origin","custom"))
+                if item["origin"]=="core":item["details"]="Application-managed Core definition. Bundled upgrades preserve Case snapshots and their recorded source revisions."
             for field in ("stage", "created", "short_description", "aliases"):
                 if field in value:
                     item["description" if field == "short_description" else field] = value[field]

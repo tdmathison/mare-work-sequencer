@@ -1,0 +1,405 @@
+{
+  "schema": "mws-core-task-collections/1",
+  "collections": [
+    {
+      "key": "sample-intake",
+      "id": "6c45034f4286524f84abdcc2b6fc267f",
+      "revision": 1,
+      "name": "Sample Intake & Initial Assessment",
+      "category": "General",
+      "description": "Establish sample identity, investigation context, and the next analysis steps.",
+      "tasks": [
+        {
+          "id": "09a7d1742b415370a5d6f22eee6450ba",
+          "name": "Record provenance and investigation questions",
+          "description": "Document where the sample came from, relevant context, and the questions this investigation should answer."
+        },
+        {
+          "id": "beab4800d29657d3956c58e84ff22385",
+          "name": "Verify file type and architecture",
+          "description": "Determine the actual file format, platform, architecture, and runtime requirements rather than relying on the filename."
+        },
+        {
+          "id": "49db871034b05afcaf67a44ee0d80ccb",
+          "name": "Record hashes and metadata",
+          "description": "Record cryptographic hashes and relevant metadata using the existing Case fields and indicator conventions."
+        },
+        {
+          "id": "4693a7f8882c59e9ab5117f3197ed48d",
+          "name": "Review existing intelligence",
+          "description": "Review authorized internal and external information, recording useful references and the limits of any identification."
+        },
+        {
+          "id": "28304d5c532e5d27b49c55b35d321714",
+          "name": "Identify related samples and Cases",
+          "description": "Check for existing Cases, matching indicators, or related artifacts and document supported relationships."
+        },
+        {
+          "id": "3d7004d9f2915fdcaea7ba8ef0d87c4a",
+          "name": "Document initial assessment and next steps",
+          "description": "Summarize preliminary findings, uncertainties, and the additional task collections or analysis needed."
+        }
+      ]
+    },
+    {
+      "key": "basic-static",
+      "id": "1c27dea2d1c05d16adf3dd4287e55193",
+      "revision": 1,
+      "name": "Basic Static Analysis",
+      "category": "General",
+      "description": "Examine file structure and static artifacts to guide further investigation.",
+      "tasks": [
+        {
+          "id": "ea30629b32375666b87e7c9b14d2954c",
+          "name": "Review strings and embedded resources",
+          "description": "Identify useful strings, resources, paths, commands, and embedded artifacts, recording their context."
+        },
+        {
+          "id": "202fff4ed9a25441a6c0f39f61e712e0",
+          "name": "Examine imports, exports, and dependencies",
+          "description": "Review available interfaces and dependencies for clues about functionality and execution requirements."
+        },
+        {
+          "id": "f095c1a051f05fe79df0c865a28b2083",
+          "name": "Inspect file structure and anomalies",
+          "description": "Examine relevant sections, headers, overlays, or structural irregularities and document significant findings."
+        },
+        {
+          "id": "cfaae3ad7f4955809e7dadf4d0e7066d",
+          "name": "Assess packing and obfuscation",
+          "description": "Identify evidence of packing, encryption, or obfuscation and explain how it limits static analysis."
+        },
+        {
+          "id": "5837b331450e5593a1c9fb7d25ea8505",
+          "name": "Review capability and signature results",
+          "description": "Review available tool results and identify supporting evidence rather than accepting labels as conclusions."
+        },
+        {
+          "id": "28eac4dd40875730a141d2387bd3049a",
+          "name": "Record findings requiring validation",
+          "description": "List candidate behaviors and indicators that need confirmation through code review or controlled execution."
+        }
+      ]
+    },
+    {
+      "key": "controlled-dynamic",
+      "id": "5fc375a6306c5c01b6c981ba091facdf",
+      "revision": 1,
+      "name": "Controlled Dynamic Analysis",
+      "category": "General",
+      "description": "Observe execution in an appropriate isolated analysis environment and document the resulting evidence.",
+      "tasks": [
+        {
+          "id": "46a74689d89a526fb9507cc6020b46b3",
+          "name": "Document execution requirements and lab configuration",
+          "description": "Record the relevant operating system, arguments, dependencies, network configuration, and analysis conditions."
+        },
+        {
+          "id": "9879ddb1cadf571cac4d32a00e0d4638",
+          "name": "Execute the sample in the analysis environment",
+          "description": "Run the sample using the approved isolated workflow and retain relevant execution details."
+        },
+        {
+          "id": "02510ad8b04159e5924b124d2c524b41",
+          "name": "Confirm execution succeeded",
+          "description": "Determine whether meaningful sample execution occurred and document failures, missing conditions, or evasion concerns."
+        },
+        {
+          "id": "fe9a3e5903ba576e8476221913254f2b",
+          "name": "Review process and system activity",
+          "description": "Examine process, filesystem, registry, service, or equivalent system activity supported by the environment."
+        },
+        {
+          "id": "50793b94000b51259837bd914bdf1363",
+          "name": "Collect dropped files and network artifacts",
+          "description": "Preserve relevant output files, logs, captures, and extracted artifacts and link them to the Case."
+        },
+        {
+          "id": "f1d1bf9a9c335646bad8e078d551b6a2",
+          "name": "Document limitations and unanswered questions",
+          "description": "Explain what the execution did and did not establish and identify follow-up work."
+        }
+      ]
+    },
+    {
+      "key": "windows-pe",
+      "id": "f092e8be845b58a8bdfdfbc65f507a2b",
+      "revision": 1,
+      "name": "Windows PE Analysis",
+      "category": "Windows",
+      "description": "Investigate Windows executable structure, loading behavior, and host artifacts.",
+      "tasks": [
+        {
+          "id": "78d2fb55d96c517f96256097874ecde0",
+          "name": "Inspect PE headers and resources",
+          "description": "Review architecture, sections, metadata, and resources and record relevant anomalies."
+        },
+        {
+          "id": "658290be579b5f3da387983ef516aeb6",
+          "name": "Review imports, exports, and TLS callbacks",
+          "description": "Identify interfaces and initialization paths that warrant further examination."
+        },
+        {
+          "id": "a09f7df9668b5d59b4c9914325bdb15e",
+          "name": "Determine loading and execution requirements",
+          "description": "Establish whether the sample requires a loader, export invocation, arguments, privileges, or other dependencies."
+        },
+        {
+          "id": "256135ef44c25e0e9af7f990ae780992",
+          "name": "Examine persistence and system changes",
+          "description": "Investigate supported persistence mechanisms and relevant filesystem, registry, service, or scheduled-task changes."
+        },
+        {
+          "id": "2ab351fa9655593881d83cbbfb9d9d0a",
+          "name": "Investigate process injection if indicated",
+          "description": "Examine evidence of injection or related process manipulation where present, recording the basis for the conclusion."
+        },
+        {
+          "id": "329f432002fc551f9993e3f38057bed3",
+          "name": "Record Windows-specific artifacts",
+          "description": "Document useful host artifacts, execution conditions, and detection opportunities with supporting evidence."
+        }
+      ]
+    },
+    {
+      "key": "linux-elf",
+      "id": "4af23a57db965dd795b4b14ac48a4421",
+      "revision": 1,
+      "name": "Linux ELF Analysis",
+      "category": "Linux",
+      "description": "Investigate Linux executable structure, runtime behavior, and host artifacts.",
+      "tasks": [
+        {
+          "id": "219e377cb8e25e75a2064860f820195c",
+          "name": "Inspect ELF headers and architecture",
+          "description": "Review architecture, sections, segments, interpreter, and relevant structural characteristics."
+        },
+        {
+          "id": "e9186d136a795770aa1a0d161c2a8dee",
+          "name": "Review symbols and dependencies",
+          "description": "Examine available symbols, imported functions, linked libraries, and runtime dependencies."
+        },
+        {
+          "id": "07f2bdee3e6857599bcf4d4bd4b63458",
+          "name": "Trace startup and configuration loading",
+          "description": "Identify initialization paths, arguments, environment use, and configuration sources."
+        },
+        {
+          "id": "baa4cb6970785a44bf3c735c234cbe52",
+          "name": "Examine filesystem and process behavior",
+          "description": "Review relevant file access, process execution, permissions, and system interactions."
+        },
+        {
+          "id": "2f3f6e6f7f3c561ea6578d43098fd244",
+          "name": "Investigate persistence mechanisms",
+          "description": "Examine applicable startup scripts, service definitions, scheduled jobs, or other persistence evidence."
+        },
+        {
+          "id": "d78d114e07c15e88b29e579409c08b92",
+          "name": "Review syscall and behavioral evidence",
+          "description": "Correlate available syscall traces, sandbox results, or Tracee output with code findings and document limitations."
+        }
+      ]
+    },
+    {
+      "key": "script-obfuscation",
+      "id": "953cd91650db56e09234f84c08b8fac4",
+      "revision": 1,
+      "name": "Script & Obfuscated Code Analysis",
+      "category": "Scripts",
+      "description": "Recover script logic and analyze staged or obfuscated code while preserving the original artifacts.",
+      "tasks": [
+        {
+          "id": "53b04cae048a5644abf27e99b48d3a4b",
+          "name": "Identify language and runtime",
+          "description": "Determine the scripting language, runtime, entry point, and execution requirements."
+        },
+        {
+          "id": "e933dd5c52045c8483793a673c76cbf0",
+          "name": "Preserve the original artifact",
+          "description": "Retain the original sample and identify derived versions so transformations remain traceable."
+        },
+        {
+          "id": "3011a96158fa51c38e8f25df9ca12385",
+          "name": "Decode obfuscation layers",
+          "description": "Recover encoded or obfuscated content without unintentionally executing it and document the transformation steps."
+        },
+        {
+          "id": "31987a654e3b5828a007b89b062bf5a5",
+          "name": "Reconstruct control flow",
+          "description": "Identify important branches, execution triggers, commands, and function relationships."
+        },
+        {
+          "id": "f768593cff575ec28b6ea7a8e83bc9d5",
+          "name": "Identify additional stages",
+          "description": "Extract or document embedded and downloaded payloads, including their provenance and execution relationships."
+        },
+        {
+          "id": "128cac551c5c5fc399d17e5b929f9a45",
+          "name": "Document behavior and indicators",
+          "description": "Record supported behavior, useful indicators, and remaining uncertainty with references to the recovered code."
+        }
+      ]
+    },
+    {
+      "key": "network-c2",
+      "id": "db3ca7ba5c8d5bcbb5fd1e534dc09797",
+      "revision": 1,
+      "name": "Network & C2 Analysis",
+      "category": "Network",
+      "description": "Characterize network communication and distinguish candidate infrastructure from observed activity.",
+      "tasks": [
+        {
+          "id": "3e9fe67783a05704be9a41e19275c9ab",
+          "name": "Identify endpoints and protocols",
+          "description": "Record relevant destinations, ports, protocols, and configuration sources with their context."
+        },
+        {
+          "id": "78333a1ba55b565c816eff7985612210",
+          "name": "Distinguish candidate and observed destinations",
+          "description": "Separate values found in code or configuration from destinations actually used during observed execution."
+        },
+        {
+          "id": "7d42b4672ce85d06944970ee4f4dcad3",
+          "name": "Review network evidence",
+          "description": "Examine available packet captures, sandbox logs, or other network records and retain supporting evidence."
+        },
+        {
+          "id": "5006bdf743d75beba0f5078a1449e5ff",
+          "name": "Characterize communication behavior",
+          "description": "Document connection patterns, beaconing, message structure, and command handling where supported."
+        },
+        {
+          "id": "f008dee2b8015d6cb2f0e6d3fef9fab6",
+          "name": "Examine encoding and encryption",
+          "description": "Identify relevant communication transformations and explain what can be established from the available evidence."
+        },
+        {
+          "id": "ba1b45d4a5e15c2486a06ba08655333b",
+          "name": "Document detection opportunities and limitations",
+          "description": "Record useful network characteristics, possible benign overlap, and confidence limits."
+        }
+      ]
+    },
+    {
+      "key": "configuration-extraction",
+      "id": "943215b9c07a55b88fa2e40604aa4286",
+      "revision": 1,
+      "name": "Configuration Extraction",
+      "category": "Reverse Engineering",
+      "description": "Recover malware configuration and document a repeatable, evidence-based extraction process.",
+      "tasks": [
+        {
+          "id": "81b30e52824c59e19c9578a7de8d1d1e",
+          "name": "Locate configuration storage and loading",
+          "description": "Identify where configuration is stored and how the sample accesses it."
+        },
+        {
+          "id": "352488197dc755e78bc9a4ed672c03f2",
+          "name": "Analyze decoding or decryption",
+          "description": "Determine transformations required to recover configuration and retain supporting code references."
+        },
+        {
+          "id": "eae9725d5e4153e2ace46ea015bf3d3b",
+          "name": "Extract and label configuration fields",
+          "description": "Recover available values and distinguish established field meanings from tentative interpretations."
+        },
+        {
+          "id": "a0ec71fe8e0658e190b55a1cf4ecce13",
+          "name": "Validate extracted configuration",
+          "description": "Compare recovered values with code paths or observed behavior and record inconsistencies."
+        },
+        {
+          "id": "a09cdbb5880e51298586c016072d8689",
+          "name": "Preserve extraction evidence",
+          "description": "Attach relevant output, scripts, offsets, or notes needed to understand the extraction."
+        },
+        {
+          "id": "59f20c56dfe75cd28ea8ec8a27684acb",
+          "name": "Document repeatable extraction steps",
+          "description": "Explain how another analyst can reproduce the result and identify known sample or version limitations."
+        }
+      ]
+    },
+    {
+      "key": "indicator-curation",
+      "id": "7e96e90273695ca2b51fba9f57b4aa33",
+      "revision": 1,
+      "name": "Indicator Validation & Curation",
+      "category": "General",
+      "description": "Prepare contextualized indicators suitable for analysis, reporting, and downstream use.",
+      "tasks": [
+        {
+          "id": "ee20466bd70054e2b35f5ef51121addb",
+          "name": "Consolidate extracted indicators",
+          "description": "Gather relevant indicators from analysis artifacts while preserving their source and context."
+        },
+        {
+          "id": "c9c4ae5bfeed57e8925a459e4a2e831c",
+          "name": "Normalize types and values",
+          "description": "Apply existing indicator conventions and verify appropriate formatting without changing meaningful values."
+        },
+        {
+          "id": "072838535be258c196577ad8f4240bc0",
+          "name": "Remove duplicate indicators",
+          "description": "Consolidate duplicate entries while retaining useful evidence and context."
+        },
+        {
+          "id": "25bc2fc9613857348cf94714c64f18b6",
+          "name": "Review benign and shared infrastructure",
+          "description": "Identify values with likely benign or shared use and document implications for detection."
+        },
+        {
+          "id": "fee241b0abac5d0295b2f8c32320fc6b",
+          "name": "Add context and provenance",
+          "description": "Explain how each useful indicator relates to the sample or observed behavior."
+        },
+        {
+          "id": "3794f08a6c095841bf46ecdc4917342d",
+          "name": "Separate observed and unverified indicators",
+          "description": "Clearly distinguish validated observations from candidates that have not been confirmed."
+        }
+      ]
+    },
+    {
+      "key": "delivery-review",
+      "id": "1df890d3ded95e0ca16fefe2c62536c9",
+      "revision": 1,
+      "name": "Report & MIP Delivery Review",
+      "category": "Delivery",
+      "description": "Review analytical claims and verify the final report and MIP deliverables.",
+      "tasks": [
+        {
+          "id": "3701fe9ef98b5073bcca1d9ef30f04d0",
+          "name": "Complete the report sections",
+          "description": "Address the relevant report sections and clearly document findings, limitations, and unresolved questions."
+        },
+        {
+          "id": "bb769d7a04ec5271bb3c29dd5aee5565",
+          "name": "Verify claims against evidence",
+          "description": "Check that substantive conclusions are supported and that inference is distinguished from observation."
+        },
+        {
+          "id": "8b42c8c588165ebb80f67ec2320b1349",
+          "name": "Review indicators and references",
+          "description": "Confirm indicator quality, context, and reference accuracy."
+        },
+        {
+          "id": "6abe96e595c45d47960593056bfc3c75",
+          "name": "Review mappings and detection content",
+          "description": "Check applicable ATT&CK/MBC mappings and detection artifacts for supported claims and documented limitations."
+        },
+        {
+          "id": "540a73ffd5fb5c1bada5c3b0941bcf6f",
+          "name": "Verify Standard and RAW package contents",
+          "description": "Inspect package contents against the existing exporter rules and the intended recipient."
+        },
+        {
+          "id": "a83ea77789085f68ad7fc9c0b27be3b9",
+          "name": "Check the exported deliverable",
+          "description": "Generate and inspect the appropriate output to confirm required content is present and readable."
+        }
+      ]
+    }
+  ]
+}

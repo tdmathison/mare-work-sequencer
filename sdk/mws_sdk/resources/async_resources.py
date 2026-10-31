@@ -553,7 +553,7 @@ class AsyncTaskCollectionsResource(AsyncResource):
         return await self._transport.request('PUT', 'cases/{cid}/task-order'.replace('{cid}', path_value(cid, nested=False)), data=data, files=files, request_model=TaskCollectionsReorderRequest, media='application/json', response_model=TaskCollectionsReorderResponse)
 
     async def list(self, *, params: TaskCollectionsListParams | Mapping[str, Any] | None = None) -> TaskCollectionsListResponse:
-        'List global task collections. GET /api/v1/task-collections. Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user.'
+        'List global task collections. GET /api/v1/task-collections. Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.\n\nRequired role permission: any authenticated API user.'
         return await self._transport.request('GET', 'task-collections', params=params, response_model=TaskCollectionsListResponse)
 
     async def create(self, *, data: TaskCollectionsCreateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsCreateResponse:
@@ -561,7 +561,7 @@ class AsyncTaskCollectionsResource(AsyncResource):
         return await self._transport.request('POST', 'task-collections', data=data, files=files, request_model=TaskCollectionsCreateRequest, media='application/json', response_model=TaskCollectionsCreateResponse)
 
     async def delete(self, collection_id: str, *, data: TaskCollectionsDeleteRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> None:
-        'Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Delete a global collection; retain Case copies. DELETE /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('DELETE', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsDeleteRequest, media='application/json')
 
     async def get(self, collection_id: str) -> TaskCollectionsGetResponse:
@@ -569,8 +569,12 @@ class AsyncTaskCollectionsResource(AsyncResource):
         return await self._transport.request('GET', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), response_model=TaskCollectionsGetResponse)
 
     async def update(self, collection_id: str, *, data: TaskCollectionsUpdateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsUpdateResponse:
-        'Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Update ordered collection definitions. PATCH /api/v1/task-collections/{collection_id}. Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('PATCH', 'task-collections/{collection_id}'.replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsUpdateRequest, media='application/json', response_model=TaskCollectionsUpdateResponse)
+
+    async def duplicate(self, collection_id: str, *, data: TaskCollectionsDuplicateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> TaskCollectionsDuplicateResponse:
+        'Duplicate a collection as editable custom guidance. POST /api/v1/task-collections/{collection_id}/duplicate. Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically.'
+        return await self._transport.request('POST', 'task-collections/{collection_id}/duplicate'.replace('{collection_id}', path_value(collection_id, nested=False)), data=data, files=files, request_model=TaskCollectionsDuplicateRequest, media='application/json', response_model=TaskCollectionsDuplicateResponse)
 
     async def iter_all(self, *, params=None):
         """Yield authorized records across offset pages without preloading the dataset."""

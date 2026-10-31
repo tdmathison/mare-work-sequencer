@@ -131,7 +131,7 @@ def test_legacy_tag_catalog_has_confirmed_record_outcomes():
     with zipfile.ZipFile(io.BytesIO(raw.data)) as source:
         index = json.loads(source.read("backup.json"))
     # A legacy tag-only archive predates shared library/identity sections.
-    for key in ("family_library", "tag_registry", "included_areas", "case_numbers"):
+    for key in ("family_library", "tag_registry", "included_areas", "case_numbers", "task_collections"):
         index.pop(key, None)
     index["cases"] = []
     index["schema"] = "mare-case-backup/2"

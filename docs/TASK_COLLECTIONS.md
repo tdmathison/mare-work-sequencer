@@ -174,3 +174,55 @@ from selected tasks, independent copies, repeat/concurrent application, transact
 rollback, real SDK calls, selective/complete/older backup restoration, conflict
 resolution, and real browser authoring/drawer/mobile behavior. No task execution,
 scheduling, dependencies or mandatory playbook stages are introduced.
+
+## Built-in Core starter collections
+
+MWS installs ten optional Core collections (60 task definitions) into this same
+library on fresh installation and upgrade. Nothing is added to Cases automatically.
+Use **All / Core / Custom** in the library or collection drawer. Core badges and
+previews identify the source. Analysts can choose only relevant tasks; all copies
+start Not Started and remain independent, with existing permissions and closed-Case
+locks. Task completion remains advisory and never becomes a progression gate.
+
+“Optional analyst guidance. Completing a task means addressing and documenting the
+question, not necessarily finding the suspected behavior.”
+
+Core definitions are read-only, including for administrators. **Duplicate as custom
+collection** requires the existing creation permission and generates fresh collection
+and template IDs. Custom copies can be edited, reordered and deleted normally.
+Appending selected Case definitions to Core is also rejected; duplicate first.
+
+Canonical names, descriptions, categories, fixed collection/template IDs and
+per-collection revisions live in `resources/core_task_collections.json`.
+`core_task_collections.py` installs only missing or higher bundled revisions. Keep
+existing IDs when renaming/reordering guidance; bump that collection's revision
+when shipping changes. Repeated initialization retains timestamps/history, an older
+bundle cannot replace a newer installed revision, and Case copies/source snapshots
+are never rewritten. Same-name custom collections retain their own identities.
+The forward migration adds `origin` with a Custom default, preserving existing
+records. Core creator identity is application-owned, independent of user accounts.
+
+The REST and generated sync/async SDK expose `origin` and `read_only`:
+
+```python
+core = client.task_collections.list(params={"origin": "core"}).collections
+custom = client.task_collections.duplicate(
+    core[0].id, data={"name": "Our investigation guidance"}
+).collection
+```
+
+The corresponding endpoint is `POST /api/v1/task-collections/{collection_id}/duplicate`.
+Existing preview/get and Case-application endpoints work with Core IDs unchanged.
+
+Selective collection backups preserve origin, fixed IDs and revision histories.
+Import previews explain that protected Core rows are skipped and show archive and
+installed revisions; Replace choices cannot override that protection, and declaring
+an unknown record to be Core does not install it. Custom rows still require existing
+library-management permission. Core-only shared sections can be skipped during an
+ordinary Case import without requesting library-management permission.
+
+Complete recovery validates original hashes/counts before upgrading the collection
+schema and installing newer bundled guidance. Newer restored Core revisions remain
+intact. Case-only backups stay self-contained through task content/group snapshots;
+recorded source revisions remain historical even if the library has advanced or a
+source is unavailable. Older archives without origin metadata are treated as Custom.

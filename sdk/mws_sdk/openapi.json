@@ -19612,7 +19612,7 @@
     "/task-collections": {
       "get": {
         "summary": "List global task collections",
-        "description": "Shared global guidance, with name/description search, category filters and standard limit/offset pagination.\n\nRequired role permission: any authenticated API user.",
+        "description": "Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.\n\nRequired role permission: any authenticated API user.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -19755,6 +19755,18 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "origin",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "core",
+                "custom"
+              ]
             }
           }
         ],
@@ -19921,7 +19933,7 @@
     "/task-collections/{collection_id}": {
       "delete": {
         "summary": "Delete a global collection; retain Case copies",
-        "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.",
+        "description": "Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.\n\nRequired role permission: task_collections:delete.\n\nExecute affects real application data. Nothing executes automatically.",
         "responses": {
           "204": {
             "description": "Successful response; no body."
@@ -20168,7 +20180,7 @@
       },
       "patch": {
         "summary": "Update ordered collection definitions",
-        "description": "Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "description": "Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.\n\nRequired role permission: task_collections:update.\n\nExecute affects real application data. Nothing executes automatically.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -20354,6 +20366,150 @@
           "Task-Collections"
         ],
         "x-required-permission": "task_collections:update"
+      }
+    },
+    "/task-collections/{collection_id}/duplicate": {
+      "post": {
+        "summary": "Duplicate a collection as editable custom guidance",
+        "description": "Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.\n\nRequired role permission: task_collections:create.\n\nExecute affects real application data. Nothing executes automatically.",
+        "responses": {
+          "201": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "collection": {
+                      "$ref": "#/components/schemas/TaskCollection"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Resource not found or not owned by caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Upload exceeds the configured request/file limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "task_collection_duplicate_post",
+        "tags": [
+          "Task-Collections"
+        ],
+        "x-required-permission": "task_collections:create"
       }
     },
     "/templates": {
@@ -24702,6 +24858,16 @@
             "type": "boolean"
           },
           "can_delete": {
+            "type": "boolean"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "core",
+              "custom"
+            ]
+          },
+          "read_only": {
             "type": "boolean"
           }
         }

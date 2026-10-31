@@ -153,7 +153,7 @@ def test_case_only_backup_restores_independent_groups_without_global_collection(
         tasks=db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY position,id',(restored,)).fetchall()
         assert group['name']==collection['name'] and group['source_collection_id']==collection['id'] and group['source_revision']==1
         assert tasks[0]['title']=='Independent case title' and tasks[0]['state']=='In Progress' and tasks[0]['body']=='**Case description**'
-        assert not db().execute('SELECT 1 FROM task_collections').fetchone()
+        assert not db().execute("SELECT 1 FROM task_collections WHERE origin='custom'").fetchone()
         assert db().execute('SELECT template_ids FROM task_collection_applications WHERE case_id=?',(restored,)).fetchone()[0]
 
 
@@ -165,20 +165,20 @@ def test_collection_only_archive_preview_conflicts_restore_and_repeat(tmp_path):
     assert response.status_code==201
     source=response.json['collection']
     archive,job=export(client,['task_collections'],password='')
-    assert job['manifest']['counts']['task_collections']==1 and job['manifest']['counts']['task_templates']==1 and job['manifest']['counts']['cases']==0
+    assert job['manifest']['counts']['task_collections']==11 and job['manifest']['counts']['task_templates']==61 and job['manifest']['counts']['cases']==0
     assert job['archive_name'].endswith('_TC.zip')
     # Replace the source with a distinct same-name record to prove no title merge.
     client.post('/task-workspace/collections/'+source['id'],data={'csrf':'backup-workspace','payload':json.dumps({'operation':'delete','revision':1})})
     client.post('/task-workspace/collections',data={'csrf':'backup-workspace','payload':json.dumps(value)})
     for iteration in range(2):
         preview=inspect(client,archive,password='');assert preview['state']=='preview',preview
-        assert preview['preview']['counts']['task_collections']==1 and not preview['preview']['conflicts']
+        assert preview['preview']['counts']['task_collections']==11 and not preview['preview']['conflicts']
         assert any(r['category']=='task_collections' for r in preview['preview']['records'])
         result=post(client,'/backup-restore/jobs/'+preview['id']+'/apply');assert result.status_code==202,result.data
         outcome=wait(client,preview['id'],'completed')
-        assert outcome['result']['records'][0]['action']==('added' if iteration==0 else 'unchanged')
+        assert next(r for r in outcome['result']['records'] if r.get('identifier')==source['id'])['action']==('added' if iteration==0 else 'unchanged')
     with app.app_context():
-        assert db().execute('SELECT count(*) FROM task_collections').fetchone()[0]==2
+        assert db().execute('SELECT count(*) FROM task_collections').fetchone()[0]==12
         from task_collection_portable import export as portable_export,validate
         validate(portable_export(db()))
     changed={**source,'description':'Conflicting destination edit'}
@@ -191,7 +191,7 @@ def test_collection_only_archive_preview_conflicts_restore_and_repeat(tmp_path):
         refreshed=wait(client,preview['id'],'preview');assert not refreshed['preview']['conflicts']
         assert post(client,'/backup-restore/jobs/'+preview['id']+'/apply').status_code==202
         completed=wait(client,preview['id'],'completed')
-        assert completed['result']['records'][0]['action']==('skipped' if choice=='keep' else 'updated')
+        assert next(r for r in completed['result']['records'] if r.get('identifier')==source['id'])['action']==('skipped' if choice=='keep' else 'updated')
         with app.app_context():assert db().execute('SELECT description FROM task_collections WHERE id=?',(source['id'],)).fetchone()[0]==('Conflicting destination edit' if choice=='keep' else 'Reusable')
 
 
@@ -226,8 +226,8 @@ def test_sdk_new_collections_and_existing_tasks_use_real_rest_contract():
     client,headers,cid,_=setup(role='Administrator')
     with MWSClient('http://isolated.test',headers['Authorization'].removeprefix('Bearer '),transport=httpx.WSGITransport(app=app),retries=0) as sdk:
         collection=sdk.task_collections.create(data={'name':'SDK guidance','tasks':[{'name':'Read context','description':'Details'}]}).collection
-        assert sdk.task_collections.list().collections[0].id==collection.id
-        assert list(sdk.task_collections.iter_all())[0].id==collection.id
+        assert sdk.task_collections.list(params={'origin':'custom'}).collections[0].id==collection.id
+        assert list(sdk.task_collections.iter_all(params={'origin':'custom'}))[0].id==collection.id
         applied=sdk.task_collections.apply(cid,collection.id,data={'revision':collection.revision,'template_ids':[t.id for t in collection.tasks],'request_key':uuid.uuid4().hex})
         task=sdk.tasks.get(cid,applied.task_ids[0]).task
         assert task.state=='Not Started' and task.source_collection_id==collection.id
@@ -259,7 +259,7 @@ def test_old_complete_archive_without_collections_gets_additive_upgrade(tmp_path
         for name,content in members.items():target.writestr(name,content)
     restored=tmp_path/'upgraded';restore_installation(legacy,restored)
     with sqlite3.connect(restored/'workflow.sqlite3') as con:
-        assert con.execute('SELECT count(*) FROM task_collections').fetchone()[0]==0
+        assert con.execute('SELECT count(*) FROM task_collections').fetchone()[0]==10
         assert 'group_id' in {r[1] for r in con.execute('PRAGMA table_info(tasks)')}
         assert con.execute("SELECT 1 FROM schema_migrations WHERE name='task-collections-v1'").fetchone()
         assert con.execute("SELECT 1 FROM sqlite_master WHERE name='sync_dirty_task_groups_INSERT'").fetchone()

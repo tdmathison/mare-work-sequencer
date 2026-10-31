@@ -207,3 +207,15 @@ ordered template updates, creating/appending definitions from Case tasks, Case
 groups, reordering and atomic application with an idempotency key. Existing
 `client.tasks` methods remain supported. See the [task collection guide](../docs/TASK_COLLECTIONS.md#rest-api-and-python-sdk)
 and [explicit-write example](examples/task_collections.py).
+
+### Optional Core task guidance
+
+The existing task collection library includes ten read-only Core starter collections.
+List them with `client.task_collections.list(params={"origin": "core"})`; response
+records expose `origin` and `read_only`. Use
+`client.task_collections.duplicate(collection_id, data={"name": "My guidance"})`
+to create an editable Custom copy with new identities (creation permission required).
+Apply any selected Core templates with the existing `task_collections.apply` method.
+Application never happens automatically, starts Case tasks at Not Started, and
+retains normal Case permissions and closed-Case restrictions. Later Core updates
+never change previously copied tasks or their recorded source revisions.

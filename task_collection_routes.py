@@ -20,8 +20,9 @@ def register(app,db):
     def rights():return {p:has_permission(g.user,'task_collections:'+p,db()) or has_permission(g.user,'task_collections:manage',db()) for p in ('create','update','delete')}
     def library():
         if request.method=='GET':
-            items=service.catalog(db(),g.user);query=request.args.get('q','').casefold();category=request.args.get('category','')
-            items=[c for c in items if query in (c['name']+' '+c['description']).casefold() and (not category or c['category']==category)]
+            items=service.catalog(db(),g.user);query=request.args.get('q','').casefold();category=request.args.get('category','');origin=request.args.get('origin','all')
+            if origin not in ('all','core','custom'):abort(400,description='Origin must be all, core or custom.')
+            items=[c for c in items if query in (c['name']+' '+c['description']).casefold() and (not category or c['category']==category) and (origin=='all' or c['origin']==origin)]
             if request.path.startswith('/api/v1/'):
                 try:limit=max(1,min(int(request.args.get('limit','100')),500));offset=max(0,int(request.args.get('offset','0')))
                 except ValueError:abort(400)
@@ -34,6 +35,7 @@ def register(app,db):
         if request.method=='DELETE' or value.get('operation')=='delete':
             service.remove(db(),g.user,collection_id,value.get('revision'));return '',204
         return {'collection':service.save(db(),g.user,value,collection_id)}
+    def duplicate(collection_id):return {'collection':service.duplicate(db(),g.user,collection_id,payload())},201
     def case_workspace(cid):
         return service.workspace(db(),g.user,cid)
     def application(cid,collection_id):return service.apply(db(),g.user,cid,collection_id,payload()),201
@@ -59,7 +61,8 @@ def register(app,db):
             try:return function(*args,**kwargs)
             except HTTPException as error:return {'error':error.description},error.code
         return wrapped
-    rows=[('task_collection_list','/task-collections','/task-workspace/collections',library,['GET','POST']),
+    rows=[('task_collection_duplicate','/task-collections/<collection_id>/duplicate','/task-workspace/collections/<collection_id>/duplicate',duplicate,['POST']),
+          ('task_collection_list','/task-collections','/task-workspace/collections',library,['GET','POST']),
           ('task_collection_item','/task-collections/<collection_id>','/task-workspace/collections/<collection_id>',collection,['GET','PATCH','DELETE']),
           ('task_collection_case','/cases/<int:cid>/task-groups','/task-workspace/cases/<int:cid>',case_workspace,['GET']),
           ('task_collection_apply','/cases/<int:cid>/task-collections/<collection_id>/apply','/task-workspace/cases/<int:cid>/collections/<collection_id>/apply',application,['POST']),
@@ -76,18 +79,19 @@ def register(app,db):
 
     template=obj({'id':TEXT,'name':TEXT,'description':TEXT},('name',))
     fields={'name':TEXT,'description':TEXT,'category':TEXT,'revision':INT,'tasks':array(template)}
-    SCHEMAS['TaskCollection']=obj({'id':TEXT,**fields,'creator_uuid':NULL_TEXT,'creator_name':TEXT,'created':TEXT,'updated':TEXT,'task_count':INT,'can_edit':BOOL,'can_delete':BOOL})
+    SCHEMAS['TaskCollection']=obj({'id':TEXT,**fields,'creator_uuid':NULL_TEXT,'creator_name':TEXT,'created':TEXT,'updated':TEXT,'task_count':INT,'can_edit':BOOL,'can_delete':BOOL,'origin':{**TEXT,'enum':['core','custom']},'read_only':BOOL})
     collection_schema=ref('TaskCollection')
     response=json_response(obj({'collection':collection_schema}))
-    contract('task_collection_list','GET','List global task collections',json_response(obj({'collections':array(collection_schema),'permissions':obj({'create':BOOL,'update':BOOL,'delete':BOOL}),'total':INT,'limit':INT,'offset':INT})),parameters=[*PAGING,*[{'name':n,'in':'query','schema':TEXT} for n in ('q','category')]],description='Shared global guidance, with name/description search, category filters and standard limit/offset pagination.')
+    contract('task_collection_list','GET','List global task collections',json_response(obj({'collections':array(collection_schema),'permissions':obj({'create':BOOL,'update':BOOL,'delete':BOOL}),'total':INT,'limit':INT,'offset':INT})),parameters=[*PAGING,*[{'name':n,'in':'query','schema':TEXT} for n in ('q','category')],{'name':'origin','in':'query','schema':{**TEXT,'enum':['all','core','custom']}}],description='Shared optional guidance. Filter origin=all, core or custom, alongside search/category and limit/offset. Core definitions are read-only; duplicate to customize.')
     contract('task_collection_list','POST','Create a global task collection',response,body=obj(fields,('name','tasks')),status=201,description='Creates ordered, reusable guidance. Avoid case-specific or confidential details. Collection management permission is required.')
+    contract('task_collection_duplicate','POST','Duplicate a collection as editable custom guidance',response,body=obj({'name':TEXT}),status=201,description='Requires task_collections:create or manage. Generates new collection and template IDs; never changes Core definitions or Case tasks.')
     contract('task_collection_item','GET','Read a task collection',response,description='Returns the current revision and ordered templates. Reading a collection never changes Case content.')
-    contract('task_collection_item','PATCH','Update ordered collection definitions',response,body=obj(fields,('revision','name','tasks')),errors=(409,),description='Requires the current revision and creator ownership or task_collections:manage. Existing Case copies are never updated.')
-    contract('task_collection_item','DELETE','Delete a global collection; retain Case copies',status=204,body=obj({'revision':INT},('revision',)),errors=(409,),description='Requires the current revision and creator ownership or task_collections:manage. Existing Case tasks, source snapshots and historical revisions remain intact.')
+    contract('task_collection_item','PATCH','Update ordered collection definitions',response,body=obj(fields,('revision','name','tasks')),errors=(409,),description='Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject updates; duplicate to customize. Existing Case copies are never updated.')
+    contract('task_collection_item','DELETE','Delete a global collection; retain Case copies',status=204,body=obj({'revision':INT},('revision',)),errors=(409,),description='Requires the current revision and creator ownership or task_collections:manage. Core definitions always reject deletion. Existing Case tasks, source snapshots and historical revisions remain intact.')
     group_schema=obj({'id':TEXT,'case_id':INT,'name':TEXT,'source_collection_id':NULL_TEXT,'source_revision':NULL_INT,'added':TEXT,'position':INT,'source_fingerprint':TEXT,'source_tasks':array(template)})
     contract('task_collection_case','GET','Read Case tasks, groups and source provenance',json_response(obj({'tasks':array(ref('Task')),'groups':array(group_schema),'applications':array(obj({'source_collection_id':TEXT,'template_ids':array(TEXT),'added':TEXT})),'editable':BOOL})),description='Includes Case tasks, group name snapshots, source collection/revision/template IDs, application history and current editability. Source collections need not exist.')
     contract('task_collection_apply','POST','Apply selected templates atomically to a Case',json_response(obj({'group_id':TEXT,'task_ids':array(INT),'count':INT,'source_collection_id':TEXT,'source_revision':INT,'source_fingerprint':TEXT,'source_tasks':array(template),'added':TEXT,'replayed':BOOL})),body=obj({'revision':INT,'template_ids':array(TEXT),'mode':{**TEXT,'enum':['missing','copy']},'request_key':TEXT},('revision','template_ids','request_key')),status=201,errors=(409,),description='Requires an editable Case and current collection revision. All copied tasks start Not Started. Reuse the same request_key with the same payload for safe retries. Missing mode uses historical template IDs; copy mode explicitly creates another group.')
     contract('task_collection_from_tasks','POST','Copy selected Case definitions into a global collection',response,body=obj({'task_ids':array(INT),'collection_id':TEXT,**fields},('task_ids',)),status=201,errors=(409,),description='Creating requires task_collections:create. Appending requires task_collections:update and creator ownership, or task_collections:manage. Appends require the current revision. Case definitions are copied without progress or assignments.')
     contract('task_collection_order','PUT','Reorder all tasks within one Case group',json_response(obj({'ok':BOOL})),body=obj({'group_id':TEXT,'task_ids':array(INT)},('task_ids',)),errors=(409,),description='Submit every current task ID in the selected group, in the desired order. Null group_id selects Custom tasks. Closed Cases reject changes.')
     contract('task_collection_group_delete','DELETE','Remove Case group and its copied tasks',json_response(obj({'ok':BOOL})),body=obj({'confirm':BOOL},('confirm',)),errors=(409,),description='Requires confirm=true and an editable Case. Deletes only the copied tasks and Case group; the global collection and audit/application history remain unchanged.')
-    for fn,permissions in [(library,{'GET':None,'POST':'task_collections:create'}),(collection,{'GET':None,'PATCH':'task_collections:update','DELETE':'task_collections:delete'}),(case_workspace,'cases:read'),(application,'cases:update'),(from_tasks,None),(order,'cases:update'),(group_delete,'cases:update')]:fn.permission=permissions
+    for fn,permissions in [(duplicate,'task_collections:create'),(library,{'GET':None,'POST':'task_collections:create'}),(collection,{'GET':None,'PATCH':'task_collections:update','DELETE':'task_collections:delete'}),(case_workspace,'cases:read'),(application,'cases:update'),(from_tasks,None),(order,'cases:update'),(group_delete,'cases:update')]:fn.permission=permissions
