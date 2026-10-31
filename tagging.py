@@ -3,7 +3,7 @@ import re
 import secrets
 import sqlite3
 from datetime import datetime, timezone
-from flask import abort, flash, g, redirect, render_template, request
+from flask import abort, flash, g, redirect, render_template, request, url_for
 from authorization import has_permission
 
 
@@ -106,10 +106,17 @@ def initialize(connection):
     return True
 
 
-def catalog(connection, search='', sort='name', limit=None):
+def catalog(connection, search='', sort='name', limit=None, *, case_access=None):
     order = {'name': 't.normalized_name', 'most': 'uses DESC,t.normalized_name', 'least': 'uses,t.normalized_name'}.get(sort, 't.normalized_name')
-    sql = 'SELECT t.*,count(ct.case_id) AS uses FROM tags t LEFT JOIN case_tags ct ON ct.tag_id=t.id WHERE (instr(t.normalized_name,?)>0 OR instr(t.normalized_name,?)>0) GROUP BY t.id ORDER BY '+order
-    args = [search.strip().upper(), search.strip().casefold()]
+    # Optional view scope leaves existing API/export callers unchanged while sharing
+    # normalization, matching and ordering with the profile workspace.
+    from case_queries import CASE_ELIGIBILITY
+    scoped = case_access is not None
+    prefix = ('WITH accessible_cases AS (SELECT c.id FROM cases c WHERE ('+CASE_ELIGIBILITY+') AND ?) ') if scoped else ''
+    usage = 'count(DISTINCT visible.id)' if scoped else 'count(ct.case_id)'
+    joins = ' LEFT JOIN accessible_cases visible ON visible.id=ct.case_id' if scoped else ''
+    sql = prefix+'SELECT t.*,'+usage+' AS uses FROM tags t LEFT JOIN case_tags ct ON ct.tag_id=t.id'+joins+' WHERE (instr(t.normalized_name,?)>0 OR instr(t.normalized_name,?)>0) GROUP BY t.id ORDER BY '+order
+    args = ([bool(case_access)] if scoped else [])+[search.strip().upper(), search.strip().casefold()]
     if limit is not None:
         sql += ' LIMIT ?'; args.append(limit)
     return [dict(r) for r in connection.execute(sql, args)]
@@ -196,11 +203,9 @@ def register_tags(app, db, case):
         if not getattr(g, 'user', None): return {}
         return dict(can_tags_read=allowed('tags:read'), can_tags_create=allowed('tags:create'), can_tags_manage=allowed('tags:manage'), can_tags_assign=allowed('tags:assign') and allowed('cases:update'), tags_ready=not prototype(db()), tag_naming_help=NAMING_HELP, case_tags=lambda cid: assignments(db(), cid))
 
-    @app.get('/tags')
-    def tags_manager():
-        require('tags:read')
-        profiles = {row['tag_id']:dict(row) for row in db().execute('SELECT id,tag_id,name FROM malware_families')}
-        return render_template('tags.html', tags=catalog(db(), request.args.get('q',''), request.args.get('sort','name')), invalid_tags=invalid_legacy(db()), family_profiles=profiles, actor_profiles={row['tag_id']:dict(row) for row in db().execute('SELECT id,tag_id,name FROM threat_actors')})
+
+    from tag_workspace import register_workspace
+    register_workspace(app,db,allowed,require)
 
     @app.get('/tags/search')
     def tags_search():
@@ -218,13 +223,10 @@ def register_tags(app, db, case):
         require('tags:read'); require('cases:read'); case(cid)
         return {'tags': assignments(db(), cid)}
 
-    @app.get('/tags/<int:tid>')
-    def tag_detail(tid):
-        require('tags:read')
-        tag = db().execute('SELECT t.*,count(ct.case_id) AS uses FROM tags t LEFT JOIN case_tags ct ON ct.tag_id=t.id WHERE t.id=? GROUP BY t.id', (tid,)).fetchone()
-        if not tag: abort(404)
-        rows = db().execute('SELECT c.id,c.number,c.name,c.stage,u.username AS owner FROM cases c JOIN case_tags ct ON ct.case_id=c.id LEFT JOIN users u ON u.id=c.owner WHERE ct.tag_id=? ORDER BY c.id DESC', (tid,)).fetchall() if allowed('cases:read') else []
-        return render_template('tag_detail.html', tag=tag, cases=rows, all_tags=catalog(db()))
+
+    def workspace_redirect(tid=None):
+        values={key:request.form.get(key,'') for key in ('q','namespace','sort','tab') if request.form.get(key)}
+        return redirect(url_for('tag_detail',tid=tid,**values) if tid is not None else url_for('tags_manager',**values))
 
     @app.post('/tags/create')
     @app.post('/cases/<int:cid>/tags/create')
@@ -232,6 +234,7 @@ def register_tags(app, db, case):
         require('tags:create')
         if cid is not None:
             require('tags:assign'); require('cases:update'); case(cid)
+        tid=None
         try:
             with db():
                 tid, created = create(db(), request.form.get('name'))
@@ -246,6 +249,7 @@ def register_tags(app, db, case):
             if cid is not None and request.accept_mimetypes.best == 'application/json':
                 return {'error': str(exc)}, 400
             flash(str(exc))
+        if cid is None and request.form.get('workspace')=='1':return workspace_redirect(tid)
         return redirect(f'/cases/{cid}#case-tags' if cid is not None else '/tags')
 
     @app.post('/cases/<int:cid>/tags/<int:tid>/<operation>')
@@ -290,6 +294,9 @@ def register_tags(app, db, case):
         except sqlite3.IntegrityError as exc:
             flash(str(exc) if 'malware family' in str(exc) or 'threat actor' in str(exc) or 'MAL_' in str(exc) else 'That tag name already exists. Merge the tags instead.')
         except ValueError as exc: flash(str(exc))
+        if request.form.get('workspace')=='1':
+            remaining=db().execute('SELECT id FROM tags WHERE id=?',(tid,)).fetchone()
+            return workspace_redirect(tid if remaining else int(request.form['destination']) if operation=='merge' else None)
         return redirect(f'/tags/{tid}' if operation == 'rename' else '/tags')
 
 

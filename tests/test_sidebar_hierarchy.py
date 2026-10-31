@@ -10,9 +10,7 @@ ORDER = [
     "MIP Board",
     "Workbench",
     "Search",
-    "Malware Families",
-    "Threat Actors",
-    "Tags",
+    "Intelligence",
     "Dashboards",
     "Tools",
     "Data Explorer",
@@ -38,6 +36,11 @@ def test_exact_hierarchy_and_existing_destinations():
     response, items = navigation(client)
     assert [i["label"] for i in items] == ORDER
     by_name = {i["label"]: i for i in items}
+    intelligence=by_name['Intelligence']
+    assert intelligence['url']=='/malware-families'
+    assert [child['label'] for child in intelligence['children']]==['Malware Families','Threat Actors','Tags']
+    assert [child['url'] for child in intelligence['children']]==['/malware-families','/threat-actors','/tags']
+    assert not {'Malware Families','Threat Actors','Tags'} & by_name.keys()
     settings = by_name["Settings"]["children"]
     assert [i["label"] for i in settings] == [
         "General",
@@ -83,6 +86,9 @@ def test_exact_hierarchy_and_existing_destinations():
 @pytest.mark.parametrize(
     "path,parent,child",
     [
+        ("/malware-families", "Intelligence", "Malware Families"),
+        ("/threat-actors", "Intelligence", "Threat Actors"),
+        ("/tags", "Intelligence", "Tags"),
         ("/tools", "Tools", "CyberChef"),
         ("/tools/cyberchef", "Tools", "CyberChef"),
         ("/tools/text-manipulation", "Tools", "Text Manipulation"),

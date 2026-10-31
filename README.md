@@ -818,10 +818,15 @@ keyboard navigation and use the existing MARE theme.
 
 ### Tag Manager and permissions
 
-The authenticated **Tags** navigation item appears between Metrics and Tools.
-The compact manager lists Tag Name, Cases, and Actions, supports search and
-name/usage sorting, and provides inline creation. Click a name or usage count to
-view associated case numbers, names, workflow stages, and owners.
+Authenticated navigation groups **Malware Families → Threat Actors → Tags**
+under **Intelligence**, retaining their existing routes and permissions. Tags uses
+a profile workspace with a searchable, paginated directory and All/Malware/Threat
+actors/Other filters. Yellow chips identify tags; Overview shows stored metadata,
+usage and actual profile associations. History shows authorized current Case
+membership, including completed Cases, with consistent counts and pagination.
+Selection, filters and tabs are bookmarkable and support Back/Forward. Existing
+name/usage sorting, creation, rename, merge and confirmed deletion remain available.
+See [Tags profile workspace](docs/TAGS_WORKSPACE.md).
 
 Administrators can rename a tag, merge it into an explicitly selected destination,
 or delete it. Rename preserves its ID and immediately changes its display everywhere.

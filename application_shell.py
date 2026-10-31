@@ -69,24 +69,12 @@ def register_shell(app, db):
                     )
                 )
         if can("tags:read"):
-            add(
-                "Malware Families",
-                url_for("families_workspace"),
-                "♧",
-                endpoint.startswith("families_"),
-            )
-            add(
-                "Threat Actors",
-                url_for("actors_workspace"),
-                "⬡",
-                endpoint.startswith("actors_"),
-            )
-            add(
-                "Tags",
-                url_for("tags_manager"),
-                "#",
-                endpoint.startswith(("tags_", "tag_")),
-            )
+            intelligence=[
+                dict(label="Malware Families",url=url_for("families_workspace"),icon="♧",active=endpoint.startswith("families_")),
+                dict(label="Threat Actors",url=url_for("actors_workspace"),icon="⬡",active=endpoint.startswith("actors_")),
+                dict(label="Tags",url=url_for("tags_manager"),icon="#",active=endpoint.startswith(("tags_","tag_"))),
+            ]
+            add("Intelligence",url_for("families_workspace"),"♧",any(child['active'] for child in intelligence),intelligence)
         add(
             "Dashboards",
             url_for("dashboards_directory"),

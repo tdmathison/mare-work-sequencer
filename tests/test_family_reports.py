@@ -312,7 +312,7 @@ def test_tags_prefill_no_get_mutations_and_live_navigation():
     page = client.get("/tags").text
     assert (
         f"/malware-families/{fid}?tab=overview" in page
-        and "View malware family" in page
+        and "Open profile" in page
     )
     assert client.get(f"/malware-families/new?tag_id={tid}").location.endswith(
         f"{fid}?tab=overview"
@@ -421,7 +421,7 @@ with app.app_context():
     u=db().execute('SELECT * FROM users').fetchone()
     c=app.test_client()
     with c.session_transaction() as session:session.update(uid=u['id'],version=u['version'])
-    assert b'View malware family' in c.get('/tags').data
+    assert b'Open profile' in c.get('/tags').data
     assert b'MARE-FAMILY-1' in c.get('/malware-families/FAMILY_TOKEN?tab=history').data
     for row in db().execute('SELECT * FROM family_reports'):
         r=c.get('/malware-families/'+row['family_id']+'/reports/'+row['id']+'/download')
@@ -513,7 +513,7 @@ with app.app_context():
     assert db().execute('SELECT name FROM tags WHERE id=?',(unrelated,)).fetchone()[0]=='UNRELATED'
     f=db().execute("SELECT * FROM malware_families WHERE id='PROFILE'").fetchone()
     assert f['created_by']==uid and uid!=1 and f['tag_id']!=unrelated
-    assert b'View malware family' in c.get('/tags').data
+    assert b'Open profile' in c.get('/tags').data
     page=c.get('/malware-families/PROFILE?tab=history').data
     assert b'Existing case' in page and b'Unrelated destination' not in page
     for r in db().execute('SELECT * FROM family_reports'):
@@ -719,13 +719,14 @@ def test_tags_actions_follow_relink_rename_and_permissions():
     fid = create(client)
     assert edit(client, fid, tag="MAL_NEW_LINK").status_code == 302
     text = client.get("/tags").text
-    assert f"tag_id={tid}" in text and f"{fid}?tab=overview" in text
+    assert f"tag_id={tid}" in text
     new_tag = profile(fid)["tag_id"]
+    assert f"{fid}?tab=overview" in client.get(f"/tags/{new_tag}").text
     post(client, f"/tags/{new_tag}/rename", name="MAL_RENAMED_LINK")
     assert f"{fid}?tab=overview" in client.get("/tags?q=MAL_RENAMED_LINK").text
     with app.app_context():
         db().execute("UPDATE users SET role='User' WHERE id=?", (uid,))
         db().commit()
-    text = client.get("/tags").text
-    assert "View malware family" in text and "Create malware family" not in text
+    text = client.get(f"/tags/{new_tag}").text
+    assert "Open profile" in text and "Create malware family" not in text
     assert client.get(f"/malware-families/new?tag_id={tid}").status_code == 403

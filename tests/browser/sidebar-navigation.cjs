@@ -29,7 +29,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   await Promise.all([page.waitForURL(base + '/'), page.locator('form button').click()]);
   const sidebar = page.locator('#application-sidebar');
   assert.deepEqual(await sidebar.locator('nav > .sidebar-item > .sidebar-link-row > a > .sidebar-label').allTextContents(),
-    ['MIP Board', 'Workbench', 'Search', 'Malware Families', 'Threat Actors', 'Tags', 'Dashboards', 'Tools', 'Data Explorer', 'Settings', 'Developer']);
+    ['MIP Board', 'Workbench', 'Search', 'Intelligence', 'Dashboards', 'Tools', 'Data Explorer', 'Settings', 'Developer']);
   async function group(name) {
     const toggle = sidebar.locator(`[data-group="${name}"]`);
     return {toggle, panel: page.locator('#' + await toggle.getAttribute('aria-controls'))};
@@ -42,6 +42,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   await page.reload();
   assert.equal(await settings.toggle.getAttribute('aria-expanded'), 'false');
   for (const [route, parent, child] of [
+    ['/malware-families', 'Intelligence', 'Malware Families'], ['/threat-actors', 'Intelligence', 'Threat Actors'], ['/tags', 'Intelligence', 'Tags'],
     ['/settings/users', 'Settings', 'Users'], ['/settings/import-export', 'Settings', 'Import & Export'],
     ['/plugins', 'Developer', 'Plugins'],
   ]) {

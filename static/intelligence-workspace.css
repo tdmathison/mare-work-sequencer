@@ -1,0 +1,69 @@
+/* Shared Intelligence workspace geometry. Domain CSS owns only domain content. */
+.intelligence-workspace{--workspace-gap:24px;--workspace-directory-width:300px;--workspace-inset:30px;min-width:0}
+.intelligence-workspace .intelligence-heading{display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:start;margin-bottom:var(--workspace-gap)}
+.intelligence-workspace .intelligence-heading .muted{min-block-size:2lh}
+.intelligence-workspace .intelligence-summary{margin:8px 0 0;color:var(--muted);font-size:12px}
+.intelligence-workspace .intelligence-primary{justify-self:end;white-space:nowrap;flex-shrink:0;background:var(--accent);color:var(--bg);font:inherit;font-weight:700;letter-spacing:.06em;line-height:1.4;margin:0}
+.intelligence-workspace .family-layout{display:grid;grid-template-columns:var(--workspace-directory-width) minmax(0,1fr);gap:var(--workspace-gap);align-items:start}
+.intelligence-workspace .intelligence-toolbar{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:0 0 var(--workspace-gap)}
+.intelligence-workspace .intelligence-toolbar label{flex:1;min-width:0;margin:0}
+.intelligence-workspace .intelligence-toolbar input,.intelligence-workspace .intelligence-toolbar select{min-width:0;width:100%;height:46px;margin:8px 0 0}
+.intelligence-workspace .intelligence-toolbar button{margin:0;min-height:46px;flex-shrink:0}
+.intelligence-workspace .intelligence-filters{position:relative;flex-shrink:0}
+.intelligence-workspace .intelligence-filters summary{cursor:pointer;list-style:none;border:1px solid var(--line);border-radius:5px;padding:12px;min-height:46px;line-height:20px;color:var(--accent)}
+.intelligence-workspace .intelligence-filters summary::-webkit-details-marker{display:none}
+.intelligence-workspace .intelligence-filter-fields{position:absolute;right:0;top:calc(100% + 8px);z-index:10;display:flex;gap:12px;width:min(320px,calc(100vw - 48px));padding:16px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);box-shadow:0 8px 24px #0006}
+.intelligence-workspace .intelligence-filters label{min-width:0;width:130px;flex:1}
+.intelligence-workspace .family-selector,.intelligence-workspace .family-workspace{border:1px solid var(--line);background:var(--panel);border-radius:8px;min-width:0}
+.intelligence-workspace .family-selector{padding:20px}
+.intelligence-workspace .family-selector h2{margin:0 0 20px;font-size:16px;display:flex;justify-content:space-between;gap:12px}
+/* Auto overflow leaves short lists at their natural height; only long lists scroll.
+   Hide scrollbar chrome without clipping content or reserving an empty gutter. */
+.intelligence-workspace .intelligence-directory-list{max-height:70dvh;overflow:auto;scrollbar-width:none;-ms-overflow-style:none}
+.intelligence-workspace .intelligence-directory-list::-webkit-scrollbar{display:none}
+.intelligence-workspace .family-choice{display:block;padding:16px 12px;border:1px solid transparent;border-bottom-color:var(--line);text-decoration:none;color:var(--text);overflow-wrap:anywhere;border-radius:4px}
+.intelligence-workspace .family-choice>span{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+.intelligence-workspace .family-choice:hover{background:var(--panel-2)}
+.intelligence-workspace .family-choice[aria-current]{border-color:var(--accent-dim);background:#d9ae5810;color:var(--accent)}
+.intelligence-workspace .intelligence-choice-name{display:block;min-height:28px;font-size:14px;line-height:1.5}
+.intelligence-workspace .intelligence-choice-name .tag-chip{display:inline-block;margin:0;color:var(--bg)}
+.intelligence-workspace .intelligence-detail-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:var(--workspace-gap);padding:var(--workspace-inset);background:linear-gradient(115deg,#d9ae580a,transparent)}
+.intelligence-workspace .intelligence-detail-header>div{min-width:0}
+.intelligence-workspace .intelligence-detail-header h2{font-size:30px;line-height:1.3;margin:0 0 20px;overflow-wrap:anywhere}
+.intelligence-workspace .intelligence-detail-header .family-actions{flex-shrink:0;gap:12px}
+.intelligence-workspace .intelligence-detail-header .family-actions>*{font:inherit;line-height:1.4;letter-spacing:normal;white-space:normal;background:transparent;margin:0}
+.intelligence-workspace .intelligence-detail-header .family-danger{border-color:var(--danger)}
+.intelligence-workspace .intelligence-object-summary{margin:12px 0;font-size:14px}
+.intelligence-workspace .intelligence-detail-header .family-text{margin:12px 0 0}
+.intelligence-workspace .intelligence-tabs-container{padding-inline:var(--workspace-inset);min-width:0}
+.intelligence-workspace .family-content{padding:var(--workspace-inset)}
+.intelligence-workspace .family-metadata{text-align:left;padding:18px var(--workspace-inset);border-top:1px solid var(--line);margin:0;font-size:11px;letter-spacing:0;overflow-wrap:anywhere}
+.intelligence-workspace .intelligence-empty{padding:var(--workspace-inset);min-height:200px}
+.intelligence-workspace .intelligence-empty h2{margin-top:0;overflow-wrap:anywhere}
+.intelligence-workspace .intelligence-directory-back{display:none;background:transparent}
+.intelligence-workspace [data-tag-status]:empty{display:none}
+.intelligence-workspace :disabled{opacity:.55;cursor:not-allowed}
+.intelligence-workspace .table-scroll{max-width:100%;overflow-x:auto}
+.intelligence-workspace table{width:100%;table-layout:fixed}
+.intelligence-workspace th,.intelligence-workspace td{overflow-wrap:anywhere}
+@media(max-width:1100px){.intelligence-workspace .intelligence-heading{grid-template-columns:minmax(0,1fr)}.intelligence-workspace .intelligence-primary{justify-self:start}}
+@media(max-width:900px){
+ .intelligence-workspace .family-layout{grid-template-columns:minmax(0,1fr)}
+ .intelligence-workspace .family-selector{max-height:none;overflow:visible}
+ .intelligence-workspace .intelligence-directory-list{max-height:60dvh}
+ .intelligence-workspace[data-mobile-detail=true] .intelligence-directory{display:none}
+ .intelligence-workspace[data-mobile-detail=false] .family-workspace{display:none}
+ .intelligence-workspace .intelligence-directory-back{display:inline-block;margin:16px var(--workspace-inset)}
+ .intelligence-workspace .intelligence-detail-header{flex-direction:column}
+}
+@media(max-width:500px){
+ .intelligence-workspace{--workspace-inset:20px}
+ .intelligence-workspace .intelligence-heading{gap:16px}
+ .intelligence-workspace .intelligence-detail-header h2{font-size:25px}
+ .intelligence-workspace .intelligence-toolbar{display:flex;flex-wrap:nowrap;width:100%}
+ .intelligence-workspace .intelligence-toolbar label{min-width:0}
+ .intelligence-workspace .intelligence-filters label{width:auto}
+ .intelligence-workspace .intelligence-filter-fields{position:fixed;top:auto;left:16px;right:16px;width:auto}
+}
+
+.intelligence-workspace .intelligence-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}

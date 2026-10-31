@@ -1,0 +1,33 @@
+{# Structure shared by profile and tag workspaces; domain content stays with each page. #}
+{% macro assets() -%}
+<link rel="stylesheet" href="{{url_for('static',filename='malware-families.css')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='intelligence-workspace.css')}}">
+<script defer src="{{url_for('static',filename='intelligence-workspace.js')}}"></script>
+{%- endmacro %}
+{% macro heading(title, subtitle, summary, action_label=none, action_url=none, action_attributes={}) -%}
+<header class="family-heading intelligence-heading"><div><p class="family-eyebrow">RESEARCH KNOWLEDGE</p><h1>{{title}}</h1><p class="muted">{{subtitle}}</p><p class="intelligence-summary">{{summary}}</p></div>
+{% if action_label %}<{{'a' if action_url else 'button'}} class="family-action intelligence-primary" {% if action_url %}href="{{action_url}}"{% else %}type="button"{% endif %}{% for key,value in action_attributes.items() %} {{key}}="{{value}}"{% endfor %}>{{action_label}}</{{'a' if action_url else 'button'}}>{% endif %}</header>
+{%- endmacro %}
+{% macro toolbar(action, attributes={}) -%}
+<form method="get" action="{{action}}" class="family-search intelligence-toolbar"{% for key,value in attributes.items() %} {{key}}="{{value}}"{% endfor %}>{{caller()}}<button>Search</button></form>
+{%- endmacro %}
+{% macro directory(total, label, classes='') -%}
+<aside class="family-selector intelligence-directory {{classes}}" aria-label="{{label}}"><h2>Directory <small>{{total}}</small></h2><div class="intelligence-directory-list">{{caller()}}</div></aside>
+{%- endmacro %}
+{% macro choice(name, href, metadata, secondary, selected=false, tag=false, attributes={}) -%}
+<a class="family-choice intelligence-choice {{'tag-directory-row' if tag else ''}}" href="{{href}}"{% if selected %} aria-current="page"{% endif %}{% for key,value in attributes.items() %} {{key}}="{{value}}"{% endfor %}><strong class="intelligence-choice-name">{% if tag %}<span class="tag-chip">{{name}}</span>{% else %}{{name}}{% endif %}</strong><span>{{metadata}}</span><span>{{secondary}}</span></a>
+{%- endmacro %}
+{% macro detail_header(kind, name, metadata, actions, tag=false) -%}
+<button type="button" class="family-action intelligence-directory-back" data-workspace-back>Back to {{'tag directory' if tag else 'profile directory'}}</button>
+<header class="family-profile-header intelligence-detail-header"><div><p class="family-eyebrow">{{kind}}</p><h2>{% if tag %}<span class="tag-profile-chip">{{name}}</span>{% else %}{{name}}{% endif %}</h2>{{metadata}}</div>{% if actions %}<div class="family-actions">{{actions}}</div>{% endif %}</header>
+{%- endmacro %}
+{% macro tabs() -%}<div class="intelligence-tabs-container">{{caller()}}</div>{%- endmacro %}
+{% macro empty(title, description) -%}<div class="family-empty intelligence-empty"><h2>{{title}}</h2><p>{{description}}</p></div>{%- endmacro %}
+{% macro footer(created, updated=none) -%}<footer class="family-metadata">{% if updated %}Updated {{updated}} · {% endif %}Created {{created}}</footer>{%- endmacro %}
+
+{% macro history_heading(tag, count) -%}<h3>Cases currently using {{tag}}</h3><p class="muted">Current membership, including completed Cases. This is not an audit trail of past assignments.</p><p>{{count}} linked cases</p>{%- endmacro %}
+{% macro history_table(rows, stages, empty_label='No cases currently use this tag.') -%}
+<div class="table-scroll"><table><thead><tr><th scope="col">Case number</th><th scope="col">Case title</th><th scope="col">Stage</th><th scope="col">Action</th></tr></thead><tbody>{% for entry in rows %}<tr><td><a href="{{url_for('detail',cid=entry.id)}}">{{entry.number}}</a></td><td>{{entry.name}}</td><td><span class="mip-table-stage-badge {{'is-completed' if entry.stage==3 else 'is-not-started' if entry.stage==0 else 'is-active'}}">{{stages[entry.stage]}}</span></td><td><a href="{{url_for('detail',cid=entry.id)}}">Open case<span class="intelligence-visually-hidden"> {{entry.number}}</span></a></td></tr>{% else %}<tr><td colspan="4">{{empty_label}}</td></tr>{% endfor %}</tbody></table></div>
+{%- endmacro %}
+
+{% macro filters() -%}<details class="intelligence-filters"><summary>Filters</summary><div class="intelligence-filter-fields">{{caller()}}</div></details>{%- endmacro %}

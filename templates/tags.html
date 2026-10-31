@@ -1,10 +1,57 @@
-{% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
-<div class="heading"><h1>Tag Manager</h1></div>
-<p class="muted">{{tag_naming_help}}</p>
-{% if invalid_tags %}<div class="notice" role="status"><strong>Invalid legacy tags retained.</strong> Rename these tags to a valid name, or explicitly merge/delete them in Tag Manager. No assignments were removed.<ul>{% for item in invalid_tags %}<li><a href="/tags/{{item.id}}">{{item.name}}</a>: {{item.error}}</li>{% endfor %}</ul></div>{% endif %}
-<div class="tag-manager-controls">
-<form method="get"><input name="q" value="{{request.args.get('q','')}}" aria-label="Search tags" placeholder="Search tags"><select name="sort" aria-label="Sort tags">{% for value,label in [('name','Name'),('most','Most used'),('least','Least used')] %}<option value="{{value}}" {% if request.args.get('sort','name')==value %}selected{% endif %}>{{label}}</option>{% endfor %}</select><button>Search</button></form>
-{% if can_tags_create %}<form method="post" action="/tags/create">{{token(csrf)}}<input name="name" maxlength="120" placeholder="New tag" aria-label="New tag" required><button>Create tag</button></form>{% endif %}
+{% extends 'base.html' %}{% from 'base.html' import token %}{% from 'components/tabs.html' import bar, item %}
+{% import 'components/intelligence_workspace.html' as workspace %}
+{% block page_class %}family-page tags-page{% endblock %}
+{% block content %}
+{{workspace.assets()}}
+<link rel="stylesheet" href="{{url_for('static',filename='tag-workspace.css')}}">
+<div class="intelligence-workspace" data-intelligence-workspace data-tag-workspace data-selected="{{tag.id if tag else ''}}" data-selected-url="{{selected_url}}" data-mobile-detail="{{'true' if request.view_args.get('tid') and tag else 'false'}}">
+{{workspace.heading('Tags', 'Organize case intelligence and linked profiles', total ~ (' matching' if query or namespace!='all' else '') ~ (' tag' if total==1 else ' tags'), 'Create tag' if can_tags_create else none, action_attributes={'data-tag-create':''})}}
+{% call workspace.toolbar(url_for('tags_manager'),attributes={'data-tag-search':''}) %}
+<label>Search tags<input type="search" name="q" value="{{query}}" maxlength="200" placeholder="Find a tag"></label>
+{% call workspace.filters() %}<label>Type<select name="namespace">{% for key,label in namespaces.items() %}<option value="{{key}}" {{'selected' if namespace==key else ''}}>{{label}}</option>{% endfor %}</select></label><label>Sort tags<select name="sort">{% for key,label in [('name','Name'),('most','Most used'),('least','Least used')] %}<option value="{{key}}" {{'selected' if sort==key else ''}}>{{label}}</option>{% endfor %}</select></label>{% endcall %}
+{% endcall %}
+{% if invalid_tags %}<div class="notice" role="status"><strong>Invalid legacy tags retained.</strong> Rename these tags to a valid name, or explicitly merge/delete them. No assignments were removed.<ul>{% for entry in invalid_tags %}<li><a href="{{tag_url(entry.id)}}" data-tag-nav>{{entry.name}}</a>: {{entry.error}}</li>{% endfor %}</ul></div>{% endif %}
+<p data-tag-status role="status" aria-live="polite"></p>
+<div class="family-layout">
+{% call workspace.directory(total, 'Tag directory', 'tag-directory') %}
+{% for entry in tags %}{{workspace.choice(entry.name, tag_url(entry.id,tab='overview'), entry.uses ~ ' accessible Cases', entry.type_label ~ ' · ' ~ entry.profile.status ~ (' · Case access restricted' if not can_cases else ''), selected=tag and tag.id==entry.id,tag=true,attributes={'data-tag-nav':'','data-tag-id':entry.id})}}{% else %}<p class="family-empty">{{'No tags match these filters.' if query or namespace!='all' else 'No tags yet. Create a tag to organize your intelligence.'}}</p>{% endfor %}
+{% if pages>1 %}<nav class="family-pagination" aria-label="Tag directory pages">{% if page>1 %}<a href="{{directory_url(page=page-1)}}" data-tag-nav>Previous tags</a>{% endif %}<span>{{page}} / {{pages}}</span>{% if page<pages %}<a href="{{directory_url(page=page+1)}}" data-tag-nav>Next tags</a>{% endif %}</nav>{% endif %}
+{% endcall %}
+<section class="family-workspace tag-detail" aria-label="Selected tag" tabindex="-1">
+{% if tag %}
+{% set metadata %}<span class="badge">Tag #{{tag.id}}</span><p class="intelligence-object-summary">{{tag.uses}} accessible Cases</p><p class="family-text">{{tag.profile.name if tag.profile.exists else tag.profile.status}}</p>{% endset %}
+{% set actions %}{% if can_tags_manage %}<a class="family-action" href="{{tag_url(tab='overview')}}#tag-edit" data-tag-nav>Edit tag</a>{% if tag.protected %}<button type="button" class="family-action family-danger" disabled title="Profile-linked tags cannot be deleted.">Delete tag</button>{% else %}<a class="family-action family-danger" href="{{tag_url(tab='overview')}}#tag-delete" data-tag-nav>Delete tag</a>{% endif %}{% endif %}{% endset %}
+{{workspace.detail_header(tag.type_label, tag.name, metadata, actions,tag=true)}}
+{% call workspace.tabs() %}{% call bar('Tag details','tag-detail-tabs',links=true) %}{{item('Overview','tag-tab-overview',active=tab=='overview',href=tag_url(tab='overview'),attributes={'data-tag-nav':''})}}{{item('History','tag-tab-history',active=tab=='history',href=tag_url(tab='history',case_page=1),badge=tag.uses,attributes={'data-tag-nav':''})}}{% endcall %}{% endcall %}
+<div class="family-content" id="tag-content" aria-labelledby="tag-tab-{{tab}}">
+{% if tab=='overview' %}
+<section><h3>Overview</h3><dl class="tag-facts"><dt>Tag type</dt><dd>{{tag.type_label}}</dd><dt>Tag identifier</dt><dd>{{tag.id}}</dd><dt>Created</dt><dd>{{tag.created_at}}</dd><dt>Case usage</dt><dd>{{tag.uses}} accessible Cases{% if not can_cases %} · Case access restricted{% endif %}</dd></dl><p class="muted">A namespace identifies the tag type; it does not establish a linked profile.</p></section>
+<section class="tag-profile-association"><h3>Profile association</h3>
+{% if tag.profile.exists %}{% if tag.profile.url %}<p>{{tag.profile.name}}</p><a class="family-action" href="{{tag.profile.url}}">Open profile</a>{% else %}<p>Profile association access is restricted.</p>{% endif %}
+{% elif tag.namespace!='other' %}<p>No {{tag.profile.label}} profile is linked to this tag.</p>{% if tag.profile.create_url %}<a class="family-action" href="{{tag.profile.create_url}}">Create {{tag.profile.label}} profile</a>{% endif %}
+{% else %}<p>This tag organizes Case usage. Profile creation applies to MAL_ and TA_ tags.</p>{% endif %}
+</section>
+{% if can_tags_manage %}
+<section class="tag-management"><h3>Manage tag</h3><p class="muted">{{tag_naming_help}}</p>
+{% macro workspace_fields() %}{{token(csrf)}}<input type="hidden" name="workspace" value="1">{% for key,value in [('q',query),('namespace',namespace),('sort',sort),('tab','overview')] %}<input type="hidden" name="{{key}}" value="{{value}}">{% endfor %}{% endmacro %}
+<details id="tag-edit"><summary>Rename tag</summary><form action="/tags/{{tag.id}}/rename" method="post">{{workspace_fields()}}<label>Rename tag<input name="name" value="{{tag.name}}" maxlength="120" required></label><button>Rename</button></form></details>
+{% if tag.protected %}<p class="muted">Profile-linked tags cannot be deleted or merged. Existing profile namespace restrictions also apply to renaming.</p>
+{% else %}
+<details id="tag-merge"><summary>Merge tag</summary><form action="/tags/{{tag.id}}/merge" method="post">{{workspace_fields()}}<p>Move assignments to the destination and remove this tag. Case records remain.</p><label>Destination<select name="destination" required>{% for other in all_tags if other.id!=tag.id %}<option value="{{other.id}}">{{other.name}} ({{other.uses}} accessible Cases)</option>{% endfor %}</select></label><label class="tag-confirm"><input type="checkbox" name="confirm" value="1" required> Confirm merge into the selected destination</label><button {% if all_tags|length<2 %}disabled{% endif %}>Confirm merge</button></form></details>
+<details id="tag-delete"><summary>Delete tag</summary><form action="/tags/{{tag.id}}/delete" method="post">{{workspace_fields()}}<p>Delete this tag and its assignments. Case records remain.</p><label class="tag-confirm"><input type="checkbox" name="confirm" value="1" required> Confirm deletion</label><button class="family-danger">Delete tag</button></form></details>
+{% endif %}</section>
+{% endif %}
+{% else %}
+{{workspace.history_heading(tag.name,tag.uses)}}
+{% if can_cases %}{{workspace.history_table(cases,stages,'No Cases currently use this tag.')}}
+{% if case_pages>1 %}<nav class="family-pagination" aria-label="Case history pages">{% if case_page>1 %}<a href="{{tag_url(tab='history',case_page=case_page-1)}}" data-tag-nav>Previous cases</a>{% endif %}<span>{{case_page}} / {{case_pages}}</span>{% if case_page<case_pages %}<a href="{{tag_url(tab='history',case_page=case_page+1)}}" data-tag-nav>Next cases</a>{% endif %}</nav>{% endif %}
+{% else %}<p>Case history requires Case read permission.</p>{% endif %}
+{% endif %}
+</div>{{workspace.footer(tag.created_at)}}
+{% else %}{{workspace.empty('No tag selected', 'Choose a tag from the directory, or change the search and type filters.')}}{% endif %}
+</section>
 </div>
-<div class="panel tag-table"><table><thead><tr><th>Tag Name</th><th>Cases</th><th>Research profile</th><th>Actions</th></tr></thead><tbody>{% for tag in tags %}<tr><td><a class="tag-chip" href="/tags/{{tag.id}}">{{tag.name}}</a></td><td><a href="/tags/{{tag.id}}">{{tag.uses}}</a></td><td>{% if tag.name.startswith('TA_') and tag.name|length>3 %}{% set actor=actor_profiles.get(tag.id) %}{% if actor and can_actors_read %}<a href="{{url_for('actors_workspace',fid=actor.id,tab='overview')}}">View threat actor</a><br><small>{{actor.name}}</small>{% elif not actor and can_tags_manage and can_actors_read %}<a href="{{url_for('actors_edit',tag_id=tag.id)}}">Create threat actor</a>{% else %}<span class="muted">—</span>{% endif %}{% else %}{% set profile=family_profiles.get(tag.id) %}{% if tag.name.startswith('MAL_') and tag.name|length>4 %}{% if profile and can_families_read %}<a href="{{url_for('families_workspace',fid=profile.id,tab='overview')}}">View malware family</a><br><small>{{profile.name}}</small>{% elif not profile and can_tags_manage and can_families_read %}<a href="{{url_for('families_edit',tag_id=tag.id)}}">Create malware family</a>{% else %}<span class="muted">—</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}{% endif %}</td><td><a href="/tags/{{tag.id}}">{{'Rename / Merge / Delete' if can_tags_manage else 'View cases'}}</a></td></tr>{% else %}<tr><td colspan="4">No matching tags.</td></tr>{% endfor %}</tbody></table></div>
+{% if can_tags_create %}<dialog data-tag-create-dialog aria-labelledby="tag-create-title"><h2 id="tag-create-title">Create tag</h2><form method="post" action="{{url_for('tags_create')}}">{{token(csrf)}}<input type="hidden" name="workspace" value="1"><input type="hidden" name="q" value="{{query}}"><input type="hidden" name="namespace" value="{{namespace}}"><input type="hidden" name="sort" value="{{sort}}"><label>New tag<input name="name" maxlength="120" required></label><p class="muted">{{tag_naming_help}}</p><div class="family-actions"><button>Create tag</button><button type="button" data-tag-create-cancel>Cancel</button></div></form></dialog>{% endif %}
+</div>
+<script defer src="{{url_for('static',filename='tag-workspace.js')}}"></script>
 {% endblock %}

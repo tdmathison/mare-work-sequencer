@@ -69,8 +69,8 @@ def test_workspace_aliases_history_associations_and_safe_rendering():
     html=c.get('/threat-actors/'+aid).text
     assert '&lt;script&gt;unsafe()&lt;/script&gt;' in html and '<script>unsafe()' not in html
     assert 'Known Malware Families' in html and '/malware-families/'+family in html
-    assert 'title="Threat Actors"' in html
-    assert c.get('/threat-actors?q=second+NAME').text.count('class="family-choice"')==1
+    assert 'href="/threat-actors"' in html
+    assert c.get('/threat-actors?q=second+NAME').text.count('class="family-choice intelligence-choice ')==1
     history=c.get('/threat-actors/'+aid+'?tab=history').text
     assert 'MARE-FAMILY-1' in history and 'Cases currently using TA_TEST' in history
     assert '1 linked cases' in history
@@ -138,7 +138,7 @@ def test_relink_protections_and_family_deleted_or_relinked():
 
 def test_tags_prefill_read_only_navigation_and_concurrent_creation():
     c,uid,cid,tid=setup()
-    assert 'Create threat actor' in c.get('/tags').text
+    assert 'Create threat actor profile' in c.get(f'/tags/{tid}').text
     with app.app_context():
         count=db().execute('SELECT count(*) FROM tags').fetchone()[0]
     page=c.get('/threat-actors/new?tag_id='+str(tid))
@@ -154,7 +154,7 @@ def test_tags_prefill_read_only_navigation_and_concurrent_creation():
     with app.app_context():
         assert db().execute('SELECT count(*) FROM threat_actors WHERE tag_id=?',(tid,)).fetchone()[0]==1
         aid=db().execute('SELECT id FROM threat_actors WHERE tag_id=?',(tid,)).fetchone()[0]
-    assert 'View threat actor' in c.get('/tags').text
+    assert 'Open profile' in c.get(f'/tags/{tid}').text
     assert c.get('/threat-actors/new?tag_id='+str(tid)).location.endswith(aid+'?tab=overview')
 
 

@@ -1,0 +1,9 @@
+/* Profile panels and page spacing come from the existing family workspace. */
+.tags-page .tag-chip{border-radius:16px;padding:4px 10px;white-space:normal;overflow-wrap:anywhere;max-width:100%}
+.tags-page .tag-facts{display:grid;grid-template-columns:minmax(100px,1fr) minmax(0,2fr);gap:12px}
+.tags-page .tag-facts dt{color:var(--muted)}
+.tags-page .tag-facts dd{margin:0;overflow-wrap:anywhere}
+.tags-page .tag-management details{padding:12px 0;border-top:1px solid var(--line)}
+.tags-page .tag-management summary{cursor:pointer;color:var(--accent)}
+.tags-page .tag-management form{padding-top:16px}
+@media(max-width:500px){.tags-page .tag-facts{grid-template-columns:1fr}}

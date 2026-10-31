@@ -52,7 +52,7 @@ def test_search_create_exact_partial_and_permissions():
     client.post(f'/cases/{cid}/tags/create',data={'csrf':'tag-test','name':'mal_asyncrat'})
     rows=client.get('/tags/search?q=ASYNC').json['tags'];assert len(rows)==2
     assert len(client.get(f'/cases/{cid}/tags').json['tags'])==2
-    assert b'title="Tags"' in client.get('/').data
+    assert b'href="/tags"' in client.get('/').data
     assert client.post(f'/tags/{rows[0]["id"]}/rename',data={'csrf':'tag-test','name':'No'}).status_code==403
     assert client.post('/tags/create',data={'name':'No CSRF'}).status_code==403
     assert client.post(f'/cases/{cid}/tags/999/assign',data={'csrf':'tag-test'}).status_code==404
