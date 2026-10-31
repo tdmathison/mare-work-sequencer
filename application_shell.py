@@ -75,13 +75,11 @@ def register_shell(app, db):
                 dict(label="Tags",url=url_for("tags_manager"),icon="#",active=endpoint.startswith(("tags_","tag_"))),
             ]
             add("Intelligence",url_for("families_workspace"),"♧",any(child['active'] for child in intelligence),intelligence)
-        add(
-            "Dashboards",
-            url_for("dashboards_directory"),
-            "▧",
-            endpoint == "dashboards_directory"
-            or any(item.endpoint == endpoint for item in DASHBOARDS),
-        )
+        dashboards=[dict(label='All dashboards',url=url_for('dashboards_directory'),icon='▧',active=endpoint=='dashboards_directory')]
+        for entry in sorted(DASHBOARDS,key=lambda entry:entry.order):
+            if entry.endpoint and (not entry.permission or can(entry.permission)):
+                dashboards.append(dict(label=entry.name+' — '+entry.visibility.title(),url=url_for(entry.endpoint),icon='▧',active=endpoint==entry.endpoint))
+        add('Dashboards',url_for('dashboards_directory'),'▧',any(child['active'] for child in dashboards),dashboards)
         if tools:
             add(
                 "Tools",

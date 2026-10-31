@@ -1,6 +1,6 @@
-# Metrics inventory and dated activity
+# Case Metrics inventory and dated activity
 
-The Board and Metrics previously showed different quantities under similarly broad
+The Board and Case Metrics previously showed different quantities under similarly broad
 labels. The Board lists existing cases; the executive scorecard's former “MIPs
 created” and “MIPs completed” cards counted activity in the last 12 **complete**
 Monday–Sunday weeks by default. The current partial week, creation dates outside
@@ -35,13 +35,13 @@ soft-delete flag: all existing rows are eligible for authenticated web viewers,
 including cases assigned to disabled users and unassigned cases. Workflow ownership
 locks govern editing, not visibility. Deleted cases are physically removed. User
 joins are by unique IDs; distinct case projections protect totals against row
-multiplication. Metrics authorization is unchanged, including the API's separate
+multiplication. Case Metrics authorization is unchanged, including the API's separate
 `metrics:read` gate. No new role access or hidden owner filter was introduced.
 
-The Board retains its intentional search/tag/stage controls. Metrics' inventory
+The Board retains its intentional search/tag/stage controls. Case Metrics' inventory
 states visibly that it is unfiltered and that Board filters are independent. The
 Board's All MIPs tile remains its all-inventory/reset count; its other state tiles
-retain their existing search/tag scope. Metrics' reporting-period control changes
+retain their existing search/tag scope. Case Metrics' reporting-period control changes
 activity, comparisons and cycle time, not inventory or current ownership snapshots.
 All totals use the full inventory, independent of paginated case API responses or
 client presentation. Unrecognized states are reported separately without repairing
@@ -79,7 +79,7 @@ omitting them; its `users` list still contains actual user accounts only.
 Every scorecard reads inventory, users and history in one SQLite read snapshot. API
 metrics likewise snapshot their inputs. No persisted metric cache or search-index
 cache is consulted; each request recomputes after create/delete/state changes or
-import/restore. Metrics HTML and API responses explicitly use `private, no-store`
+import/restore. Case Metrics HTML and API responses explicitly use `private, no-store`
 so an intermediary/browser cannot retain stale scorecards. No cache invalidation
 queue or data rewrite is needed.
 

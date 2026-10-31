@@ -441,6 +441,8 @@ def _write(package, relative, raw, connection, cid, description="", expected=Non
             "INSERT OR REPLACE INTO readiness VALUES(?,'signatures','Pending','Content changed; review this category.')",
             (cid,),
         )
+        from content_metrics import classify_asset
+        classify_asset(connection,cid,'signatures/'+relative,'yara' if suffix in ('.yar','.yara') else 'snort')
         connection.execute("RELEASE signatures")
         return dict(
             paths=["signatures/" + relative],

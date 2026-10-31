@@ -173,7 +173,7 @@ Report toolbars now offer Word wrap (enabled by default), Left/Center/Right alig
 
 ## Case ownership and team metrics
 
-New cases record the signed-in creator and default to Unassigned. Select an active owner during creation or in Workbench → Case details. Start analysis remains disabled until an active owner is assigned; the server enforces the same rule. MIP board cards show creator and owner. Metrics lists each user’s created and assigned cases, with In Progress (Malware Analysis, Packaging & Delivery) and Completed counts based on ownership. Existing cases preserve their owner and initialize creator from that owner where known. Creator names are retained if an account is later deleted.
+New cases record the signed-in creator and default to Unassigned. Select an active owner during creation or in Workbench → Case details. Start analysis remains disabled until an active owner is assigned; the server enforces the same rule. MIP board cards show creator and owner. Case Metrics lists each user’s created and assigned cases, with In Progress (Malware Analysis, Packaging & Delivery) and Completed counts based on ownership. Existing cases preserve their owner and initialize creator from that owner where known. Creator names are retained if an account is later deleted.
 
 Word template upload and selection are private to each account. Existing template selections are preserved during migration; saved OpenAI settings and their encryption key are removed.
 
@@ -263,7 +263,8 @@ Each endpoint requires a role permission (see `GET /api/v1/permissions`). New pe
 | Word templates | `GET/POST /templates` (multipart `template`), `PUT /templates/selected` (`{"template_id": "..."}`), `GET/DELETE /templates/<id>` |
 | Export and archive | `POST /cases/<id>/archive`, `POST /cases/<id>/backup` |
 | Backups | `POST /backups/export` (all cases), `POST /backups/import` (multipart `backup`), `POST /backups/import-raw` (single RAW MIP), `POST /backups/database` (retired, 410; use Backup & Restore) |
-| Metrics | `GET /metrics` |
+| Case Metrics | `GET /metrics` |
+| Content Metrics (private) | `GET /content-metrics` |
 
 Example:
 
@@ -1135,9 +1136,9 @@ check pagination, Clear/Enter, and laptop layout; confirm skipped-file coverage 
 that no source HTML executes. No reverse-proxy route or timeout changes are needed;
 normal search requests do not wait for document extraction.
 
-## Executive Metrics scorecard
+## Executive Case Metrics scorecard
 
-See [Metrics count definitions and verification](docs/metrics-counts.md) for the
+See [Case Metrics count definitions and verification](docs/metrics-counts.md) for the
 inventory/activity distinction and production comparison queries.
 
 METRICS presents **MARE performance overview** with 4, 12 (default), 26, or 52
@@ -1199,7 +1200,7 @@ The existing API metrics response remains unchanged. The board currently filters
 text and tags, not stages or age; snapshot counts therefore do not link to
 misleading unfiltered board results.
 
-Metrics regression checks:
+Case Metrics regression checks:
 
 ```bash
 .venv/bin/python -m pytest -q tests/test_performance_metrics.py tests/test_ownership.py tests/test_navigation.py tests/test_api.py
@@ -2200,3 +2201,7 @@ selected task definitions as guidance, or add a collection through its preview
 drawer. Case copies retain independent progress and provenance; open tasks are
 advisory rather than completion gates. See [task collections](docs/TASK_COLLECTIONS.md)
 for migration, permission defaults, API/SDK usage and backup behavior.
+
+### Content Metrics — private Content Overview
+
+[Content Metrics definitions, history coverage and backup behavior](docs/CONTENT_METRICS.md) describe the private inventory and additions dashboard, available after Case Metrics in Dashboards. The existing `/metrics` URL and Case Metrics calculations are preserved.

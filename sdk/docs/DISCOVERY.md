@@ -32,7 +32,8 @@ Authentication is the existing personal bearer-token system: SHA-256 hashes, one
 | Account/role/token administration | `/users`, `/roles`, `/permissions`, `/tokens`, `/me`; `users`, `roles`, `authentication` | Existing last-admin/role-grant/forced-password/revocation protections retained |
 | Application secret configuration | `/settings`; `settings` | Existing sample-password configured status/write-only update; secrets not exposed as settings reads |
 | Per-user browser autosave interval | Browser Settings | UI preference, not an investigation or integration capability; no second SDK autosave scheduler |
-| Metrics | `/metrics`; `metrics.get` | Existing API projection is retained; callers can combine with case listings or coverage, not invented chart endpoints |
+| Case Metrics | `/metrics`; `metrics.get` | Existing Case Metrics API projection and SDK method are retained |
+| Content Metrics | `/content-metrics` (REST) | Private permission-scoped inventory, dated additions, cumulative baseline and coverage; see the OpenAPI contract and [metric definitions](../../docs/CONTENT_METRICS.md) |
 | Administrator audit exports | `/audit/export.csv`, `/audit/export-all.zip`; `audit` | Existing Administrator-only handlers retained in addition to REST permission metadata |
 | Login/logout, forced password/bootstrap, interactive account password changes and temporary-password reset display | Browser account/user pages | Browser identity/bootstrap operations intentionally remain interactive; API automation uses tokens and existing account CRUD |
 | Anonymous Cases/Family/Actor dashboards, dashboard landing page and application navigation | Public/browser HTML and read-only dashboard JSON | Presentation-only existing endpoints remain available to browsers; the SDK uses richer authorized resources instead of weakening authentication for anonymous dashboard projections |

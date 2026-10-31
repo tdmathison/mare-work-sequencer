@@ -481,6 +481,8 @@ class CaseSync:
 
     def reconcile(self, cid):
         state = self.ensure(cid)
+        from content_metrics import collect_case
+        collect_case(self.db(),self.root,cid)
         content_hash = fingerprint(self.snapshot(cid))
         nodes = self.graph(state["case_uuid"])
         if (

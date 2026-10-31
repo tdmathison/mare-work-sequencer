@@ -24,7 +24,7 @@ def test_assignment_creator_metrics_and_settings():
     assert b'Creator:' in board and b'owner-assignee' in board and b'owner-creator' in board
     metrics=client.get('/metrics').data
     assert b'In Progress' in metrics and b'owner-assignee' in metrics
-    assert b'MARE performance overview' in metrics and b'Weekly MIP creation activity' in metrics
+    assert b'Case Metrics' in metrics and b'Weekly MIP creation activity' in metrics
     assert b'Current case pipeline' in metrics and b'current-owner attribution' in metrics
     assert b'All-time creator and current completed ownership snapshot' in metrics
     settings=client.get('/account', follow_redirects=True).data

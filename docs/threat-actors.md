@@ -160,7 +160,7 @@ complete/selective recovery into fresh instances with different numeric tag IDs,
 missing dependencies, legacy formats and rollback of cross-profile publication.
 
 The wider suite still has 11 failures reproduced against an unchanged HEAD copy:
-report downloads, audit markup, autosave assumptions, stale Metrics navigation /
+report downloads, audit markup, autosave assumptions, stale Case Metrics navigation /
 permissions, legacy import redirects and workflow expectations. `tests/test_samples.py`
 has an existing indentation error on line 21 and was excluded from that wider run.
 These unrelated issues remain unchanged. Browser verification used Chrome; other

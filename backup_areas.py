@@ -238,6 +238,9 @@ def resolve(con, root, staged, choices):
     return conflicts, mapping, library
 
 
+from content_metrics import restore_call
+
+@restore_call
 def merge_registry(con, rows):
     for row in rows:
         target = con.execute(

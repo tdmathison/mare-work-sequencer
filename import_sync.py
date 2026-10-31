@@ -834,7 +834,10 @@ class ImportSync:
                     (key, cid, None, revision, key, "prepared"),
                 )
                 outcome["recovery"] = key
-            self.backups["restore_records"](con, cid, copy.deepcopy(validated))
+            from content_metrics import restore_events, collect_case, restoring
+            with restoring(con):
+                restore_events(con,item['meta'].get('content_metrics'),'case',case_uuid)
+                self.backups["restore_records"](con, cid, copy.deepcopy(validated))
             con.execute(
                 "UPDATE sync_cases SET revision_uuid=? WHERE case_id=?", (revision, cid)
             )
@@ -847,6 +850,7 @@ class ImportSync:
             if not new:
                 destination.rename(recovery / "old-case")
             replacement.rename(destination)
+            collect_case(con,self.root,cid,legacy=True)
             swapped = True
             from indicators import refresh_stix_output
             refresh_stix_output(destination/'mip/iocs',validated[1])

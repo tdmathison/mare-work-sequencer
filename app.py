@@ -1128,6 +1128,8 @@ def upload(cid):
             return redirect(f'/cases/{cid}')
         with target.open('xb') as out:
             f.save(out)
+    from content_metrics import classify_uploaded_asset
+    classify_uploaded_asset(db(),cid,folder+'/'+relative_name,target)
     run('INSERT OR REPLACE INTO artifacts VALUES(?,?,?,?)', (cid, folder +
         '/'+relative_name, request.form.get('description', '').strip(), ''))
     mark_pending(cid, folder+'/'+relative_name)
@@ -1456,6 +1458,8 @@ from backup_workspace import BackupWorkspace
 from plugin_store import initialize as initialize_plugin_store
 with app.app_context():
     initialize_plugin_store(db())
+from content_metrics_dashboard import register as register_content_metrics
+register_content_metrics(app, db, ROOT)
 BackupWorkspace(app, ROOT, db, backup_helpers)
 
 from api_extensions import register_api_extensions

@@ -708,6 +708,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         else:
             with target.open('xb') as destination:
                 destination.write(raw)
+        from content_metrics import classify_uploaded_asset
+        classify_uploaded_asset(db(),case_id,relative,target)
         run('INSERT OR REPLACE INTO artifacts VALUES(?,?,?,?)', (case_id,
             relative, request.form.get('description', '').strip(), ''))
         mark_pending(case_id, relative)

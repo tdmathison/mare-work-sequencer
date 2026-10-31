@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MARE // Work Sequencer</title>
+    <title>{% block title %}MARE // Work Sequencer{% endblock %}</title>
     <link rel="stylesheet" href="{{url_for('static',filename='mare.css')}}" />
     <link rel="stylesheet" href="{{url_for('static',filename='mws-tabs.css')}}" />
     <script defer src="{{url_for('static',filename='mws-tabs.js')}}"></script>

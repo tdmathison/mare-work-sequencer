@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+from content_metrics import export_events, validate_events, restoring, restore_events
 import re
 import shutil
 import uuid
@@ -17,7 +18,12 @@ FIELDS = ('id', 'name', 'short_description', 'long_description', 'attribution_no
 REPORT_FIELDS = ('id', 'family_id', 'title', 'original_filename', 'description', 'storage_ref', 'size', 'file_type', 'sha256', 'uploaded_at')
 
 def fingerprint(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
+    # Counting provenance is portable metadata, not a research-content edit.
+    def content(item):
+        if isinstance(item,dict):return {key:content(value) for key,value in item.items() if key!='content_metrics'}
+        if isinstance(item,list):return [content(value) for value in item]
+        return item
+    return hashlib.sha256(json.dumps(content(value), sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 
 def export_profiles(connection, root, *, spec=FAMILY, ids=None):
     users = {row['id']: {'username': row['username'], 'user_uuid': row['user_uuid']} for row in connection.execute('SELECT id,username,user_uuid FROM users')}
@@ -27,6 +33,8 @@ def export_profiles(connection, root, *, spec=FAMILY, ids=None):
             continue
         record = {key: row[key] for key in FIELDS}
         record['aliases'] = load_aliases(row['aliases'])
+        metrics=export_events(connection,'profile',row['id'])
+        if metrics is not None:record['content_metrics']=metrics
         record.update(tag=row['tag'], tag_identity=row['identity'], created_by=users.get(row['created_by']), updated_by=users.get(row['updated_by']))
         record['osint'] = [dict(entry) for entry in connection.execute(f'SELECT * FROM {spec.osint_table} WHERE {spec.foreign_key}=? ORDER BY position,id', (row['id'],))]
         record['reports'] = []
@@ -60,7 +68,7 @@ def validate_profiles(data, root, *, spec=FAMILY):
         if value is not None and (not isinstance(value, dict) or set(value) != {'username', 'user_uuid'} or (not isinstance(value['username'], str)) or (len(value['username']) > 200) or (not isinstance(value['user_uuid'], str)) or (len(value['user_uuid']) > 100)):
             raise ValueError('Invalid shared library user reference.')
     for record in data[spec.key]:
-        if not isinstance(record, dict) or set(record) - ({'aliases', 'known_families'} if spec.actor else {'aliases'}) != set(FIELDS) | {'tag', 'tag_identity', 'created_by', 'updated_by', 'osint', 'reports'}:
+        if not isinstance(record, dict) or set(record) - ({'aliases', 'known_families','content_metrics'} if spec.actor else {'aliases','content_metrics'}) != set(FIELDS) | {'tag', 'tag_identity', 'created_by', 'updated_by', 'osint', 'reports'}:
             raise ValueError('Invalid family library record.')
         if 'aliases' in record:
             if validate_aliases(record['aliases']) != record['aliases']:
@@ -69,6 +77,8 @@ def validate_profiles(data, root, *, spec=FAMILY):
             from threat_actors import validate_associations
             validate_associations(record.get('known_families'))
         identity(record['id'])
+        validate_events(record.get('content_metrics'))
+        if record.get('content_metrics') and record['content_metrics']['scope_id']!=record['id']:raise ValueError('Wrong profile metric scope.')
         if not isinstance(record['tag'], str) or not isinstance(record['tag_identity'], str):
             raise ValueError('Invalid profile tag identity.')
         if record['id'] in profiles or record['tag'] in tags or record['tag_identity'] in identities or (profile_tag(record['tag'], spec) != record['tag']) or (not re.fullmatch('[a-f0-9]{32}', record['tag_identity'])):
@@ -144,7 +154,8 @@ def restore_profiles(connection, root, staged, data, registry=None, *, spec=FAMI
             return None
         row = connection.execute('SELECT id FROM users WHERE username=?', (source['username'],)).fetchone()
         return row[0] if row else None
-    with (storage_transaction(connection, root, spec=spec) if changes is None else nullcontext(changes)) as changes:
+    with (storage_transaction(connection, root, spec=spec) if changes is None else nullcontext(changes)) as changes, restoring(connection):
+        for record in data[spec.key]:restore_events(connection,record.get('content_metrics'),'profile',record['id'])
         if registry:
             from backup_areas import merge_registry
             merge_registry(connection, registry)

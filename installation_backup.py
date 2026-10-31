@@ -421,6 +421,12 @@ def restore_installation(archive_path, destination):
                 if 'task_collections' not in tables:initialize_roles(upgraded)
                 initialize_collections(upgraded)
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
+            upgraded.row_factory=sqlite3.Row
+            present={r[0] for r in upgraded.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if {'sync_cases','indicator_tables','indicator_sections','reference_tables','family_tag_identities','malware_families'}<=present:
+                from content_metrics import initialize as initialize_content_metrics
+                initialize_content_metrics(upgraded,stage)
+        with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from plugin_store import retire_editor_schema
             retire_editor_schema(upgraded)
         # No running connection or partially copied tree is ever exposed. Keep all

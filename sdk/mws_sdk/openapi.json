@@ -13144,6 +13144,254 @@
         "x-required-permission": "cases:assets"
       }
     },
+    "/content-metrics": {
+      "get": {
+        "summary": "Read private Content Metrics",
+        "description": "Current accessible inventory, recorded additions, full-range summaries and cumulative baselines. Unknown dates and unavailable history are explicit. Deleted history is Administrator-only. Source permissions are enforced for every content type; restricted totals are null. Cumulative additions are not historical inventory. No shared cache.\n\nRequired role permission: metrics:read.",
+        "responses": {
+          "200": {
+            "description": "Successful response.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "today": {
+                      "type": "string"
+                    },
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": "string"
+                    },
+                    "timezone": {
+                      "type": "string"
+                    },
+                    "granularity": {
+                      "type": "string"
+                    },
+                    "measure": {
+                      "type": "string"
+                    },
+                    "last_updated": {
+                      "type": "string"
+                    },
+                    "coverage_start": {
+                      "type": "string"
+                    },
+                    "coverage_date": {
+                      "type": "string"
+                    },
+                    "history_notice": {
+                      "type": "string"
+                    },
+                    "unknown_dates": {
+                      "type": "integer"
+                    },
+                    "deleted_history": {
+                      "type": "boolean"
+                    },
+                    "buckets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "start": {
+                            "type": "string"
+                          },
+                          "end": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "type": "string"
+                          },
+                          "partial": {
+                            "type": "boolean"
+                          }
+                        }
+                      }
+                    },
+                    "series": {
+                      "type": "object",
+                      "properties": {},
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string"
+                          },
+                          "color": {
+                            "type": "string"
+                          },
+                          "available": {
+                            "type": "boolean"
+                          },
+                          "inventory": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "unknown_dates": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "total": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "case_total": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "baseline": {
+                            "type": "integer",
+                            "nullable": true
+                          },
+                          "counts": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "nullable": true
+                            }
+                          },
+                          "values": {
+                            "type": "array",
+                            "items": {
+                              "type": "integer",
+                              "nullable": true
+                            }
+                          },
+                          "partial_history": {
+                            "type": "array",
+                            "items": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input or failed validation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired, revoked or invalid bearer token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Missing role permission or required password change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-token request limit exceeded (default 600/minute).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Illustrative error; consult the actual response."
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive reporting-zone start; default first day five calendar months before the current month."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive reporting-zone end; default today. Range must be at most three years and cannot end in the future."
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "monthly",
+                "weekly"
+              ]
+            },
+            "description": "Default monthly; weeks begin Monday."
+          },
+          {
+            "name": "measure",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "added",
+                "cumulative"
+              ]
+            },
+            "description": "Default added. Summaries always count additions over the selected range."
+          }
+        ],
+        "operationId": "api_content_metrics_get",
+        "tags": [
+          "Content Metrics"
+        ],
+        "x-required-permission": "metrics:read"
+      }
+    },
     "/coverage": {
       "get": {
         "summary": "Explorer coverage",
@@ -17517,8 +17765,8 @@
     },
     "/metrics": {
       "get": {
-        "summary": "Read all-time metrics",
-        "description": "Legacy all-time API metrics; independent of dashboard period filters.\n\nRequired role permission: metrics:read.",
+        "summary": "Read all-time Case Metrics",
+        "description": "Legacy all-time Case Metrics API; independent of dashboard period filters.\n\nRequired role permission: metrics:read.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -17645,7 +17893,7 @@
         "parameters": [],
         "operationId": "metrics_get",
         "tags": [
-          "Metrics"
+          "Case Metrics"
         ],
         "x-required-permission": "metrics:read"
       }

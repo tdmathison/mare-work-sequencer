@@ -1,7 +1,7 @@
-{% extends 'base.html' %}{% block content %}
+{% extends 'base.html' %}{% block title %}Case Metrics — MARE{% endblock %}{% block content %}
 <div class="performance-dashboard">
   <header class="heading dashboard-heading performance-header">
-    <div><span class="eyebrow">EXECUTIVE SCORECARD</span><h1>MARE performance overview</h1>
+    <div><span class="eyebrow">EXECUTIVE SCORECARD</span><h1>Case Metrics</h1><span class="badge">Private</span>
       <p>All-time inventory · all existing MIPs visible on the Board. Activity period: {{performance.start}} – {{performance.end}} · Monday–Sunday · {{performance.timezone}}</p>
     </div>
     <form method="get" action="{{url_for('metrics')}}" class="performance-period">

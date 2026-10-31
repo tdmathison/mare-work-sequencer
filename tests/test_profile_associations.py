@@ -186,6 +186,7 @@ def test_separate_import_missing_or_wrong_identity_is_visible_and_retryable(tmp_
         assert family_associations(db(),f)[0]['actor_uuid']==a
         # An explicit wrong target identity cannot attach to a matching name/tag.
         wrong=copy.deepcopy(actor_only);wrong['actors'][0]['id']=str(uuid.uuid4())
+        wrong['actors'][0].pop('content_metrics',None)  # New identity has no source metric provenance.
         wrong['actors'][0]['tag']='TA_OTHER';wrong['actors'][0]['tag_identity']='e'*32
         wrong['actors'][0]['known_families'][0]['target_tag_identity']='f'*32
         with pytest.raises(ValueError,match='dependency unavailable or changed'):

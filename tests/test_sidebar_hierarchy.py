@@ -102,7 +102,8 @@ def test_exact_hierarchy_and_existing_destinations():
         ("/api", "Developer", "API"),
         ("/developer/api", "Developer", "API"),
         ("/developer/sdk", "Developer", "SDK"),
-        ("/metrics", "Dashboards", None),
+        ("/metrics", "Dashboards", "Case Metrics — Private"),
+        ("/content-metrics", "Dashboards", "Content Metrics — Private"),
     ],
 )
 def test_direct_links_highlight_and_expand_the_right_parent(path, parent, child):

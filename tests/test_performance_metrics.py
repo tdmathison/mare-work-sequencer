@@ -212,12 +212,12 @@ def test_metrics_auth_period_validation_and_escaping(role):
         session.update(uid=uid, version=1, csrf="metrics-token")
     response = client.get("/metrics")
     assert response.status_code == 200
-    assert b"MARE performance overview" in response.data
+    assert b"Case Metrics" in response.data
     assert b"Last 12 full weeks" in response.data
     assert b"&lt;script&gt;label&lt;/script&gt;" in response.data
     assert b"<script>label</script>" not in response.data
     from test_navigation import NavigationParser
-    assert [link['href'] for link in NavigationParser(response.text).links if link.get('aria-current')=='page']==['/dashboards']
+    assert [link['href'] for link in NavigationParser(response.text).links if link.get('aria-current')=='page']==['/metrics']
     assert client.get("/metrics?weeks=4").status_code == 200
     assert client.get("/metrics?weeks=5").status_code == 400
     assert client.get("/metrics?weeks=garbage").status_code == 400

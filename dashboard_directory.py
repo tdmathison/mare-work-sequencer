@@ -17,7 +17,8 @@ class Dashboard:
 
 
 DASHBOARDS = (
-    Dashboard('metrics', 'Metrics', 'Case totals, lifecycle trends, workload, and completion metrics.', 'metrics', 'private', 'implemented', 'metrics:read', 10),
+    Dashboard('metrics', 'Case Metrics', 'Case totals, lifecycle trends, workload, and completion metrics.', 'metrics', 'private', 'implemented', 'metrics:read', 10),
+    Dashboard('content-metrics', 'Content Metrics', 'Content contributed across intelligence profiles and cases.', 'content_metrics', 'private', 'implemented', 'metrics:read', 15),
     Dashboard('cases', 'Cases', 'Completed work, ongoing investigations, and recent deliveries.', 'cases_dashboard', 'public', 'implemented', None, 20),
     Dashboard('families', 'Malware Families', 'Tracked families, research coverage, and investigations in progress.', 'family_dashboard', 'public', 'implemented', None, 30),
     Dashboard('actors', 'Threat Actors', 'Threat actor research and profile coverage.', 'actor_dashboard', 'public', 'implemented', None, 40),

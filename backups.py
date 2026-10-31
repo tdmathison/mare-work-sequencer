@@ -93,6 +93,8 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
         raise ValueError('Unsupported case metadata version.')
     if meta.get('schema') == 'mare-case-state/2' and (not {'notes','tasks','history','deferred','readiness','artifacts'}.issubset(meta.get('records',{})) or not {'images','figure_sequence','indicators','references','tagging','source_creator'}.issubset(meta)):
         raise ValueError('Incomplete modern case snapshot.')
+    from content_metrics import validate_events
+    validate_events(meta.get('content_metrics'))
     c = meta['case']
     text(c['name'], 200)
     text(c.get('description', ''))
@@ -210,6 +212,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         if tag_prototype(db()): raise ValueError('Migrate prototype tags before exporting RAW backups.')
         data['tagging'] = portable_tags(db(), cid)
         creator = db().execute('SELECT username,user_uuid FROM users WHERE id=?', (c['creator'],)).fetchone()
+        from content_metrics import export_events
+        state=db().execute('SELECT case_uuid FROM sync_cases WHERE case_id=?',(cid,)).fetchone()
+        if state:data['content_metrics']=export_events(db(),'case',state[0])
         data['source_creator'] = dict(creator) if creator else {'username': c['creator_username'] or 'Unknown', 'user_uuid': None}
         return data
 
@@ -219,6 +224,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         try:
             meta = case_metadata(cid)
             meta['sync'] = app.extensions['case_sync'].export(cid)
+            from content_metrics import export_events
+            meta['content_metrics']=export_events(db(),'case',meta['sync']['case_uuid'])
             renamed = {}
             with zipfile.ZipFile(raw) as source:
                 manifest = read_json(source, name+'/manifest.json')

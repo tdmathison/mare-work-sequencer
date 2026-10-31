@@ -35,7 +35,7 @@ PERMISSIONS = {
     'users:manage': 'Create, update, and delete user accounts',
     'roles:manage': 'Create roles and manage role permissions',
     'tokens:manage': 'Create and revoke personal bearer tokens',
-    'metrics:read': 'Read workload metrics',
+    'metrics:read': 'Read private Case and Content Metrics dashboards',
     'templates:manage': 'Manage your own Word report templates',
     'audit:read': 'Read audit events',
     'backups:manage': 'Create or restore site backups',

@@ -163,6 +163,9 @@ def validate_portable(data, *, allow_legacy=False):
     return data
 
 
+from content_metrics import restore_call
+
+@restore_call
 def restore(connection, data, cid=None):
     if data is None:
         return
