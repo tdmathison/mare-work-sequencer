@@ -1,0 +1,115 @@
+{# Command metadata is kept with its single renderer, independently of execution. #}
+{% set command_categories = [('Extract',
+  [('ipv4', 'IPv4s', 'Extract unique, normalized IPv4 addresses in first-seen order.'),
+   ('ipv6', 'IPv6s', 'Extract unique, normalized IPv6 addresses in first-seen order.'),
+   ('all-ips',
+    'All IPs',
+    'Extract unique, normalized IPs, with IPv4 before IPv6; preserve order within each version.'),
+   ('cidrs',
+    'CIDRs',
+    'Extract unique IPv4 CIDRs in first-seen order, normalizing host bits to network addresses.'),
+   ('domains',
+    'Domains',
+    'Extract unique domains, excluding email addresses; lowercase and convert international names to IDNA.'),
+   ('ips-domains',
+    'IPs & Domains',
+    'Extract unique, normalized IPs and domains in their order of appearance.'),
+   ('urls', 'URLs', 'Extract unique valid HTTP, HTTPS and FTP URLs in first-seen order.'),
+   ('emails',
+    'Emails',
+    'Extract email addresses; ignore case when removing duplicates and retain the first spelling.')]),
+ ('Remove',
+  [('non-routable',
+    'Non-Routable IPs',
+    'Check trimmed lines for non-global IPs; remove matching lines and keep other lines unchanged.'),
+   ('empty-lines',
+    'Empty Lines',
+    'Remove empty or whitespace-only lines without trimming the remaining lines.'),
+   ('carriage-returns',
+    'Carriage Returns',
+    'Remove all CRLF, CR and LF line breaks, joining lines without a separator.'),
+   ('spaces', 'Spaces', 'Remove literal spaces everywhere; keep tabs and line breaks.')]),
+ ('Replace',
+  [('cr-spaces', 'CRs with Spaces', 'Replace each CRLF, CR or LF line break with one space.'),
+   ('cr-commas', 'CRs with Commas', 'Replace each CRLF, CR or LF line break with a comma.'),
+   ('cr-comma-space',
+    'CRs with Comma/Space',
+    'Replace each CRLF, CR or LF line break with a comma and a space.'),
+   ('cr-quotes',
+    'CRs with Comma/Space/Quote',
+    'JSON-quote each line, escaping its contents, then join lines with a comma and a space.'),
+   ('semicolon-cr', 'Semicolons with CRs', 'Replace every semicolon with an LF line break.'),
+   ('space-cr', 'Spaces with CRs', 'Replace every literal space with an LF line break; keep tabs.'),
+   ('comma-space-cr',
+    'Comma/Space with CR',
+    'Replace each literal comma followed by a space with an LF line break.')]),
+ ('Regex',
+  [('split',
+    'Split by',
+    'Split on a nonempty literal delimiter from the Pattern / Delimiter field; join parts with LF line '
+    'breaks.'),
+   ('egrep', 'egrep', 'Keep lines matching the case-sensitive ECMAScript regular expression.'),
+   ('egrep-v', 'egrep -v', 'Keep lines that do not match the case-sensitive ECMAScript regular expression.'),
+   ('egrep-o',
+    'egrep -o',
+    'Extract every nonempty regex match per line, in order; use case-sensitive ECMAScript syntax.')]),
+ ('IP Functions',
+  [('ip-sort',
+    'IP Sort',
+    'Sort trimmed IP values numerically, IPv4 before IPv6; keep original lines and duplicates, with invalid '
+    'lines last.')]),
+ ('Misc',
+  [('defang',
+    'Defang',
+    'Defang recognized IPs and domain hosts using [.] and [:]; change HTTP(S) URL schemes to hxxp(s).'),
+   ('refang',
+    'Refang',
+    'Restore recognized defanged IPs, domains and URLs; leave unrecognized tokens unchanged.'),
+   ('uniq',
+    'Uniq',
+    'Remove exact duplicate lines, preserving first-seen order; case and whitespace are significant.'),
+   ('uniq-count',
+    'Uniq -c',
+    'Count exact lines as line|count in first-seen order; case and whitespace are significant.'),
+   ('sort',
+    'Sort',
+    'Sort lines lexically, ignoring case first and breaking ties by case; keep duplicates. Not numeric '
+    'sorting.')]),
+ ('Formatting',
+  [('json',
+    'Format JSON',
+    'Validate JSON and indent with four spaces, preserving numeric precision; reject duplicate keys.'),
+   ('xml',
+    'Format XML',
+    'Indent element-only XML where whitespace is absent; preserve existing whitespace and mixed text.'),
+   ('python', 'Format Python', 'Format Python source with Black without executing it.')])] %}
+<div class="text-command-search">
+<label for="command-search">Search commands</label>
+<div class="text-command-search-controls"><input id="command-search" type="search" placeholder="Search commands…" autocomplete="off" aria-controls="text-command-categories" data-command-search><button type="button" data-command-reset aria-label="Clear command search">Clear</button></div>
+<p id="text-command-scope">Applies to all text, even with a selection.</p>
+<p data-command-results aria-live="polite"></p>
+</div>
+<div class="text-category-controls"><button type="button" data-categories-expand>Expand all</button><button type="button" data-categories-collapse>Collapse all</button></div>
+{% macro command_row(command,label,description,favorite=false) %}
+{% set prefix = 'favorite' if favorite else 'command' %}
+<div class="text-command-row" data-command-row data-command-id="{{command}}"{% if favorite %} hidden{% endif %}>
+<button type="button" class="text-favorite-toggle" data-favorite="{{command}}" aria-pressed="false" aria-label="Add {{label}} to favorites"><span aria-hidden="true">☆</span></button>
+<button type="button" data-command="{{command}}" aria-labelledby="{{prefix}}-label-{{command}}" aria-describedby="{{prefix}}-description-{{command}} text-command-scope"><span id="{{prefix}}-label-{{command}}" class="text-command-name">{{label}}</span><span id="{{prefix}}-description-{{command}}" class="text-command-description">{{description}}</span></button>
+</div>
+{% endmacro %}
+{% macro category_header(label,id,expanded=false) %}<h2><button type="button" class="text-category-toggle" data-category-toggle aria-expanded="{{'true' if expanded else 'false'}}" aria-controls="{{id}}"><span>{{label}}</span><span class="text-category-chevron" aria-hidden="true">⌄</span></button></h2>{% endmacro %}
+<div id="text-command-categories">
+<section data-command-category data-favorites-category>
+{{category_header('Favorites','command-category-favorites',true)}}
+<div id="command-category-favorites" data-category-content><p class="text-favorites-empty" data-favorites-empty>Star commands to add them here.</p><div class="text-command-list">{% for heading,commands in command_categories %}{% for command,label,description in commands %}{{command_row(command,label,description,true)}}{% endfor %}{% endfor %}</div></div>
+</section>
+{% for heading,commands in command_categories %}
+<section data-command-category data-original-category>
+{{category_header(heading,'command-category-' ~ loop.index)}}
+<div id="command-category-{{loop.index}}" data-category-content hidden>
+{% if heading=='Regex' %}<label>Pattern / Delimiter<input data-pattern autocomplete="off"></label><small>ECMAScript regex (not POSIX ERE); Split by uses a literal delimiter.</small>{% endif %}
+<div class="text-command-list">{% for command,label,description in commands %}{{command_row(command,label,description)}}{% endfor %}</div>
+</div></section>
+{% endfor %}
+</div>
+<div data-command-empty hidden><p>No commands match your search.</p><button type="button" data-command-reset>Clear search</button></div>

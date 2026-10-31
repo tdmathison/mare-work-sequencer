@@ -55,7 +55,10 @@ def test_routes_auth_csrf_registry_and_validation():
     client=app.test_client()
     with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='text-token')
     assert b'tool-tab-text-manipulation' in client.get('/tools').data
-    assert client.get('/tools/text-manipulation/app/').status_code==200
+    page=client.get('/tools/text-manipulation/app/')
+    assert page.status_code==200
+    with app.app_context(): preference_user=db().execute('SELECT user_uuid FROM users WHERE id=?',(uid,)).fetchone()[0]
+    assert f'data-user-preferences="{preference_user}"' in page.text
     assert client.post('/tools/text-manipulation/process',data={'operation':'ipv4','text':'1.1.1.1'}).status_code==403
     response=client.post('/tools/text-manipulation/process',data={'csrf':'text-token','operation':'ipv4','text':'1.1.1.1'})
     assert response.json['text']=='1.1.1.1' and response.headers['Cache-Control']=='no-store'
