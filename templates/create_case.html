@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
-<a href="/">Back to MIP board</a>
+<div class="hero compact"><a href="/">Back to MIP board</a></div>
 <section class="panel">
     <h1>Create case</h1>
     <p class="muted">A unique MARE case number will be assigned when you create the case.</p>
@@ -29,7 +29,7 @@
                     {% endfor %}
                 </select>
             </label>
-            <button>Create case & MIP</button><a href="/">Cancel</a>
+            <div class="action-row"><button>Create case & MIP</button><a href="/">Cancel</a></div>
     </form>
 </section>
 {% endblock %}

@@ -19,7 +19,13 @@
   async function request(url,data){
     const options=data?{method:'POST',body:data}:{};const r=await fetch(url,{...options,cache:'no-store'});
     if(r.redirected&&new URL(r.url).pathname.endsWith('/login'))throw Error('Your session ended. For complete replacement, sign in using a restored administrator account.');
-    const value=await r.json();if(!r.ok)throw Error(value.error||'Request failed. Refresh and retry.');return value;
+    const json=(r.headers.get('content-type')||'').includes('application/json');
+    let value=null;if(json){try{value=await r.json();}catch(_){}}
+    if(!r.ok||!value||typeof value!=='object'){
+      const fallback=r.status===403?'You no longer have permission, or your session changed. Refresh the page and sign in again.':r.status===413?'The archive exceeds the server upload limit.':r.status===404||r.status===410?'This backup operation is no longer available. Select an archive or create a new export.':'The server returned an unexpected response. Refresh the page and retry.';
+      const failure=Error(typeof value?.error==='string'?value.error:fallback);failure.status=r.status;throw failure;
+    }
+    return value;
   }
   function form(data={}){const f=new FormData();f.set('csrf',csrf);for(const [k,v] of Object.entries(data))f.set(k,v);return f;}
   function error(message){$('import-error').hidden=false;$('import-error').textContent=message;}
@@ -34,7 +40,14 @@
     try{
       let active=false;
       for(const [kind,id] of [['export',exportId],['import',importId]]){
-        if(!id)continue;const data=await request(root+'/'+id);if(kind==='import'&&id!==importId)continue;const status=$(kind+'-status');status.hidden=false;status.textContent=data.state+' · '+data.phase;
+        if(!id)continue;let data;
+        try{data=await request(root+'/'+id);}catch(e){
+          if(e.status!==404&&e.status!==410)throw e;
+          if(kind==='import'){importId=null;preview=null;choices={};resultVersion=null;importView.reset();}
+          else{exportId=null;$('export-result').hidden=true;}
+          remember();const status=$(kind+'-status');status.hidden=false;status.textContent=kind==='import'?'The previous import session is no longer available. Select an archive to start again.':'The previous export is no longer available. Create a new export.';continue;
+        }
+        if(kind==='import'&&id!==importId)continue;const status=$(kind+'-status');status.hidden=false;status.textContent=data.state+' · '+data.phase;
         if(data.state==='queued'||data.state==='running'){active=true;if(kind==='import'&&data.execution_started_at&&importView.step!==4)importView.executing();continue;}
         if(data.state==='failed'){error(data.error||'Some items failed. Review the result.');}
         if(kind==='export'&&data.state==='completed'){

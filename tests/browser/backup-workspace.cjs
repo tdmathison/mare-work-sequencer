@@ -14,13 +14,28 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base+'/login');await page.getByLabel('Username').fill('family-browser');await page.getByLabel('Password',{exact:true}).fill('family-browser-password');
  await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
+ // Create Case uses shared spacing at desktop and phone widths.
+ await page.goto(base+'/cases/new');
+ for(const width of [1440,390]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(300);const back=await page.getByRole('link',{name:'Back to MIP board'}).boundingBox(),panel=await page.locator('.panel').boundingBox(),create=await page.getByRole('button',{name:'Create case & MIP'}).boundingBox(),cancel=await page.getByRole('link',{name:'Cancel',exact:true}).boundingBox();assert.ok(panel.y-(back.y+back.height)>=16);assert.ok(cancel.x>=create.x+create.width+11||cancel.y>=create.y+create.height+11);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:`/tmp/mws-create-case-${width}.png`,fullPage:true});}
+ await page.setViewportSize({width:1440,height:1000});
  await page.goto(base+'/settings/import-export');await page.getByRole('heading',{name:'Backup & Restore'}).waitFor();
+ // A previous browser session can point at jobs removed by cleanup/restore.
+ const owner=await page.locator('#backup-workspace').getAttribute('data-owner'),storageKey='mare-backup-workspace:'+owner;
+ const missing='00000000-0000-4000-8000-000000000001';
+ await page.evaluate(({storageKey,missing})=>sessionStorage.setItem(storageKey,JSON.stringify({importId:missing,exportId:missing,tab:'import'})),{storageKey,missing});
+ await page.reload();await page.locator('#import-status').filter({hasText:'previous import session is no longer available'}).waitFor();await page.locator('#export-status').filter({hasText:'previous export is no longer available'}).waitFor({state:'attached'});assert.ok(await page.locator('#import-error').isHidden());
+ const saved=await page.evaluate(key=>JSON.parse(sessionStorage.getItem(key)),storageKey);assert.equal(saved.importId,null);assert.equal(saved.exportId,null);
+ await page.route('**/backup-restore/jobs/'+missing,route=>route.fulfill({status:410,contentType:'text/html',body:'<!doctype html><h1>Gone</h1>'}));
+ await page.evaluate(({storageKey,missing})=>sessionStorage.setItem(storageKey,JSON.stringify({importId:missing,tab:'import'})),{storageKey,missing});await page.reload();await page.locator('#import-status').filter({hasText:'previous import session is no longer available'}).waitFor();assert.ok(await page.locator('#import-error').isHidden());await page.unroute('**/backup-restore/jobs/'+missing);
+ // Proxy/server HTML must become a readable error, never a JSON parse exception.
+ await page.route('**/backup-restore/jobs',route=>route.fulfill({status:503,contentType:'text/html',body:'<!doctype html><h1>Unavailable</h1>'}));await page.locator('#backup-inspect [name=archive]').setInputFiles({name:'retry.zip',mimeType:'application/zip',buffer:Buffer.from('test')});await page.locator('#import-error').filter({hasText:'server returned an unexpected response'}).waitFor();assert.ok(!(await page.locator('#import-error').textContent()).includes('Unexpected token'));await page.unroute('**/backup-restore/jobs');
+ await page.reload();await page.locator('#export-tab').click();
  const area=key=>page.locator(`#backup-export [name=areas][value=${key}]`);
  assert.equal(await page.locator('#export-action').isDisabled(),true);assert.equal(await area('actors').isDisabled(),false);
  await page.locator('#complete-backup').check();for(const key of ['cases','families','tags'])assert.ok(await area(key).isChecked());
  await area('cases').uncheck();assert.equal(await page.locator('#complete-backup').isChecked(),false);
  await area('cases').check();assert.equal(await page.locator('#complete-backup').isChecked(),false);
- await area('families').uncheck();await area('actors').uncheck();await area('cases').uncheck();
+ await area('families').uncheck();await area('actors').uncheck();await area('cases').uncheck();await area('task_collections').uncheck();
  await page.locator('#export-action').click();await page.getByRole('link',{name:'Download archive',exact:true}).waitFor();
  let pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download archive',exact:true}).click();let downloaded=await pending;const selective=fs.readFileSync(await downloaded.path());
  assert.match(downloaded.suggestedFilename(),/^MWS_\d{8}-\d{6}_T\.zip$/);
@@ -47,7 +62,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await page.locator('#export-tab').click();await page.locator('#complete-backup').check();await page.locator('#backup-export [name=passphrase]').fill('a browser recovery passphrase');
  await page.locator('#export-action').click();await page.locator('#import-tab').click();await page.locator('#export-tab').click();
  await page.getByRole('link',{name:'Download archive',exact:true}).waitFor();pending=page.waitForEvent('download');await page.getByRole('link',{name:'Download archive',exact:true}).click();downloaded=await pending;const complete=fs.readFileSync(await downloaded.path());
- assert.match(downloaded.suggestedFilename(),/^MWS_\d{8}-\d{6}_C_T_TA_MF\.zip$/);
+ assert.match(downloaded.suggestedFilename(),/^MWS_\d{8}-\d{6}_C_T_TA_MF_TC\.zip$/);
  assert.ok((await page.locator('#export-result').textContent()).includes(downloaded.suggestedFilename()));
  await page.locator('#import-tab').click();await page.getByRole('button',{name:'Select another archive',exact:true}).click();await page.locator('#backup-inspect [name=passphrase]').fill('a browser recovery passphrase');
  await page.locator('#backup-inspect [name=archive]').setInputFiles({name:'complete.zip',mimeType:'application/zip',buffer:complete});
@@ -95,5 +110,5 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  assert.ok((await page.locator('#import-preview .import-card').last().textContent()).includes('0 records'));
  for(const viewport of [{width:1366,height:768},{width:390,height:844}]){await page.setViewportSize(viewport);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));}
 
- assert.deepEqual(errors,[]);console.log('Structured import browser checks passed: four stages, tables, pagination, all-category outcome groups, updates, partial failures, filtering, search, report download, selection, dependencies, complete encryption, auto preview, conflict resolution, import, acknowledgement, reload, tabs and responsive layout.');
+ assert.deepEqual(errors,[]);console.log('Create Case spacing and stale-job/HTML-response recovery passed. Structured import browser checks passed: four stages, tables, pagination, all-category outcome groups, updates, partial failures, filtering, search, report download, selection, dependencies, complete encryption, auto preview, conflict resolution, import, acknowledgement, reload, tabs and responsive layout.');
 })().catch(e=>{console.error(log.slice(-3000));console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill();fs.rmSync(temporary,{recursive:true,force:true});fs.rmSync(jobs,{recursive:true,force:true});});
