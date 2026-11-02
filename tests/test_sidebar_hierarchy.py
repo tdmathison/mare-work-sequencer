@@ -16,6 +16,7 @@ ORDER = [
     "Data Explorer",
     "Settings",
     "Developer",
+    "Help",
 ]
 
 
@@ -125,7 +126,7 @@ def test_default_user_and_explicit_developer_access():
         db().execute("UPDATE users SET role='User' WHERE id=?", (uid,))
         db().commit()
     _, items = navigation(client)
-    assert [i["label"] for i in items] == ORDER[:-1]
+    assert [i["label"] for i in items] == [label for label in ORDER if label != "Developer"]
     settings = next(i for i in items if i["label"] == "Settings")
     assert [i["label"] for i in settings["children"]] == ["General"]
     for path in (
@@ -140,8 +141,8 @@ def test_default_user_and_explicit_developer_access():
         db().execute("INSERT INTO role_permissions VALUES('User','plugins:read')")
         db().commit()
     _, items = navigation(client, "/plugins")
-    assert [i["label"] for i in items[-1]["children"]] == ["Plugins"]
-    assert items[-1]["active"] and client.get("/plugins").status_code == 200
+    assert [i["label"] for i in items[-2]["children"]] == ["Plugins"]
+    assert items[-2]["active"] and client.get("/plugins").status_code == 200
     assert client.get("/api").status_code == 403
 
 
@@ -152,8 +153,8 @@ def test_restricted_role_does_not_gain_moved_permissions():
         db().execute("UPDATE users SET role='sidebar-restricted' WHERE id=?", (uid,))
         db().commit()
     _, items = navigation(client)
-    assert [i["label"] for i in items] == ["Dashboards", "Tools", "Settings"]
-    assert [i["label"] for i in items[-1]["children"]] == ["General"]
+    assert [i["label"] for i in items] == ["Dashboards", "Tools", "Settings", "Help"]
+    assert [i["label"] for i in items[-2]["children"]] == ["General"]
     assert 'href="/metrics"' not in client.get("/dashboards").text
     for path in ("/metrics", "/plugins", "/settings/users", "/settings/import-export"):
         assert client.get(path).status_code == 403, path

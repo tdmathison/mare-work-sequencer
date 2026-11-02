@@ -5,6 +5,7 @@ from dashboard_directory import DASHBOARDS
 
 
 SECTION_ENDPOINTS = {
+    "help": {"help_page", "help_content", "help_save", "help_preview"},
     "explorer": {"data_explorer", "explorer_data", "explorer_contents", "explorer_category", "explorer_file"},
     "board": {"dashboard", "create_case_page", "new_case", "save_board_sort"},
     "search": {"mip_search", "mip_search_results", "mip_search_finding"},

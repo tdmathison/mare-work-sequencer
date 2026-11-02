@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Help · MARE{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='help.css')}}">
+<div class="help-guide" data-help data-content-url="{{url_for('help_content')}}" data-preview-url="{{url_for('help_preview')}}" data-csrf="{{csrf}}">
+  <header class="help-heading"><h1>Help</h1>{% if can_manage %}<button type="button" class="button-secondary" data-manage-help>Manage help</button>{% endif %}</header>
+  <p data-help-introduction>{{guide.introduction}}</p>
+  <section class="help-sops" aria-labelledby="sop-heading"><h2 id="sop-heading">SOP documents</h2><div data-sops>{% for sop in guide.sops %}<a href="{{sop.url}}" target="_blank" rel="noopener noreferrer">{{sop.title}} <span aria-label="opens in a new tab">↗</span></a>{% else %}<span class="muted">No SOP documents configured.</span>{% endfor %}</div></section>
+  <div class="help-search"><label for="faq-search">Search FAQs</label><div><input id="faq-search" type="search" placeholder="Search questions and answers…"><button type="button" class="button-secondary" data-clear-search>Clear</button></div><p class="muted" data-faq-count role="status"></p></div>
+  <section class="help-faqs" aria-label="Frequently asked questions" data-faqs>{% for faq in guide.faqs %}<article class="help-faq" data-faq-id="{{faq.id}}"><h2><button type="button" aria-expanded="false" aria-controls="answer-{{faq.id}}">{{faq.question}}<span aria-hidden="true">⌄</span></button></h2><div id="answer-{{faq.id}}" class="markdown-preview help-answer" hidden>{{faq.html|safe}}</div></article>{% endfor %}</section>
+  <p class="muted" data-faq-empty{% if guide.faqs %} hidden{% endif %}>No FAQs configured.</p>
+  <p role="status" data-help-feedback></p>
+  {% if can_manage %}
+  <dialog class="task-workspace-dialog help-management" aria-labelledby="help-manage-title">
+    <form data-help-form><h2 id="help-manage-title">Manage help</h2><p class="muted">Changes apply to all analysts. SOP documents remain subject to SharePoint permissions.</p>
+      <fieldset data-help-fields>
+        <section><h3>Introduction</h3><label>Introductory paragraph<textarea name="introduction" maxlength="2000" rows="3" required></textarea></label></section>
+        <section><h3>SOP links</h3><div data-edit-sops></div><button type="button" data-add-sop>Add SOP link</button></section>
+        <section><h3>FAQs</h3><div data-edit-faqs></div><button type="button" data-add-faq>Add FAQ</button></section>
+      </fieldset>
+      <p data-help-status role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button type="submit">Save help</button><button type="button" class="button-secondary" data-close-help>Close</button><button type="button" class="button-secondary" data-reload-help hidden>Reload current content</button></div>
+    </form>
+  </dialog>
+  {% endif %}
+  <script type="application/json" data-help-document>{{guide|tojson}}</script>
+</div>
+<script src="{{url_for('static',filename='help.js')}}" defer></script>
+{% endblock %}

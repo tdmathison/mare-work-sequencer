@@ -1,0 +1,51 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const {spawn}=require('node:child_process'),{chromium}=require('playwright');
+const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'mare-help-')),real=fs.realpathSync(temporary);
+const workspace=path.join(path.dirname(real),'.mare-backup-work-'+crypto.createHash('sha256').update(real).digest('hex').slice(0,16));
+const base='http://127.0.0.1:8814';
+const server=spawn('.venv/bin/python',['tests/browser/server.py'],{env:{...process.env,MARE_DATA_DIR:temporary,MARE_EDITOR_BROWSER_TEST:'1',MARE_EDITOR_TEST_PORT:'8814'},stdio:['ignore','ignore','pipe']});
+let browser,log='';server.stderr.on('data',d=>log+=d);const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+(async()=>{
+ for(let i=0;;i++){try{await fetch(base+'/login');break;}catch(e){if(i>100||server.exitCode!==null)throw Error(log);await delay(100);}}
+ browser=await chromium.launch({headless:true,executablePath:process.env.MARE_BROWSER_EXECUTABLE||'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+ const context=await browser.newContext({viewport:{width:1366,height:900}}),page=await context.newPage();page.setDefaultTimeout(20000);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(base+'/login');await page.getByLabel('Username').fill('editor-test');await page.getByLabel('Password',{exact:true}).fill('temporary-editor-test-123');await Promise.all([page.waitForURL(base+'/'),page.getByRole('button',{name:'Sign in'}).click()]);
+ const errorsBefore=errors.length;
+ await page.goto(base+'/help');
+ assert.match(await page.locator('#application-sidebar nav .sidebar-link-row > a').last().innerText(), /Help$/);
+ await page.getByRole('button',{name:'Manage help',exact:true}).click();
+ const dialog=page.getByRole('dialog');
+ await dialog.locator('[name=introduction]').fill('Analyst help guide.');
+ await dialog.getByRole('button',{name:'Add SOP link',exact:true}).click();
+ await dialog.locator('[name=title]').fill('Investigation SOP');
+ await dialog.locator('[name=url]').fill('https://tenant.sharepoint.com/sop?web=1&x=2#steps');
+ const addFaq=async(question,answer)=>{await dialog.getByRole('button',{name:'Add FAQ',exact:true}).click();const row=dialog.locator('[data-edit-faqs] > details').last();await row.locator('[name=question]').fill(question);await row.locator('[name=answer]').evaluate((area,value)=>window.MareEditors.get(area).setValue(value,{notify:true}),answer);return row;};
+ const first=await addFaq('How do I start?','Use **Notes**.\n\n- One\n- Two\n\n```text\n'+'LongToken'.repeat(100)+'\n```\n\n<script>alert(1)</script>\n\n[x](javascript:alert(1))');
+ await first.getByRole('tab',{name:'Preview',exact:true}).click();await first.locator('.markdown-preview strong').waitFor();assert.equal(await first.locator('.markdown-preview script').count(),0);
+ await addFaq('Where are SOPs?','Searchable answer needle.');
+ await dialog.getByRole('button',{name:'Save help',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Help saved'}).waitFor();
+ await dialog.getByRole('button',{name:'Close',exact:true}).click();
+ const faq=page.locator('[data-faqs] .help-faq');assert.equal(await faq.count(),2);
+ assert.equal(await faq.locator('button[aria-expanded=true]').count(),0);
+ await faq.first().getByRole('button').click();assert.equal(await faq.locator('button[aria-expanded=true]').count(),1);
+ await faq.last().getByRole('button').press('Enter');assert.equal(await faq.first().getByRole('button').getAttribute('aria-expanded'),'false');
+ const search=page.getByLabel('Search FAQs',{exact:true});await search.fill('needle');assert.equal(await page.locator('[data-faqs] .help-faq:visible').count(),1);assert.equal(await faq.last().getByRole('button').getAttribute('aria-expanded'),'true');
+ await search.fill('missing');assert.equal(await faq.locator('button[aria-expanded=true]').count(),0);assert.ok(await page.getByText('No matching FAQs.',{exact:false}).isVisible());
+ await page.getByRole('button',{name:'Clear',exact:true}).click();
+ const sop=page.locator('[data-sops] a');assert.equal(await sop.getAttribute('href'),'https://tenant.sharepoint.com/sop?web=1&x=2#steps');assert.equal(await sop.getAttribute('rel'),'noopener noreferrer');
+ await page.reload();assert.equal(await page.locator('[data-help-introduction]').innerText(),'Analyst help guide.');
+ for(const width of [1440,390]){await page.setViewportSize({width,height:900});await page.locator('[data-faqs] .help-faq').first().getByRole('button').click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'/tmp/mws-help-'+width+'.png',animations:'disabled'});await page.locator('[data-faqs] .help-faq').first().getByRole('button').click();}
+ await page.getByRole('button',{name:'Manage help',exact:true}).click();
+ await dialog.locator('[data-edit-sops] summary').click();
+ page.once('dialog',d=>d.dismiss());await dialog.locator('[data-edit-sops]').getByRole('button',{name:'Delete',exact:true}).click();assert.equal(await dialog.locator('[data-edit-sops]>details').count(),1);
+ page.once('dialog',d=>d.accept());await dialog.locator('[data-edit-sops]').getByRole('button',{name:'Delete',exact:true}).click();assert.equal(await dialog.locator('[data-edit-sops]>details').count(),0);
+ const rows=dialog.locator('[data-edit-faqs]>details');await rows.last().locator('summary').click();await rows.last().getByRole('button',{name:'Move up',exact:true}).click();
+ assert.ok(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth));await page.screenshot({path:'/tmp/mws-help-manage-390.png',animations:'disabled'});
+
+ await dialog.getByRole('button',{name:'Save help',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Help saved'}).waitFor();
+ await dialog.locator('[name=introduction]').fill('Keep unsaved edits');page.once('dialog',d=>d.dismiss());await dialog.getByRole('button',{name:'Close',exact:true}).click();assert.ok(await dialog.isVisible());
+ const current=await (await context.request.get(base+'/help/content')).json();const csrf=await page.locator('[data-help]').getAttribute('data-csrf');current.introduction='Concurrent administrator update';const change=await context.request.post(base+'/help/content',{form:{csrf,document:JSON.stringify(current)}});assert.equal(change.status(),200);
+ await dialog.getByRole('button',{name:'Save help',exact:true}).click();await dialog.getByRole('status').filter({hasText:'Help changed'}).waitFor();assert.equal(await dialog.locator('[name=introduction]').inputValue(),'Keep unsaved edits');
+ assert.equal(errors.length,errorsBefore);console.log('PASS: Help management, Markdown preview/sanitization, SOP query/fragment, ordering, one-open accordion, search, persistence, dirty guard, concurrent edits, desktop/mobile overflow.');
+})().catch(e=>{console.error(log.slice(-3500));console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill();fs.rmSync(temporary,{recursive:true,force:true});fs.rmSync(workspace,{recursive:true,force:true});});

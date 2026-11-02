@@ -1454,6 +1454,8 @@ with app.app_context():
     for row in db().execute("SELECT id FROM cases").fetchall():
         baseline_notes(db(),row[0])
     db().commit()
+from help_guide import register as register_help
+register_help(app, db, audit)
 BackupWorkspace(app, ROOT, db, backup_helpers)
 
 from api_extensions import register_api_extensions

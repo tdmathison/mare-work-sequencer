@@ -275,7 +275,7 @@ def validate_database(path, modern):
         connection.close()
 
 
-def restore_installation(archive_path, destination):
+def restore_installation(archive_path, destination, *, help_content=None):
     """Validate all records/files, then atomically rename a staged directory.
 
     The service must be stopped. Destination must not exist, so ID/name collisions,
@@ -431,6 +431,9 @@ def restore_installation(archive_path, destination):
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from plugin_store import retire_editor_schema
             retire_editor_schema(upgraded)
+        with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
+            from help_guide import recover as recover_help
+            help_missing = recover_help(upgraded, help_content)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():
@@ -438,6 +441,7 @@ def restore_installation(archive_path, destination):
         stage.rename(destination)
     return {
         "counts": counts,
+        "help_missing": help_missing,
         "legacy": manifest is None,
         "message": (
             "Backup predates malware-family support; profiles will be initialized empty on startup."

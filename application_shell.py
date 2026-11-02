@@ -168,6 +168,7 @@ def register_shell(app, db):
                 any(child["active"] for child in developer),
                 developer,
             )
+        add("Help", url_for("help_page"), "?", endpoint == "help_page")
         current = next((i["label"] for i in items if i["active"]), "MWS")
         return dict(sidebar_items=items, shell_current=current)
 

@@ -653,7 +653,8 @@ class BackupWorkspace:
             shutil.rmtree(folder / old, ignore_errors=True)
         if complete:
             restored = folder / "restored"
-            restore_installation(payload, restored)
+            from help_guide import read as read_help
+            recovery = restore_installation(payload, restored, help_content=read_help(self.db()))
             if (
                 not (restored / "session.key").is_file()
                 or not (restored / "session.key").read_bytes()
@@ -892,7 +893,7 @@ class BackupWorkspace:
             shared_actions=shared_actions,
             handoff=handoff,
             legacy=legacy,
-            warnings=(
+            warnings=(["Archive predates Help: existing Help content will be retained."] if complete and recovery.get("help_missing") else []) + (
                 [
                     "Legacy archive: newer data areas may be absent; missing sections never delete destination data."
                 ]
@@ -952,7 +953,8 @@ class BackupWorkspace:
                 raise ValueError("Staged payload changed; inspect the archive again.")
             verified = folder / "verified"
             shutil.rmtree(verified, ignore_errors=True)
-            restore_installation(payload, verified)
+            from help_guide import read as read_help
+            restore_installation(payload, verified, help_content=read_help(self.db()))
             self.publish_replace(data, verified)
             data["owner"] = preview["handoff"]["user_uuid"]
             shutil.rmtree(verified, ignore_errors=True)

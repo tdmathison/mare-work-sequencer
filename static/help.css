@@ -1,0 +1,17 @@
+.help-guide{max-width:960px;margin-inline:auto;min-width:0;overflow-wrap:anywhere}
+.help-guide button{margin-top:0}
+.help-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.help-heading h1{margin:0}.help-heading button{font-size:12px;padding:6px 10px}
+.help-guide>p{margin:12px 0 20px}.help-guide h2{font-size:16px}.help-guide h3{font-size:15px}
+.help-sops{border-block:1px solid var(--line);padding:12px 0}.help-sops h2{margin:0 0 8px;font-size:13px;color:var(--muted)}
+.help-sops [data-sops]{display:flex;flex-wrap:wrap;gap:8px 20px}.help-sops a{color:var(--accent);font-size:14px;max-width:100%;overflow-wrap:anywhere}
+.help-search{margin:20px 0 10px}.help-search label{margin:0 0 6px}.help-search>div{display:flex;align-items:stretch;gap:8px}.help-search input{min-width:0;flex:1;margin:0;padding:10px 12px;font-size:14px}.help-search button{padding:8px 12px;font-size:12px}.help-search p{font-size:12px;margin:6px 0}
+.help-faq{border-bottom:1px solid var(--line)}.help-faq h2{margin:0}.help-faq h2 button{display:flex;justify-content:space-between;gap:16px;width:100%;text-align:left;background:transparent;border:0;border-radius:0;padding:14px 0;color:var(--text);white-space:normal;overflow-wrap:anywhere;font:inherit}
+.help-faq button[aria-expanded=true] span{transform:rotate(180deg)}.help-answer{padding:0 0 16px;min-width:0}.help-answer>:first-child{margin-top:0}
+.help-guide .markdown-preview pre{white-space:pre-wrap;overflow-wrap:anywhere}.help-guide .markdown-preview table{display:block;max-width:100%;overflow-x:auto}.help-guide .markdown-preview a{overflow-wrap:anywhere}
+.help-guide :focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.help-management{width:auto}.help-management form,.help-management fieldset{display:block;flex:none}.help-management form{min-width:0}.help-management fieldset{padding:0;border:0;margin:0}.help-management section{border-top:1px solid var(--line);padding:12px 0}.help-management section h3{margin:0 0 10px}
+.help-edit-entry{border-bottom:1px solid var(--line);padding:10px 0}.help-edit-entry summary{cursor:pointer;color:var(--accent);overflow-wrap:anywhere}.help-edit-entry label{display:block;margin:10px 0}.help-entry-actions{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.help-entry-actions button{font-size:12px;padding:5px 8px}.help-management button:disabled{opacity:.45;cursor:not-allowed}
+.help-management .markdown-editor{height:260px;min-height:180px}.help-management .editor-view-tabs{display:flex;gap:8px;margin:8px 0}.help-management .editor-view-tabs [aria-selected=true]{border-color:var(--accent);color:var(--accent)}
+.help-management .dialog-actions{display:flex;gap:8px;flex-wrap:wrap}.help-management .markdown-preview{max-width:100%}
+@media(max-width:600px){.help-heading{gap:8px}.help-guide h1{font-size:26px}.help-management{padding:14px}.help-management .markdown-editor{height:220px}}
