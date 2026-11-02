@@ -5,7 +5,7 @@
     <p class="muted">A unique MARE case number will be assigned when you create the case.</p>
     <form method="post" action="/cases">
         {{token(csrf)}}
-        <label>Case name<input name="name" maxlength="200" required value="{{values.get('name','')}}" autofocus></label>
+        <label>Case name<input id="case-name" name="name" maxlength="200" required value="{{values.get('name','')}}"></label>
         <label>Description<textarea name="description" rows="4">{{values.get('description','')}}</textarea></label>
         <div class="columns">
             <label>External system (optional)
@@ -32,4 +32,17 @@
             <div class="action-row"><button>Create case & MIP</button><a href="/">Cancel</a></div>
     </form>
 </section>
+{% if request.method == 'GET' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const name = document.getElementById('case-name');
+    // Leave restored content and any interaction before initialization alone.
+    if (performance.getEntriesByType('navigation')[0]?.type === 'back_forward' ||
+        name.value !== name.defaultValue ||
+        (document.activeElement !== document.body && document.activeElement !== name)) return;
+    name.focus();
+    name.setSelectionRange(name.value.length, name.value.length);
+}, {once: true});
+</script>
+{% endif %}
 {% endblock %}
