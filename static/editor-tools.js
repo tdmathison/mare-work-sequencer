@@ -23,7 +23,7 @@
   }
   async function images() {
     const result = await request("/cases/" + cid + "/report-images");
-    for (const section of document.querySelectorAll(".manual-section")) {
+    for (const section of document.querySelectorAll(".manual-section:not([data-note-editor])")) {
       const area = section.querySelector(".markdown-source"),
         list = section.querySelector(".report-image-list");
       list.replaceChildren();
@@ -96,7 +96,7 @@
     status.textContent =
       "Image saved. Save report sections to retain its Markdown reference.";
   }
-  for (const section of document.querySelectorAll(".manual-section")) {
+  for (const section of document.querySelectorAll(".manual-section:not([data-note-editor])")) {
     const area = section.querySelector(".markdown-source"),
       picker = section.querySelector(".markdown-image-input");
     area.addEventListener("markdown-images", (event) =>

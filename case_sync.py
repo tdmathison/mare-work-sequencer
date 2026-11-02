@@ -99,6 +99,14 @@ def logical_snapshot(validated, folder):
         records['task_application_history']=[a for a in records['task_application_history'] if json.loads(a['response']).get('group_id') not in live_groups]
     for key in ('task_groups','task_application_history'):
         if not records.get(key):records.pop(key,None)
+    from case_notes import FIELDS as NOTE_FIELDS
+    # Activity is supplemental append-only history, not a semantic Case edit.
+    records['notes']=[n for n in records['notes'] if n.get('note_type','user')=='user']
+    for note in records['notes']:
+        if note.get('source_id')=='legacy-reverse-engineering' and not note.get('edited'):
+            for field in NOTE_FIELDS: note.pop(field,None)
+        for key,default in NOTE_FIELDS.items():
+            if note.get(key,default)==default: note.pop(key,None)
     readiness = {row["category"]: row for row in records["readiness"]}
     records["readiness"] = []
     for category in CATEGORIES:
@@ -293,6 +301,13 @@ class CaseSync:
                 self.acquire()
                 if "case_import_sync" in app.extensions:
                     app.extensions["case_import_sync"].recover_interrupted()
+                from case_notes import baseline as baseline_notes
+                if mutating and self.db().execute("SELECT 1 FROM sqlite_master WHERE name='case_activity_state'").fetchone():
+                    for row in self.db().execute('SELECT id FROM cases WHERE id NOT IN (SELECT case_id FROM case_activity_state)').fetchall():
+                        self.ensure(row[0])
+                        from content_metrics import collect_case
+                        collect_case(self.db(),self.root,row[0],legacy=True)
+                        baseline_notes(self.db(),row[0])
                 g.sync_transaction = mutating
 
         handlers = app.before_request_funcs[None]
@@ -483,6 +498,8 @@ class CaseSync:
         state = self.ensure(cid)
         from content_metrics import collect_case
         collect_case(self.db(),self.root,cid)
+        from case_notes import collect as collect_notes
+        collect_notes(self.db(),cid)
         content_hash = fingerprint(self.snapshot(cid))
         nodes = self.graph(state["case_uuid"])
         if (

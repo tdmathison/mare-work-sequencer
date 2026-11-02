@@ -327,8 +327,12 @@ class AsyncIndicatorsResource(AsyncResource):
 
 class AsyncMetricsResource(AsyncResource):
     """Authorized metrics operations. Server-side RBAC remains authoritative."""
+    async def content(self, *, params: MetricsContentParams | Mapping[str, Any] | None = None) -> MetricsContentResponse:
+        'Read private Content Metrics. GET /api/v1/content-metrics. Current accessible inventory, recorded additions, full-range summaries and cumulative baselines. Unknown dates and unavailable history are explicit. Deleted history is Administrator-only. Source permissions are enforced for every content type; restricted totals are null. Cumulative additions are not historical inventory. No shared cache.\n\nRequired role permission: metrics:read.'
+        return await self._transport.request('GET', 'content-metrics', params=params, response_model=MetricsContentResponse)
+
     async def get(self) -> MetricsGetResponse:
-        'Read all-time metrics. GET /api/v1/metrics. Legacy all-time API metrics; independent of dashboard period filters.\n\nRequired role permission: metrics:read.'
+        'Read all-time Case Metrics. GET /api/v1/metrics. Legacy all-time Case Metrics API; independent of dashboard period filters.\n\nRequired role permission: metrics:read.'
         return await self._transport.request('GET', 'metrics', response_model=MetricsGetResponse)
 
 class AsyncNotesResource(AsyncResource):
@@ -346,11 +350,11 @@ class AsyncNotesResource(AsyncResource):
         return await self._transport.request('PUT', 'cases/{case_id}/draft'.replace('{case_id}', path_value(case_id, nested=False)), data=data, files=files, request_model=NotesUpdateDraftRequest, media='application/json', response_model=NotesUpdateDraftResponse)
 
     async def list(self, case_id: int, *, params: NotesListParams | Mapping[str, Any] | None = None) -> NotesListResponse:
-        'List case notes. GET /api/v1/cases/{case_id}/notes. \n\nRequired role permission: cases:read.'
+        'List case notebook entries. GET /api/v1/cases/{case_id}/notes. Search body, legacy title and actor. Counts match the search across all pages before type filtering. Stable created timestamp and local ID ordering. System entries are read-only.\n\nRequired role permission: cases:read.'
         return await self._transport.request('GET', 'cases/{case_id}/notes'.replace('{case_id}', path_value(case_id, nested=False)), params=params, response_model=NotesListResponse)
 
     async def create(self, case_id: int, *, data: NotesCreateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> NotesCreateResponse:
-        'Create a note. POST /api/v1/cases/{case_id}/notes. \n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Create a note. POST /api/v1/cases/{case_id}/notes. Creates a User note with server identity and clock. Optional request_id deduplicates retries per Case/author; reuse with different content returns 409. Legacy title/include_export remain compatibility fields; delivery defaults to internal.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('POST', 'cases/{case_id}/notes'.replace('{case_id}', path_value(case_id, nested=False)), data=data, files=files, request_model=NotesCreateRequest, media='application/json', response_model=NotesCreateResponse)
 
     async def delete(self, case_id: int, note_id: int) -> None:
@@ -362,7 +366,7 @@ class AsyncNotesResource(AsyncResource):
         return await self._transport.request('GET', 'cases/{case_id}/notes/{note_id}'.replace('{case_id}', path_value(case_id, nested=False)).replace('{note_id}', path_value(note_id, nested=False)), response_model=NotesGetResponse)
 
     async def update(self, case_id: int, note_id: int, *, data: NotesUpdateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> NotesUpdateResponse:
-        'Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. The resulting body must contain non-whitespace text.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. Only the author with Case edit rights or an Administrator can manage a User note. System notes are immutable. Closed Cases are read-only. Body must contain non-whitespace text.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('PATCH', 'cases/{case_id}/notes/{note_id}'.replace('{case_id}', path_value(case_id, nested=False)).replace('{note_id}', path_value(note_id, nested=False)), data=data, files=files, request_model=NotesUpdateRequest, media='application/json', response_model=NotesUpdateResponse)
 
     async def iter_all(self, case_id, *, params=None):

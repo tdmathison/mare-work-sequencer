@@ -41,7 +41,7 @@ The MIP board shows each case's stage and seven package readiness indicators, se
 
 ### Workbench
 
-The default case tab contains the current stage, output-oriented guidance, RE notes, quick categorized uploads, and tasks. Notes have titles and timestamps and can be edited. New-note drafts autosave after typing pauses and are private to the signed-in account. Saved notes are shared with the case team. Select “Include in MIP” to deliver a note; internal notes and private drafts are excluded.
+The Workbench contains stage guidance and quick categorized uploads. The dedicated **Notes** tab combines searchable analyst Markdown and read-only Case activity in a split notebook, using the shared editor and sanitized renderer. User-note edits require author or Administrator rights and an editable Case. Internal notes remain private to the Case; existing explicit MIP inclusion flags remain compatible through the API. See [Case Notes](docs/CASE_NOTES.md) for migration, activity coverage, API/SDK and backup behavior.
 
 Close a stage as Done, No applicable work, or Deferred. Skipped and deferred work require a short explanation. Deferred stages remain visible until resolved. Progress does not lock earlier findings or prevent adding more content.
 

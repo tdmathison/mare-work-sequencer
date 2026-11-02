@@ -1020,8 +1020,8 @@
     "media": "application/json",
     "binary": false,
     "collection": "notes",
-    "summary": "List case notes",
-    "description": "\n\nRequired role permission: cases:read."
+    "summary": "List case notebook entries",
+    "description": "Search body, legacy title and actor. Counts match the search across all pages before type filtering. Stable created timestamp and local ID ordering. System entries are read-only.\n\nRequired role permission: cases:read."
   },
   {
     "resource": "notes",
@@ -1047,7 +1047,7 @@
     "binary": false,
     "collection": null,
     "summary": "Create a note",
-    "description": "\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+    "description": "Creates a User note with server identity and clock. Optional request_id deduplicates retries per Case/author; reuse with different content returns 409. Legacy title/include_export remain compatibility fields; delivery defaults to internal.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "notes",
@@ -1149,7 +1149,7 @@
     "binary": false,
     "collection": null,
     "summary": "Update a note",
-    "description": "The resulting body must contain non-whitespace text.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+    "description": "Only the author with Case edit rights or an Administrator can manage a User note. System notes are immutable. Closed Cases are read-only. Body must contain non-whitespace text.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "packages",
@@ -2290,6 +2290,23 @@
     "description": "\n\nRequired role permission: cases:assets."
   },
   {
+    "resource": "metrics",
+    "name": "content",
+    "operation_id": "api_content_metrics_get",
+    "path": "content-metrics",
+    "method": "GET",
+    "permission": "metrics:read",
+    "paths": [],
+    "request": null,
+    "response": "MetricsContentResponse",
+    "query": "MetricsContentParams",
+    "media": "application/json",
+    "binary": false,
+    "collection": "buckets",
+    "summary": "Read private Content Metrics",
+    "description": "Current accessible inventory, recorded additions, full-range summaries and cumulative baselines. Unknown dates and unavailable history are explicit. Deleted history is Administrator-only. Source permissions are enforced for every content type; restricted totals are null. Cumulative additions are not historical inventory. No shared cache.\n\nRequired role permission: metrics:read."
+  },
+  {
     "resource": "coverage",
     "name": "get",
     "operation_id": "ext_explorer_coverage_get_255728ac_get",
@@ -2954,8 +2971,8 @@
     "media": "application/json",
     "binary": false,
     "collection": "users",
-    "summary": "Read all-time metrics",
-    "description": "Legacy all-time API metrics; independent of dashboard period filters.\n\nRequired role permission: metrics:read."
+    "summary": "Read all-time Case Metrics",
+    "description": "Legacy all-time Case Metrics API; independent of dashboard period filters.\n\nRequired role permission: metrics:read."
   },
   {
     "resource": "roles",

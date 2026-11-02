@@ -162,6 +162,7 @@ def test_stage_permissions_and_ui():
     def element(page,identifier,tag='button'):
         return re.search(r'<'+tag+r'[^>]*id="'+identifier+r'"[^>]*>',page).group(0)
     def fieldset(page,identifier):
+        if identifier=="note-form":return re.search(r'<fieldset[^>]*data-note-fields[^>]*>',page).group(0)
         return re.search(r'<form[^>]*id="'+identifier+r'"[^>]*>\s*(<fieldset[^>]*>)',page).group(1)
     with app.app_context():
         uid=run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('stage-user',generate_password_hash('stage-password-123'),'User')).lastrowid

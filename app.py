@@ -428,7 +428,7 @@ def enforce_case_stage():
     c = case(cid)
     message = None
     # Copying definitions to the global library does not mutate the source Case.
-    if request.endpoint in ('assign_case_owner', 'backup_single_export', 'delete_case', 'markdown_preview', 'web_task_collection_from_tasks'):
+    if request.endpoint in ('assign_case_owner', 'backup_single_export', 'delete_case', 'markdown_preview', 'case_notebook_preview', 'web_task_collection_from_tasks'):
         return
     if c['owner_required'] and not c['owner_active'] and request.endpoint != 'detail' and not (request.endpoint == 'progress' and c['stage'] == 0):
         return {'error': 'Assign an active owner in Case details to resume this case at its current stage.'}, 409
@@ -796,7 +796,7 @@ def detail(cid):
         package_view_files.append(tracked_word)
     report_output_paths = [report_path, Path(
         report_path).with_suffix('.pdf').as_posix()]
-    return render_template('case.html', manual_sections=report_helpers['manual'](cid), word_report_exists=(root/report_path).exists(), word_report_path=report_path, report_output_paths=report_output_paths, package_view_files=package_view_files, sample_archive_paths=sample_archive_paths, c=c, files=files, ready=readiness(cid), export_files=export_files, raw_files=[f for f in files if not f['dir'] and raw_package_file(f['path'])], issues=review_issues(cid), completion=completion_items(cid), draft=draft, notes=db().execute('SELECT * FROM notes WHERE case_id=? ORDER BY id DESC', (cid,)).fetchall(), tasks=db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id', (cid,)).fetchall(), history=db().execute('SELECT * FROM history WHERE case_id=? ORDER BY id DESC', (cid,)).fetchall(), artifacts={r['path']: r for r in db().execute('SELECT * FROM artifacts WHERE case_id=?', (cid,))}, deferred=db().execute('SELECT * FROM deferred WHERE case_id=? AND resolved=0', (cid,)).fetchall())
+    return render_template('case.html', can_edit_notes=has_permission(g.user,'cases:update',db()), manual_sections=report_helpers['manual'](cid), word_report_exists=(root/report_path).exists(), word_report_path=report_path, report_output_paths=report_output_paths, package_view_files=package_view_files, sample_archive_paths=sample_archive_paths, c=c, files=files, ready=readiness(cid), export_files=export_files, raw_files=[f for f in files if not f['dir'] and raw_package_file(f['path'])], issues=review_issues(cid), completion=completion_items(cid), draft=draft, notes=db().execute('SELECT * FROM notes WHERE case_id=? ORDER BY id DESC', (cid,)).fetchall(), tasks=db().execute('SELECT * FROM tasks WHERE case_id=? ORDER BY id', (cid,)).fetchall(), history=db().execute('SELECT * FROM history WHERE case_id=? ORDER BY id DESC', (cid,)).fetchall(), artifacts={r['path']: r for r in db().execute('SELECT * FROM artifacts WHERE case_id=?', (cid,))}, deferred=db().execute('SELECT * FROM deferred WHERE case_id=? AND resolved=0', (cid,)).fetchall())
 
 
 @app.post('/cases/<int:cid>/delete')
@@ -935,29 +935,16 @@ def save_draft(cid):
 
 @app.post('/cases/<int:cid>/notes')
 def notes(cid):
-    case(cid)
-    body = request.form.get('body', '').strip()
-    if body:
-        run('INSERT INTO notes(case_id,body,author,created,title,include_export) VALUES(?,?,?,?,?,?)', (cid, body,
-            g.user['username'], now(), request.form.get('title', '').strip(), int(request.form.get('include_export') == '1')))
-        run('DELETE FROM drafts WHERE case_id=? AND user_id=?',
-            (cid, g.user['id']))
-        if request.form.get('include_export') == '1':
-            mark_pending(cid, 'reports/reverse-engineering-notes.md')
-    return redirect(f'/cases/{cid}')
+    from case_notes import mutate
+    mutate(db(),g.user,cid,dict(body=request.form.get('body',''),title=request.form.get('title',''),include_export=request.form.get('include_export')=='1'))
+    return redirect(f'/cases/{cid}?tab=notes')
 
 
 @app.post('/cases/<int:cid>/notes/<int:nid>')
 def edit_note(cid, nid):
-    case(cid)
-    previous = db().execute(
-        'SELECT include_export FROM notes WHERE id=? AND case_id=?', (nid, cid)).fetchone()
-    if previous and (previous['include_export'] or request.form.get('include_export') == '1'):
-        mark_pending(cid, 'reports/reverse-engineering-notes.md')
-    if request.form.get('body', '').strip():
-        run('UPDATE notes SET title=?,body=?,include_export=? WHERE id=? AND case_id=?', (request.form.get(
-            'title', ''), request.form['body'], int(request.form.get('include_export') == '1'), nid, cid))
-    return redirect(f'/cases/{cid}')
+    from case_notes import mutate
+    mutate(db(),g.user,cid,dict(body=request.form.get('body',''),title=request.form.get('title',''),include_export=request.form.get('include_export')=='1'),nid)
+    return redirect(f'/cases/{cid}?tab=notes')
 
 
 def task_fields():
@@ -1205,7 +1192,7 @@ def build_archive(cid, archive_type, include_samples=False):
     from standard_package import selected_files
     contents = selected_files(c, root, raw=archive_type=='raw', include_samples=include_samples)
     selected = db().execute(
-        'SELECT * FROM notes WHERE case_id=? AND include_export=1 ORDER BY id', (cid,)).fetchall()
+        "SELECT * FROM notes WHERE case_id=? AND include_export=1 AND note_type='user' ORDER BY id", (cid,)).fetchall()
     if selected and archive_type == 'raw':
         contents['reports/reverse-engineering-notes.md'] = ('# Reverse Engineering Notes\n\n'+'\n\n'.join('## '+(
             n['title'] or 'Note')+'\n'+n['author']+' · '+n['created']+'\n\n'+n['body'] for n in selected)).encode()
@@ -1460,6 +1447,13 @@ with app.app_context():
     initialize_plugin_store(db())
 from content_metrics_dashboard import register as register_content_metrics
 register_content_metrics(app, db, ROOT)
+from case_notes import initialize as initialize_notes, baseline as baseline_notes, register as register_notes
+register_notes(app,db)
+with app.app_context():
+    initialize_notes(db())
+    for row in db().execute("SELECT id FROM cases").fetchall():
+        baseline_notes(db(),row[0])
+    db().commit()
 BackupWorkspace(app, ROOT, db, backup_helpers)
 
 from api_extensions import register_api_extensions

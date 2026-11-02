@@ -90,6 +90,7 @@ Generated from registered routes and reviewed OpenAPI contracts. All rows are im
 | GET | `/api/v1/cases/{cid}/yara/file` | cases:assets | ToolsYaraOpenParams | ToolsYaraOpenResponse | `client.tools.yara_open` | Implemented |
 | POST | `/api/v1/cases/{cid}/yara/file` | cases:assets | ToolsYaraSaveRequest | ToolsYaraSaveResponse | `client.tools.yara_save` | Implemented |
 | GET | `/api/v1/cases/{cid}/yara/files` | cases:assets | ToolsYaraFilesParams | ToolsYaraFilesResponse | `client.tools.yara_files` | Implemented |
+| GET | `/api/v1/content-metrics` | metrics:read | MetricsContentParams | MetricsContentResponse | `client.metrics.content` | Implemented |
 | GET | `/api/v1/coverage` | Authenticated / handler checks | CoverageGetParams | CoverageGetResponse | `client.coverage.get` | Implemented |
 | GET | `/api/v1/explorer/cases/{case_id}/contents` | cases:read | ExplorerContentsParams | ExplorerContentsResponse | `client.explorer.contents` | Implemented |
 | GET | `/api/v1/explorer/cases/{case_id}/contents/{category}` | cases:read | ExplorerCategoryParams | ExplorerCategoryResponse | `client.explorer.category` | Implemented |

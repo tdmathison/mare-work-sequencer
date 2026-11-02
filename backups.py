@@ -82,7 +82,7 @@ def records(meta, name, fields):
                 if not isinstance(value, int):
                     raise ValueError('Invalid numeric case record.')
             else:
-                value = text(value if value is not None else '',MAX_METADATA if field in ('source_tasks','response') else 1000000)
+                value = text(value if value is not None else '',MAX_METADATA if field in ('source_tasks','response') or name=='notes' and field=='body' else 1000000)
             out[field] = value
         result.append(out)
     return result
@@ -114,7 +114,7 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
     if not isinstance(refs, list) or len(refs) > 10000 or any(not isinstance(r, list) or len(r) != 2 or any(not isinstance(v, str) or len(v) > 4000 for v in r) for r in refs):
         raise ValueError('Invalid references table.')
     clean = {
-        'notes': records(meta, 'notes', {'title': '', 'body': '', 'author': '', 'created': '', 'include_export': 0}),
+        'notes': records(meta, 'notes', {'title': '', 'body': '', 'author': '', 'created': '', 'include_export': 0, **__import__('case_notes').FIELDS}),
         'tasks': records(meta, 'tasks', {'title': '', 'body': '', 'state': 'Not Started', 'priority': 'Normal', 'created': '', 'group_id':'','source_template_id':'','source_collection_id':'','source_revision':0,'position':0}),
         'task_groups': records(meta,'task_groups',{'id':'','name':'','source_collection_id':'','source_revision':0,'added':'','position':0,'template_ids':'[]','source_fingerprint':'','source_tasks':'[]'}),
         'task_application_history':records(meta,'task_application_history',{'source_collection_id':'','template_ids':'[]','response':'{}','added':''}),
@@ -122,7 +122,13 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
         'deferred': records(meta, 'deferred', {'stage': 0, 'reason': '', 'resolved': 0}),
         'readiness': records(meta, 'readiness', {'category': '', 'status': 'Pending', 'reason': ''}),
         'artifacts': records(meta, 'artifacts', {'path': '', 'description': ''})}
+    note_ids=[row['note_uuid'] for row in clean['notes'] if row['note_uuid']]
+    submissions=[(row['author_uuid'],row['source_id']) for row in clean['notes'] if row['source_id'].startswith('request:')]
+    if len(note_ids)!=len(set(note_ids)) or len(submissions)!=len(set(submissions)):raise ValueError('Duplicate notebook identity.')
     for row in clean['notes']:
+        if row['note_type'] not in ('user','system') or row['note_type']=='system' and row['include_export'] or row['note_uuid'] and not re.fullmatch('[a-f0-9]{32}',row['note_uuid']):
+            raise ValueError('Invalid notebook record.')
+        if not isinstance(json.loads(row['event_metadata']),dict): raise ValueError('Invalid notebook metadata.')
         if row['include_export'] not in (0, 1):
             raise ValueError('Invalid note state.')
     group_ids=set()
@@ -188,7 +194,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             data['case'][key] = data['case'][key] or ''
         for table in ('notes', 'tasks', 'history', 'deferred', 'readiness', 'artifacts'):
             data['records'][table] = [{k: row[k] for k in row.keys() if k not in (
-                'id', 'case_id', 'usage')} for row in db().execute(f'SELECT * FROM {table} WHERE case_id=?', (cid,))]
+                'id', 'case_id', 'usage')} for row in db().execute(f'SELECT * FROM {table} WHERE case_id=?'+(' ORDER BY id' if table=='notes' else ''), (cid,))]
         data['records']['task_groups']=[dict(r) for r in db().execute('SELECT id,name,source_collection_id,source_revision,added,position FROM task_groups WHERE case_id=? ORDER BY position,id',(cid,))]
         applications=[dict(r) for r in db().execute('SELECT * FROM task_collection_applications WHERE case_id=?',(cid,))]
         data['records']['task_application_history']=[]
@@ -222,8 +228,9 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         raw, name = build_archive(cid, 'raw', include_samples=include_samples)
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
+            synchronization = app.extensions['case_sync'].export(cid)
             meta = case_metadata(cid)
-            meta['sync'] = app.extensions['case_sync'].export(cid)
+            meta['sync'] = synchronization
             from content_metrics import export_events
             meta['content_metrics']=export_events(db(),'case',meta['sync']['case_uuid'])
             renamed = {}

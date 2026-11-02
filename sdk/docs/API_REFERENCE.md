@@ -754,10 +754,18 @@ Required role permission: indicators:read.
 Authorized metrics operations. Server-side RBAC remains authoritative.
 
 ```python
+def content(self, *, params: MetricsContentParams | Mapping[str, Any] | None=None) -> MetricsContentResponse
+```
+
+Read private Content Metrics. GET /api/v1/content-metrics. Current accessible inventory, recorded additions, full-range summaries and cumulative baselines. Unknown dates and unavailable history are explicit. Deleted history is Administrator-only. Source permissions are enforced for every content type; restricted totals are null. Cumulative additions are not historical inventory. No shared cache.
+
+Required role permission: metrics:read.
+
+```python
 def get(self) -> MetricsGetResponse
 ```
 
-Read all-time metrics. GET /api/v1/metrics. Legacy all-time API metrics; independent of dashboard period filters.
+Read all-time Case Metrics. GET /api/v1/metrics. Legacy all-time Case Metrics API; independent of dashboard period filters.
 
 Required role permission: metrics:read.
 
@@ -801,7 +809,7 @@ Execute affects real application data. Nothing executes automatically.
 def list(self, case_id: int, *, params: NotesListParams | Mapping[str, Any] | None=None) -> NotesListResponse
 ```
 
-List case notes. GET /api/v1/cases/{case_id}/notes. 
+List case notebook entries. GET /api/v1/cases/{case_id}/notes. Search body, legacy title and actor. Counts match the search across all pages before type filtering. Stable created timestamp and local ID ordering. System entries are read-only.
 
 Required role permission: cases:read.
 
@@ -809,7 +817,7 @@ Required role permission: cases:read.
 def create(self, case_id: int, *, data: NotesCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> NotesCreateResponse
 ```
 
-Create a note. POST /api/v1/cases/{case_id}/notes. 
+Create a note. POST /api/v1/cases/{case_id}/notes. Creates a User note with server identity and clock. Optional request_id deduplicates retries per Case/author; reuse with different content returns 409. Legacy title/include_export remain compatibility fields; delivery defaults to internal.
 
 Required role permission: cases:update.
 
@@ -841,7 +849,7 @@ Required role permission: cases:read.
 def update(self, case_id: int, note_id: int, *, data: NotesUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> NotesUpdateResponse
 ```
 
-Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. The resulting body must contain non-whitespace text.
+Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. Only the author with Case edit rights or an Administrator can manage a User note. System notes are immutable. Closed Cases are read-only. Body must contain non-whitespace text.
 
 Required role permission: cases:update.
 
@@ -2428,10 +2436,18 @@ Required role permission: indicators:read.
 Authorized metrics operations. Server-side RBAC remains authoritative.
 
 ```python
+async def content(self, *, params: MetricsContentParams | Mapping[str, Any] | None=None) -> MetricsContentResponse
+```
+
+Read private Content Metrics. GET /api/v1/content-metrics. Current accessible inventory, recorded additions, full-range summaries and cumulative baselines. Unknown dates and unavailable history are explicit. Deleted history is Administrator-only. Source permissions are enforced for every content type; restricted totals are null. Cumulative additions are not historical inventory. No shared cache.
+
+Required role permission: metrics:read.
+
+```python
 async def get(self) -> MetricsGetResponse
 ```
 
-Read all-time metrics. GET /api/v1/metrics. Legacy all-time API metrics; independent of dashboard period filters.
+Read all-time Case Metrics. GET /api/v1/metrics. Legacy all-time Case Metrics API; independent of dashboard period filters.
 
 Required role permission: metrics:read.
 
@@ -2475,7 +2491,7 @@ Execute affects real application data. Nothing executes automatically.
 async def list(self, case_id: int, *, params: NotesListParams | Mapping[str, Any] | None=None) -> NotesListResponse
 ```
 
-List case notes. GET /api/v1/cases/{case_id}/notes. 
+List case notebook entries. GET /api/v1/cases/{case_id}/notes. Search body, legacy title and actor. Counts match the search across all pages before type filtering. Stable created timestamp and local ID ordering. System entries are read-only.
 
 Required role permission: cases:read.
 
@@ -2483,7 +2499,7 @@ Required role permission: cases:read.
 async def create(self, case_id: int, *, data: NotesCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> NotesCreateResponse
 ```
 
-Create a note. POST /api/v1/cases/{case_id}/notes. 
+Create a note. POST /api/v1/cases/{case_id}/notes. Creates a User note with server identity and clock. Optional request_id deduplicates retries per Case/author; reuse with different content returns 409. Legacy title/include_export remain compatibility fields; delivery defaults to internal.
 
 Required role permission: cases:update.
 
@@ -2515,7 +2531,7 @@ Required role permission: cases:read.
 async def update(self, case_id: int, note_id: int, *, data: NotesUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> NotesUpdateResponse
 ```
 
-Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. The resulting body must contain non-whitespace text.
+Update a note. PATCH /api/v1/cases/{case_id}/notes/{note_id}. Only the author with Case edit rights or an Administrator can manage a User note. System notes are immutable. Closed Cases are read-only. Body must contain non-whitespace text.
 
 Required role permission: cases:update.
 
@@ -3951,6 +3967,14 @@ ToolsYaraFilesParams version-1 API fields.
 
 ToolsYaraFilesResponse version-1 API fields.
 
+### MetricsContentParams
+
+MetricsContentParams version-1 API fields.
+
+### MetricsContentResponse
+
+MetricsContentResponse version-1 API fields.
+
 ### CoverageGetParams
 
 CoverageGetParams version-1 API fields.
@@ -4415,6 +4439,10 @@ UsersUpdateRequest version-1 API fields.
 
 UsersUpdateResponse version-1 API fields.
 
+### NoteActivityLink
+
+NoteActivityLink version-1 API fields.
+
 ### ReadinessValueItem
 
 ReadinessValueItem version-1 API fields.
@@ -4442,6 +4470,10 @@ ActorsGetResponseProfile version-1 API fields.
 ### CasesGetResponseCase
 
 CasesGetResponseCase version-1 API fields.
+
+### NotesListResponseCounts
+
+NotesListResponseCounts version-1 API fields.
 
 ### ReportsGetResponseSections
 
@@ -4490,6 +4522,10 @@ TaskCollectionsCaseGroupsResponseGroupsItem version-1 API fields.
 ### TaskCollectionsCaseGroupsResponseApplicationsItem
 
 TaskCollectionsCaseGroupsResponseApplicationsItem version-1 API fields.
+
+### MetricsContentResponseBucketsItem
+
+MetricsContentResponseBucketsItem version-1 API fields.
 
 ### CoverageGetResponseRowsItem
 

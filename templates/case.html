@@ -43,7 +43,7 @@
     {% endif %}
     
     {% call bar('Case sections', 'case-tabs', attributes={'data-case-id':c.id}) %}
-        {% for key,label in [('workbench','Workbench'),('tasks','Tasks'),('indicators','Indicators'),('references','References'),('package','Package'),('report','Report'),('review','Review & Export')] %}
+        {% for key,label in [('workbench','Workbench'),('notes','Notes'),('tasks','Tasks'),('indicators','Indicators'),('references','References'),('package','Package'),('report','Report'),('review','Review & Export')] %}
             {{item(label, 'tab-'+key, active=key=='workbench', controls='panel-'+key,
                 disabled=(c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'],
                 title=('Assign an active owner to resume' if c.owner_required and not c.owner_active else 'Start analysis to unlock this tab') if (c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'] else '')}}
@@ -103,47 +103,6 @@
                     {% endfor %}
                 </details>
             </section>
-            <section class="panel">
-                <div class="heading">
-                    <h2>Reverse engineering notes</h2>
-                    <span id="draft-status" role="status" class="muted">{{'Draft restored' if draft else 'Draft autosave ready'}}</span>
-                </div>
-                <form id="note-form" data-draft-url="/cases/{{c.id}}/draft" data-user-id="{{user.id}}" method="post" action="/cases/{{c.id}}/notes">
-                    <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
-                        <label>Title<input name="title" value="{{draft.title if draft else ''}}" placeholder="String decryption routine"></label>
-                        <label>Working notes<textarea name="body" rows="8" required placeholder="Record findings, offsets, observations, and references…">{{draft.body if draft else ''}}</textarea></label>
-                        <label class="check-label"><input type="checkbox" name="include_export" value="1">Include this note in the delivered MIP</label>
-                        <button>Add note</button>
-                        <p class="muted">Drafts are private to your account. Saved notes are shared in this case; delivery is opt-in.</p>
-                    </fieldset>
-                    {% if c.workspace_locked %}
-                        <p class="muted">Start analysis or reopen the case to edit content.</p>
-                    {% endif %}
-                </form>
-                
-                {% for n in notes %}
-                    <article class="note" id="note-{{n.id}}">
-                        <h3>{{n.title or 'Note'}}</h3>
-                        <small>{{n.author}} · {{n.created}} · {{'Included in MIP' if n.include_export else 'Internal'}}</small>
-                        <p>{{n.body}}</p>
-                        <details>
-                            <summary>Edit note</summary>
-                            <form method="post" action="/cases/{{c.id}}/notes/{{n.id}}">
-                                <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
-                                    <label>Title<input name="title" value="{{n.title}}"></label>
-                                    <label>Notes<textarea name="body" rows="6" required>{{n.body}}</textarea></label>
-                                    <label class="check-label"><input type="checkbox" name="include_export" value="1" {{'checked' if n.include_export else ''}}>Include in MIP</label>
-                                    <button>Save note</button>
-                                </fieldset>
-                                
-                                {% if c.workspace_locked %}
-                                    <p class="muted">Start analysis or reopen the case to edit content.</p>
-                                {% endif %}
-                            </form>
-                        </details>
-                    </article>
-                    {% endfor %}
-                </section>
             </div>
             <aside>
                 <section class="panel" id="asset-manager">
@@ -194,7 +153,9 @@
         </form>
     </section>
 </section>
-<section id="panel-tasks" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-tasks" hidden>{% include 'tasks.html' %}</section>
+{% include 'case_notes.html' %}
+<section id="panel-tasks" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-tasks" hidden>
+{% include 'tasks.html' %}</section>
 <section id="panel-package" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-package" hidden>
     <section class="panel">
         <h2>Package contents</h2><p class="muted">Assets live in the package as you add them. Readiness counts and Standard exports include only deliverable files.</p>

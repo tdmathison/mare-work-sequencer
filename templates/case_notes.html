@@ -1,0 +1,37 @@
+<section id="panel-notes" class="case-tab-panel case-notebook" role="tabpanel" aria-labelledby="tab-notes" hidden data-case-id="{{c.id}}" data-csrf="{{csrf}}" data-zone="{{config.DISPLAY_TIMEZONE}}" data-draft-title="{{draft.title if draft else ''}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='case-notes.css')}}">
+    <h2>Case notes</h2><p class="muted">Analyst notes and case activity in one place</p>
+    <div class="notebook-layout">
+        <section aria-label="Notes feed">
+            <div class="panel notebook-controls">
+                <div role="group" aria-label="Note type; counts match search across all pages">
+                    <button type="button" class="button-secondary" data-note-filter="all" aria-pressed="true">All</button>
+                    <button type="button" class="button-secondary" data-note-filter="user" aria-pressed="false">User</button>
+                    <button type="button" class="button-secondary" data-note-filter="system" aria-pressed="false">System</button>
+                </div>
+                <label>Search notes<input type="search" data-note-search placeholder="Search notes…"></label>
+                <label>Order<select data-note-order><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
+            </div>
+            <p data-note-status role="status"></p><div data-note-feed aria-live="polite"></div>
+            <div class="notebook-pages"><button type="button" class="button-secondary" data-note-previous>Previous</button><span data-note-page></span><button type="button" class="button-secondary" data-note-next>Next</button><button type="button" class="button-secondary" data-note-refresh>Refresh</button></div>
+        </section>
+        <aside class="panel notebook-composer">
+            <h3 data-note-composer-title>New note</h3>
+            <form data-note-composer>
+                <section class="manual-section" data-note-editor>
+                    <div class="editor-view-tabs" role="group" aria-label="Note editor view"><button type="button" data-note-write class="editor-raw-tab" aria-pressed="true">Write</button><button type="button" data-note-preview class="editor-preview-tab" aria-pressed="false">Preview</button></div>
+                    <fieldset class="workflow-controls" data-note-fields {% if c.workspace_locked or not can_edit_notes %}disabled{% endif %}>
+                        <div class="markdown-toolbar" role="toolbar" aria-label="Markdown commands"></div>
+                        <div class="markdown-editor"><textarea class="markdown-source" data-markdown-editor aria-label="Note Markdown" name="body" rows="12">{{draft.body if draft else ''}}</textarea></div>
+                    </fieldset>
+                    <div class="markdown-preview" data-note-preview-pane hidden></div>
+                </section>
+                <p class="muted">Markdown supported</p>
+                <p data-note-lock class="muted" {% if not c.workspace_locked %}hidden{% endif %}>Start analysis or reopen the case to edit content.</p>
+                <fieldset class="workflow-controls" data-note-actions {% if c.workspace_locked or not can_edit_notes %}disabled{% endif %}><button data-note-submit>Add note</button><button type="button" class="button-secondary" data-note-cancel hidden>Cancel edit</button></fieldset>
+            </form>
+            <p data-note-save-status role="status"></p>
+        </aside>
+    </div>
+    <script defer src="{{url_for('static',filename='case-notes.js')}}"></script>
+</section>

@@ -426,6 +426,8 @@ def restore_installation(archive_path, destination):
             if {'sync_cases','indicator_tables','indicator_sections','reference_tables','family_tag_identities','malware_families'}<=present:
                 from content_metrics import initialize as initialize_content_metrics
                 initialize_content_metrics(upgraded,stage)
+                from case_notes import initialize as initialize_notes
+                initialize_notes(upgraded)
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from plugin_store import retire_editor_schema
             retire_editor_schema(upgraded)

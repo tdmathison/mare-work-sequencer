@@ -563,54 +563,24 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     @api.route('/cases/<int:case_id>/notes', methods=['GET', 'POST'])
     @require({'GET': 'cases:read', 'POST': 'cases:update'})
     def case_notes(case_id):
-        case(case_id)
+        from case_notes import listing, mutate
         if request.method == 'GET':
-            limit, offset = page()
-            return {'notes': [dict(row) for row in db().execute('SELECT id,title,body,author,created,include_export FROM notes WHERE case_id=? ORDER BY id LIMIT ? OFFSET ?', (case_id, limit, offset))], 'limit': limit, 'offset': offset, 'total': db().execute('SELECT count(*) FROM notes WHERE case_id=?', (case_id,)).fetchone()[0]}
-        editable_case(case_id)
-        value = body()
-        title = value.get('title', '')
-        text = value.get('body', '')
-        include = value.get('include_export', False)
-        if not isinstance(title, str) or len(title) > 200 or not isinstance(text, str) or not text.strip() or len(text) > 100000 or not isinstance(include, bool):
-            return jsonify(error='Invalid note fields.'), 400
-        title = title.strip()
-        cursor = run('INSERT INTO notes(case_id,body,author,created,title,include_export) VALUES(?,?,?,?,?,?)',
-                     (case_id, text.strip(), g.user['username'], now(), title, int(include)))
-        if include:
-            mark_pending(case_id, 'reports/reverse-engineering-notes.md')
-        audit(f'Added note to case {case_id}')
-        return jsonify(note=dict(db().execute('SELECT id,title,body,author,created,include_export FROM notes WHERE id=?', (cursor.lastrowid,)).fetchone())), 201
+            return listing(db(),g.user,case_id,request.args)
+        return jsonify(note=mutate(db(),g.user,case_id,body())),201
 
     @api.route('/cases/<int:case_id>/notes/<int:note_id>', methods=['GET', 'PATCH', 'DELETE'])
-    @require({'GET':'cases:read', 'PATCH': 'cases:update', 'DELETE': 'cases:update'})
-    def case_note(case_id, note_id):
-        case(case_id) if request.method == 'GET' else editable_case(case_id)
-        note = db().execute('SELECT * FROM notes WHERE id=? AND case_id=?',
-                            (note_id, case_id)).fetchone()
-        if not note:
-            abort(404)
+    @require({'GET':'cases:read', 'PATCH':'cases:update', 'DELETE':'cases:update'})
+    def case_note(case_id,note_id):
+        from case_notes import mutate, serialize
+        case(case_id)
         if request.method == 'GET':
-            return jsonify(note=dict(note))
+            row=db().execute('SELECT * FROM notes WHERE id=? AND case_id=?',(note_id,case_id)).fetchone()
+            if row is None: abort(404)
+            return jsonify(note=serialize(db(),g.user,row))
         if request.method == 'DELETE':
-            if note['include_export']:
-                mark_pending(case_id, 'reports/reverse-engineering-notes.md')
-            run('DELETE FROM notes WHERE id=? AND case_id=?', (note_id, case_id))
-            audit(f'Deleted note {note_id} from case {case_id}')
-            return '', 204
-        value = body()
-        title = value.get('title', note['title'] or '')
-        text = value.get('body', note['body'])
-        include = value.get('include_export', bool(note['include_export']))
-        if not isinstance(title, str) or len(title) > 200 or not isinstance(text, str) or not text.strip() or len(text) > 100000 or not isinstance(include, bool):
-            return jsonify(error='Invalid note fields.'), 400
-        title = title.strip()
-        if bool(note['include_export']) or include:
-            mark_pending(case_id, 'reports/reverse-engineering-notes.md')
-        run('UPDATE notes SET title=?,body=?,include_export=? WHERE id=? AND case_id=?',
-            (title, text.strip(), int(include), note_id, case_id))
-        audit(f'Updated note {note_id} in case {case_id}')
-        return {'note': dict(db().execute('SELECT id,title,body,author,created,include_export FROM notes WHERE id=?', (note_id,)).fetchone())}
+            mutate(db(),g.user,case_id,{},note_id,delete=True)
+            return '',204
+        return jsonify(note=mutate(db(),g.user,case_id,body(),note_id))
 
     @api.route('/cases/<int:case_id>/draft', methods=['GET', 'PUT', 'DELETE'])
     @require({'GET': 'cases:read', 'PUT': 'cases:update', 'DELETE': 'cases:update'})

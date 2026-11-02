@@ -75,12 +75,24 @@ class Task(APIModel):
 
 class Note(APIModel):
     """Note version-1 API fields."""
+    case_id: int | None = None
     title: str | None = Field(None, max_length=200)
-    body: str | None = Field(None, max_length=100000)
+    body: str | None = None
     include_export: int | None = None
     id: int | None = None
     author: str | None = None
     created: str | None = None
+    note_uuid: str | None = None
+    author_uuid: str | None = None
+    edited: str | None = None
+    event_type: str | None = None
+    source_id: str | None = None
+    migrated_at: str | None = None
+    html: str | None = None
+    note_type: Literal['user', 'system'] | None = None
+    event_metadata: dict[str, Any] | None = None
+    activity_link: NoteActivityLink | None = None
+    can_manage: bool | None = None
 
 class Draft(APIModel):
     """Draft version-1 API fields."""
@@ -563,20 +575,26 @@ class NotesListParams(APIModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
     limit: int | None = Field(None, ge=1, le=500)
     offset: int | None = Field(None, ge=0)
+    type: Literal['all', 'user', 'system'] | None = None
+    q: str | None = None
+    order: Literal['newest', 'oldest'] | None = None
 
 class NotesListResponse(APIModel):
     """NotesListResponse version-1 API fields."""
     notes: list[Note] | None = None
+    total: int | None = None
     limit: int | None = None
     offset: int | None = None
-    total: int | None = None
+    counts: NotesListResponseCounts | None = None
+    editable: bool | None = None
 
 class NotesCreateRequest(APIModel):
     """NotesCreateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
     title: str | None = Field(None, max_length=200)
-    body: str = Field(..., min_length=1, max_length=100000)
+    body: str = Field(..., min_length=1)
     include_export: bool | None = None
+    request_id: str | None = Field(None, pattern='^[a-f0-9]{32}$')
 
 class NotesCreateResponse(APIModel):
     """NotesCreateResponse version-1 API fields."""
@@ -590,7 +608,7 @@ class NotesUpdateRequest(APIModel):
     """NotesUpdateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
     title: str | None = Field(None, max_length=200)
-    body: str | None = Field(None, max_length=100000)
+    body: str | None = None
     include_export: bool | None = None
 
 class NotesUpdateResponse(APIModel):
@@ -974,6 +992,31 @@ class ToolsYaraFilesParams(APIModel):
 class ToolsYaraFilesResponse(APIModel):
     """ToolsYaraFilesResponse version-1 API fields."""
     message: str | None = None
+
+class MetricsContentParams(APIModel):
+    """MetricsContentParams version-1 API fields."""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    start: str | None = None
+    end: str | None = None
+    granularity: Literal['monthly', 'weekly'] | None = None
+    measure: Literal['added', 'cumulative'] | None = None
+
+class MetricsContentResponse(APIModel):
+    """MetricsContentResponse version-1 API fields."""
+    today: str | None = None
+    start: str | None = None
+    end: str | None = None
+    timezone: str | None = None
+    granularity: str | None = None
+    measure: str | None = None
+    last_updated: str | None = None
+    coverage_start: str | None = None
+    coverage_date: str | None = None
+    history_notice: str | None = None
+    unknown_dates: int | None = None
+    deleted_history: bool | None = None
+    buckets: list[MetricsContentResponseBucketsItem] | None = None
+    series: dict[str, Any] | None = None
 
 class CoverageGetParams(APIModel):
     """CoverageGetParams version-1 API fields."""
@@ -1759,6 +1802,11 @@ class UsersUpdateResponse(APIModel):
     """UsersUpdateResponse version-1 API fields."""
     user: User | None = None
 
+class NoteActivityLink(APIModel):
+    """NoteActivityLink version-1 API fields."""
+    href: str | None = None
+    label: str | None = None
+
 class ReadinessValueItem(APIModel):
     """ReadinessValueItem version-1 API fields."""
     category: Literal['reports', 'iocs', 'signatures', 'scripts', 'mappings', 'supporting', 'samples'] | None = None
@@ -1838,6 +1886,12 @@ class CasesGetResponseCase(APIModel):
     readiness: Readiness | None = None
     history: list[CasesGetResponseCaseHistoryItem] | None = None
     deferred: list[CasesGetResponseCaseDeferredItem] | None = None
+
+class NotesListResponseCounts(APIModel):
+    """NotesListResponseCounts version-1 API fields."""
+    all: int | None = None
+    user: int | None = None
+    system: int | None = None
 
 class ReportsGetResponseSections(APIModel):
     """ReportsGetResponseSections version-1 API fields."""
@@ -1932,6 +1986,13 @@ class TaskCollectionsCaseGroupsResponseApplicationsItem(APIModel):
     source_collection_id: str | None = None
     template_ids: list[str] | None = None
     added: str | None = None
+
+class MetricsContentResponseBucketsItem(APIModel):
+    """MetricsContentResponseBucketsItem version-1 API fields."""
+    start: str | None = None
+    end: str | None = None
+    label: str | None = None
+    partial: bool | None = None
 
 class CoverageGetResponseRowsItem(APIModel):
     """CoverageGetResponseRowsItem version-1 API fields."""

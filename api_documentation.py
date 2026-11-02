@@ -45,7 +45,7 @@ CASE_FIELDS = {'name': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLe
 TASK_FIELDS = {'title': {**TITLE, 'minLength': 1}, 'body': {**TEXT, 'maxLength': 20000},
                'description': {**TEXT, 'description': 'Alias for body; body takes precedence.', 'maxLength': 20000},
                'priority': {**TEXT, 'enum': ['Low', 'Normal', 'High', 'Critical'], 'default': 'Normal'}}
-NOTE_FIELDS = {'title': TITLE, 'body': MARKDOWN, 'include_export': BOOL}
+NOTE_FIELDS = {'title': TITLE, 'body': TEXT, 'include_export': BOOL}
 
 SCHEMAS = {
     'Error': obj({'error': TEXT, 'required_permission': TEXT, 'blockers': array(TEXT), 'needs_choice': BOOL}, ('error',)),
@@ -58,7 +58,7 @@ SCHEMAS = {
                  **dict.fromkeys(('owner_name', 'creator_name'), NULL_TEXT), 'creator_id': NULL_INT, 'owner_active': BOOL}),
     'Task': obj({**{key: value for key, value in TASK_FIELDS.items() if key != 'description'}, 'id': INT,
                  'state': {**TEXT, 'enum': ['Not Started', 'In Progress', 'Completed']}, 'done': INT, 'created': TEXT,'group_id':NULL_TEXT,'source_collection_id':NULL_TEXT,'source_template_id':NULL_TEXT,'source_revision':NULL_INT,'position':INT}),
-    'Note': obj({**NOTE_FIELDS, 'include_export': INT, 'id': INT, 'author': TEXT, 'created': TEXT}),
+    'Note': obj({'case_id':INT, **NOTE_FIELDS, 'include_export': INT, 'id': INT, 'author': TEXT, 'created': TEXT, **dict.fromkeys(('note_uuid','author_uuid','edited','event_type','source_id','migrated_at','html'),TEXT), 'note_type':{**TEXT,'enum':['user','system']}, 'event_metadata':obj({},additionalProperties=True), 'activity_link':obj({'href':TEXT,'label':TEXT},nullable=True), 'can_manage':BOOL}),
     'Draft': obj({'title': TITLE, 'body': MARKDOWN, 'updated': TEXT}, nullable=True),
     'Readiness': array(obj({'category': CATEGORY, 'label': TEXT, 'status': TEXT, 'reason': TEXT, 'count': INT})),
     'File': obj({'path': TEXT, 'size': INT, 'description': TEXT}),
@@ -169,9 +169,9 @@ contract('case_tasks', 'GET', 'List case tasks', paged('tasks', ref('Task')), pa
 contract('case_tasks', 'POST', 'Create a task', result(task=ref('Task')), body=obj(TASK_FIELDS, ('title',)), status=201)
 contract('case_task', 'PATCH', 'Update a task', result(task=ref('Task')), body=obj({**TASK_FIELDS, 'state': SCHEMAS['Task']['properties']['state']}))
 contract('case_task', 'DELETE', 'Delete a task', status=204)
-contract('case_notes', 'GET', 'List case notes', paged('notes', ref('Note')), parameters=PAGING)
-contract('case_notes', 'POST', 'Create a note', result(note=ref('Note')), body=obj({**NOTE_FIELDS, 'body': {**MARKDOWN, 'minLength': 1}}, ('body',)), status=201)
-contract('case_note', 'PATCH', 'Update a note', result(note=ref('Note')), body=obj(NOTE_FIELDS), description='The resulting body must contain non-whitespace text.')
+contract('case_notes', 'GET', 'List case notebook entries', json_response(obj({'notes':array(ref('Note')),'total':INT,'limit':INT,'offset':INT,'counts':obj({'all':INT,'user':INT,'system':INT}),'editable':BOOL})), parameters=PAGING+[field('type',{**TEXT,'enum':['all','user','system']}),field('q',TEXT),field('order',{**TEXT,'enum':['newest','oldest']})],description='Search body, legacy title and actor. Counts match the search across all pages before type filtering. Stable created timestamp and local ID ordering. System entries are read-only.')
+contract('case_notes', 'POST', 'Create a note', result(note=ref('Note')), body=obj({**NOTE_FIELDS, 'body': {**TEXT, 'minLength': 1}, 'request_id':{**TEXT,'pattern':'^[a-f0-9]{32}$'}}, ('body',)), status=201, description='Creates a User note with server identity and clock. Optional request_id deduplicates retries per Case/author; reuse with different content returns 409. Legacy title/include_export remain compatibility fields; delivery defaults to internal.', errors=(409,))
+contract('case_note', 'PATCH', 'Update a note', result(note=ref('Note')), body=obj(NOTE_FIELDS), description='Only the author with Case edit rights or an Administrator can manage a User note. System notes are immutable. Closed Cases are read-only. Body must contain non-whitespace text.')
 contract('case_note', 'DELETE', 'Delete a note', status=204)
 contract('case_draft', 'GET', 'Read your case note draft', result(draft=ref('Draft')))
 contract('case_draft', 'PUT', 'Replace your case note draft', result(draft=ref('Draft')), body=obj({'title': TITLE, 'body': MARKDOWN}))

@@ -199,6 +199,12 @@ def test_encrypted_complete_export_and_actual_replacement(tmp_path):
     from test_explorer_research import configuration
     saved = post(c, '/data-explorer/views', name='Recovery graph', description='Owner-scoped configuration', configuration=json.dumps(configuration(cid)))
     assert saved.status_code == 201, saved.text
+    note=post(c,f'/case-notebook/{cid}',payload=json.dumps({'body':'Recovery notebook draft'})).json['note']
+    note=post(c,f'/case-notebook/{cid}/{note["id"]}',payload=json.dumps({'body':'Recovery notebook preserved'})).json['note']
+    from case_notes import activity
+    with app.app_context():
+        activity(db(),cid,'test.recovery','Preserved system history',{'count':1},'case-notes-recovery-event')
+        db().commit()
     archive, job = export(c, complete=True)
     assert (
         job["manifest"]["complete"] and job["manifest"]["record_counts"]["users"] == 1
@@ -249,6 +255,11 @@ with app.app_context():
     assert view['name']=='Recovery graph' and __import__('json').loads(view['configuration'])['positions']
     assert len(client.get('/data-explorer/views').json['views'])==1
 
+    note=db().execute("SELECT * FROM notes WHERE body='Recovery notebook preserved'").fetchone()
+    assert note['note_uuid']=='NOTE_IDENTITY' and note['edited'] and note['author']=='recovery-admin'
+    assert note['author_uuid']==db().execute("SELECT user_uuid FROM users WHERE username='recovery-admin'").fetchone()[0]
+    historical=db().execute("SELECT * FROM notes WHERE source_id='case-notes-recovery-event'").fetchone()
+    assert historical['body']=='Preserved system history' and historical['note_type']=='system' and not historical['author_uuid']
     case=db().execute('SELECT * FROM cases').fetchone();assert case['number']=='MARE-2026-000050' and case['stage']==1
     assert db().execute('SELECT count(*) FROM case_tags').fetchone()[0]==1
     assert db().execute("SELECT 1 FROM reserved_case_numbers WHERE number='MARE-2026-000050'").fetchone()
@@ -269,7 +280,7 @@ with app.app_context():
     assert inventory['completed_current']==db().execute('SELECT count(*) FROM cases WHERE stage=3').fetchone()[0]
     from app import allocate_case_number
     next_number=allocate_case_number(db());assert next_number!='MARE-2026-000050';db().rollback()
-""".replace(
+""".replace("NOTE_IDENTITY",note["note_uuid"]).replace(
         "ARCHIVE", str(source)
     )
     checked = subprocess.run(

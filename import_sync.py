@@ -671,6 +671,8 @@ class ImportSync:
                     "Destination changed after preview. Upload again for refreshed review."
                 )
         if classification == "unchanged":
+            from case_notes import merge_history
+            merge_history(self.db(),cid,validated[3]["notes"])
             if source:
                 self.sync.merge_graph(source["case_uuid"], nodes)
                 combined = self.sync.graph(source["case_uuid"])
@@ -856,6 +858,8 @@ class ImportSync:
             refresh_stix_output(destination/'mip/iocs',validated[1])
             if fingerprint(self.sync.snapshot(cid)) != canonical_hash:
                 raise ValueError("Restored content fingerprint differs; rolled back.")
+            from case_notes import baseline as baseline_notes
+            baseline_notes(con,cid)
             outcome.update(
                 case_uuid=case_uuid,
                 destination_number=con.execute(
