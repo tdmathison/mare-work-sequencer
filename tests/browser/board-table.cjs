@@ -46,6 +46,10 @@ with app.app_context():
   assert.match(await page.locator('.mip-table').innerText(), /Unassigned/);
   assert.match(await page.locator('.mip-table').innerText(), /\(disabled\)/);
   assert.match(await page.locator('.mip-table').innerText(), /JIRA: EXT-123/);
+  const noReference = page.locator('.mip-table-number').filter({hasText:'CM-TEST'});
+  assert.equal(await noReference.locator('.mip-table-reference.muted').innerText(), 'None');
+  assert.match(await noReference.innerText(), /^CM-TEST\s+None$/);
+  assert.equal(await noReference.locator('.muted').evaluate(el => getComputedStyle(el).color), await page.locator('.mip-table-reference').filter({hasText:'JIRA: EXT-123'}).first().evaluate(el => getComputedStyle(el).color));
   for (const stage of ['Not started','Malware Analysis','Packaging & Delivery','Completed']) {
     assert.ok((await page.locator('.mip-table-stage-badge').allTextContents()).includes(stage));
   }

@@ -53,7 +53,7 @@
     <tbody role="rowgroup">
       {% for c in cases %}
       <tr role="row">
-        <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% endif %}</td>
+        <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% else %} <span class="mip-table-reference muted">None</span>{% endif %}</td>
         <td role="cell" data-label="Case title" class="mip-table-title"><a href="/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
         {% set owner_label = (c.owner_name or 'Unassigned') ~ (' (disabled)' if c.owner_name and not c.owner_active else '') %}
         <td role="cell" data-label="Assigned owner" class="mip-table-person"><span title="{{owner_label}}">{{owner_label}}</span></td>
