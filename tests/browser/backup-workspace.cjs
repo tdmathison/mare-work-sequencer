@@ -49,7 +49,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  assert.ok((await page.locator('#import-preview table').textContent()).includes('MAL_BROWSER'));
  await page.locator('[data-import-step="1"]').click();assert.ok((await page.locator('#archive-selected').textContent()).includes('tags.zip'));
  await page.locator('[data-import-go="2"]').first().click();await page.locator('[data-import-go="3"]').click();
- await page.locator('.backup-conflict select').selectOption('reuse');await page.getByRole('button',{name:'Generate new preview'}).click();
+ assert.equal(await page.locator('.backup-conflict select').count(),0);assert.ok((await page.locator('.backup-conflict').textContent()).includes('Automatically selected'));await page.getByRole('button',{name:'Generate new preview'}).click();
  await page.locator('#import-status').filter({hasText:'preview · Ready for review'}).waitFor();await page.locator('#confirm-import').check();await page.waitForFunction(()=>!document.getElementById('import-action').disabled);
  await page.locator('#import-action').click();await page.locator('#import-result > p').filter({hasText:'Reviewed merge finished.'}).waitFor();
  assert.ok((await page.locator('#import-result').textContent()).includes('Unchanged'));

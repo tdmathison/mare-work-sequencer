@@ -147,3 +147,54 @@ def test_legacy_tag_catalog_has_confirmed_record_outcomes():
     completed = wait(client, plan["id"], "completed")
     assert completed["result"]["records"]
     assert all(r["category"] == "tags" and r["action"] == "unchanged" for r in completed["result"]["records"])
+
+
+def test_keep_only_family_resolution_skips_incoming_reports_without_merging():
+    import io
+    from test_family_reports import pdf
+    client,uid,_,_=setup()
+    response=post(client,'/malware-families/new',name='Conflict family',tag='MAL_RECOVERY',short_description='Incoming research')
+    fid=response.location.rsplit('/',1)[-1].split('?')[0]
+    assert post(client,f'/malware-families/{fid}/reports/upload',version=1,reports=(io.BytesIO(pdf()),'incoming-research.pdf')).status_code==302
+    archive,_=export(client,['families'],password='')
+    with app.app_context():
+        attached=dict(db().execute('SELECT * FROM family_reports WHERE family_id=?',(fid,)).fetchone())
+        version=db().execute('SELECT version FROM malware_families WHERE id=?',(fid,)).fetchone()[0]
+    assert post(client,f'/malware-families/{fid}/reports/{attached["id"]}/delete',version=version,confirm='1').status_code==302
+    with app.app_context():
+        db().execute('UPDATE malware_families SET short_description=?,version=version+1 WHERE id=?',('Destination-only research',fid));db().commit()
+        expected=dict(db().execute('SELECT * FROM malware_families WHERE id=?',(fid,)).fetchone())
+    plan=inspect(client,archive,password='')
+    conflict=next(c for c in plan['preview']['conflicts'] if c['key']=='family:'+fid)
+    assert [o[0] for o in conflict['options']]==['keep']
+    assert conflict['record_name']=='Conflict family' and conflict['record_id']==fid
+    assert conflict['reports']==[dict(identifier=attached['id'],name='incoming-research.pdf')]
+    assert post(client,'/backup-restore/jobs/'+plan['id']+'/apply').status_code==409
+    # An unsupported overwrite never becomes an accepted resolution.
+    path='/backup-restore/jobs/'+plan['id']+'/preview'
+    assert post(client,path,choices=json.dumps({'family:'+fid:'replace'}),passphrase='').status_code==202
+    rejected=wait(client,plan['id'])
+    assert rejected['preview']['conflicts']
+    assert post(client,'/backup-restore/jobs/'+plan['id']+'/apply').status_code==409
+    # This is the same request value automatically chosen by the UI.
+    assert post(client,path,choices=json.dumps({'family:'+fid:'keep'}),passphrase='').status_code==202
+    reviewed=wait(client,plan['id'])
+    assert not reviewed['preview']['conflicts']
+    item=next(r for r in reviewed['preview']['records'] if r['category']=='families')
+    assert item['predicted_action']=='skipped' and item['report_count']==1
+    assert 'incoming-research.pdf' in item['details']
+    assert reviewed['preview']['shared_actions']['skipped_family_reports']==1
+    with app.app_context():
+        assert dict(db().execute('SELECT * FROM malware_families WHERE id=?',(fid,)).fetchone())==expected
+        assert db().execute('SELECT count(*) FROM family_reports WHERE family_id=?',(fid,)).fetchone()[0]==0
+    assert reviewed['preview']['resolutions']=={'family:'+fid:'keep'}
+    assert post(client,'/backup-restore/jobs/'+plan['id']+'/apply',choices=json.dumps({'family:'+fid:'replace'})).status_code==409
+    assert post(client,'/backup-restore/jobs/'+plan['id']+'/apply',choices=json.dumps({'family:'+fid:'keep'})).status_code==202
+    completed=wait(client,plan['id'],'completed')
+    item=next(r for r in completed['result']['records'] if r['category']=='families')
+    assert item['action']=='skipped' and item['report_count']==1
+    assert 'incoming-research.pdf' in item['details'] and attached['id'] in item['details']
+    assert completed['result']['shared_actions']['skipped_family_reports']==1
+    with app.app_context():
+        assert dict(db().execute('SELECT * FROM malware_families WHERE id=?',(fid,)).fetchone())==expected
+        assert db().execute('SELECT count(*) FROM family_reports WHERE family_id=?',(fid,)).fetchone()[0]==0

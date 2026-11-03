@@ -727,6 +727,8 @@ class BackupWorkspace:
                 'kept_destination_actors': len(source_library.get('actors', [])) - len(library.get('actors', [])),
                 'actor_additions': sum(not bool(self.db().execute('SELECT 1 FROM threat_actors WHERE id=?', (a['id'],)).fetchone()) for a in library.get('actors', [])),
                 "incoming_families": len(source_library["families"]),
+                "skipped_family_reports": sum(len(f["reports"]) for f in source_library["families"] if f["id"] not in {r["id"] for r in library["families"]}),
+                "skipped_actor_reports": sum(len(a["reports"]) for a in source_library.get("actors",[]) if a["id"] not in {r["id"] for r in library.get("actors",[])}),
                 "kept_destination": len(source_library["families"])
                 - len(library["families"]),
                 "additions": sum(
@@ -805,7 +807,7 @@ class BackupWorkspace:
                         ),
                     }
                 )
-            from backup_presentation import record, profile
+            from backup_presentation import record, profile, skipped_profile_details
             for index, (path, validated, meta) in enumerate(plans):
                 case = validated[0]
                 display_records.append(record("cases", case.get("number"), case["name"], index=index,
@@ -817,7 +819,7 @@ class BackupWorkspace:
                     exists = self.db().execute(f"SELECT 1 FROM {table} WHERE id=?", (value["id"],)).fetchone()
                     action = "skipped" if value["id"] not in retained else "unchanged" if exists else "new"
                     display_records.append({**profile(category, value), "predicted_action": action,
-                        "details": "Reviewed profile import; conflicts require explicit resolution."})
+                        "details": skipped_profile_details(profile(category,value)) if action=="skipped" else "Reviewed profile import; conflicts require explicit resolution."})
             registry = json.loads((probe / "tag-registry.json").read_text()) if (probe / "tag-registry.json").exists() else []
             for value in registry:
                 resolved = next((row for row in mapping if row["identity"] == value["identity"]), None)
@@ -890,6 +892,7 @@ class BackupWorkspace:
             counts=counts,
             file_count=file_count,
             conflicts=conflicts,
+            resolutions=dict(data.get("choices", {})),
             blocking=findings,
             mapping=mapping,
             cases=case_choices,
@@ -1353,6 +1356,13 @@ class BackupWorkspace:
                 or data["preview"]["conflicts"]
             ):
                 abort(409)
+            if 'choices' in request.form:
+                try:
+                    submitted_choices=json.loads(request.form['choices'])
+                except (ValueError,TypeError):
+                    return jsonify(error='Invalid conflict resolutions.'),400
+                if submitted_choices != data.get('choices',{}):
+                    return jsonify(error='Conflict resolutions changed after preview. Generate a new preview before importing.'),409
             if data["preview"]["complete"] and request.form.get("ack") != "REPLACE":
                 return (
                     jsonify(

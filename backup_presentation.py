@@ -10,7 +10,15 @@ def record(category, identifier, name, **fields):
 
 def profile(category, value):
     return record(category, value["id"], value["name"], aliases=value.get("aliases", []),
-                  description=value.get("short_description", ""))
+                  description=value.get("short_description", ""), report_count=len(value.get("reports",[])),
+                  reports=[dict(identifier=r["id"],name=r.get("original_filename") or r.get("title") or r["id"]) for r in value.get("reports",[])])
+
+
+def skipped_profile_details(item):
+    reports=item.get('reports',[])
+    noun='family' if item['category']=='families' else 'actor'
+    names='; '.join(r['name']+' ('+r['identifier']+')' for r in reports)
+    return ('Keep destination '+noun+' unchanged; skip incoming '+noun+' "'+item['name']+'" ('+item['identifier']+') and '+str(item.get('report_count',len(reports)))+' attached report(s).'+(' Skipped reports: '+names+'.' if names else ''))
 
 
 def database_records(source):
@@ -73,7 +81,7 @@ def outcomes(preview, case_outcomes, shared, *, replaced=False):
             if completed:
                 item.update(completed)
             elif item.get("predicted_action") == "skipped" and shared is not None:
-                item.update(action="skipped", details="Skipped by the reviewed keep-destination choice.")
+                item.update(action="skipped", details=skipped_profile_details(item) if item["category"] in ("families","actors") else "Skipped by the reviewed keep-destination choice.")
             else:
                 item.update(action="not_processed", details="No completed record outcome was recorded.")
         if item.get("action") == "error":

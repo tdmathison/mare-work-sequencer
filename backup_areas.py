@@ -187,6 +187,8 @@ def resolve(con, root, staged, choices):
                 dict(
                     key=key,
                     label=str(exc),
+                    record_name=record["name"], record_id=record["id"],
+                    reports=[dict(identifier=r["id"],name=r.get("original_filename") or r.get("title") or r["id"]) for r in record["reports"]],
                     options=[
                         [
                             "keep",
@@ -216,7 +218,7 @@ def resolve(con, root, staged, choices):
             key = 'actor:' + record['id']
             if choices.get(key) == 'keep':
                 continue
-            actor_conflicts.append(dict(key=key, label=str(exc), options=[['keep', 'Keep destination research; skip this incoming actor and its reports']]))
+            actor_conflicts.append(dict(key=key, label=str(exc), record_name=record['name'],record_id=record['id'], reports=[dict(identifier=r['id'],name=r.get('original_filename') or r.get('title') or r['id']) for r in record['reports']], options=[['keep', 'Keep destination research; skip this incoming actor and its reports']]))
         if record['id'] not in actor_skip:
             skip_actor = False
             for link in record['known_families']:

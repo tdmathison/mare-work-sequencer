@@ -25,7 +25,9 @@
   if(new URL(location.href).searchParams.get('tab')!=='package'&&!location.hash.startsWith('#readiness-'))return;
   const requested=routeSection();
   if(requestedSection===requested)return;
-  section.value=requested;page=1;load();
+  section.value=requested;page=1;
+  if(state){state={...state,rows:[],page:1,pages:1,total:0};render();get('[data-register-empty]').hidden=true;get('[data-register-page]').textContent='Loading section…';}
+  load();
  }
  // Options come from the authoritative server template, before async rows arrive.
  section.value=routeSection();
@@ -43,7 +45,7 @@
   get('[data-register-empty]').hidden=!!currentRows.length;get('[data-register-page]').textContent=`Page ${state.page} / ${state.pages} · ${state.total} artifacts`;get('[data-register-previous]').disabled=state.page<=1;get('[data-register-next]').disabled=state.page>=state.pages;selection();
   if(state.locked)status.textContent='Start analysis or reopen the Case to edit its content.';
  }
- async function load(){const seq=++sequence;requestedSection=section.value;try{const next=await request(base+'/package-register?'+new URLSearchParams({section:section.value,q:search.value,type:type.value,page}));if(seq!==sequence)return !!state;const cleared=state?.sections.filter(old=>old.status==='Not applicable'&&next.sections.find(n=>n.category===old.category)?.status==='Populated').map(s=>s.label)||[];state=next;page=next.page;render();if(cleared.length)status.textContent=cleared.join(', ')+': content saved; Not applicable cleared.';return true;}catch(error){status.textContent=error.message;return false;}}
+ async function load(){const seq=++sequence;requestedSection=section.value;rows.setAttribute('aria-busy','true');try{const next=await request(base+'/package-register?'+new URLSearchParams({section:section.value,q:search.value,type:type.value,page}));if(seq!==sequence)return !!state;const cleared=state?.sections.filter(old=>old.status==='Not applicable'&&next.sections.find(n=>n.category===old.category)?.status==='Populated').map(s=>s.label)||[];state=next;page=next.page;render();rows.setAttribute('aria-busy','false');if(cleared.length)status.textContent=cleared.join(', ')+': content saved; Not applicable cleared.';return true;}catch(error){if(seq===sequence){rows.setAttribute('aria-busy','false');status.textContent=error.message;}return false;}}
  section.addEventListener('change',()=>selectSection(section.value));type.addEventListener('change',()=>{page=1;load();});let timer;search.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>{page=1;load();},150);});get('[data-register-previous]').onclick=()=>{page--;load();};get('[data-register-next]').onclick=()=>{page++;load();};
  get('[data-register-applicability] input').addEventListener('change',async event=>{event.target.disabled=true;try{await request(base+'/readiness',data({category:section.value,status:event.target.checked?'Not applicable':'Empty',ajax:'1'}));status.textContent='Section applicability saved.';}catch(error){status.textContent=error.message;}finally{load();}});
  get('[data-register-select-all]').onchange=event=>{for(const r of currentRows)if(r.path&&r.bulk_download){if(event.target.checked)selected.add(r.path);else selected.delete(r.path);}render();};

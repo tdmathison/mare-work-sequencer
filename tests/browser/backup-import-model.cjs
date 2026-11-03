@@ -22,3 +22,17 @@ assert.equal(model({}, {added:100}).totals.added,0,'Old aggregates cannot fabric
 assert.equal(model({}, {records:[{category:'cases',action:'replaced'}]}).totals.replaced,1);
 const collections=model({areas:['task_collections']},{records:[{category:'task_collections',identifier:'collection-1',name:'Guidance',action:'added'}]});assert.deepEqual(collections.included,['task_collections']);assert.equal(collections.totals.added,1);
 console.log('Import presentation adapter: all categories, exact totals, duplicates, updates, errors, empty and legacy results passed.');
+const {resolution}=require('../../static/backup-import.js');
+for(const prefix of ['case','tag','family','actor','task_collection']){
+ const key=prefix+':record';
+ assert.equal(resolution({key,options:[]},'stale').kind,'blocked');
+ assert.equal(resolution({key,options:[]},'stale').value,'');
+ const single=resolution({key,options:[['keep','Keep destination']]},'stale');
+ assert.equal(single.kind,'automatic');assert.equal(single.value,'keep');
+ const multi=resolution({key,options:[['keep','Keep'],['replace','Replace']]},'');
+ assert.equal(multi.kind,'choice');assert.equal(multi.value,'');
+ assert.equal(resolution({key,options:multi.options},'replace').value,'replace');
+ assert.equal(resolution({key,options:multi.options},'invalid').value,'');
+}
+assert.equal(resolution({options:[['','Invalid'],['keep','Keep'],['keep','Duplicate']]}).kind,'automatic');
+console.log('Conflict resolution model: zero blocks, one auto-selects, multiple preserve valid explicit choices; obsolete choices are cleared for all conflict types.');

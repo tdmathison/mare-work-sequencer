@@ -103,7 +103,18 @@ identity conflicts require reconciliation in the application. Accepted tag alias
 are persisted for idempotent repeated imports. Missing sections never delete data.
 Source historical case numbers remain reserved and allocation advances safely.
 
+A single supported resolution is selected automatically and shown as explanatory
+text, including affected profile/report identities. Multiple resolutions retain a
+dropdown; no valid resolution is a blocking issue. Sole-option selection never
+executes an import: select **Generate new preview**, review the resulting skips,
+then confirm the import explicitly. A family and its attached reports are one
+import unit; keep-destination skips the entire incoming unit without merging any
+reports. Preview and final results list the skipped report names and counts.
+
 Each resolution regenerates the preview. Archive/options changes invalidate it.
+Validated choices are preserved with the job and restored when resuming a preview.
+The web import request echoes them; changed values are rejected until revalidated.
+Older callers may omit that optional echo and use the stored validated plan.
 Import checks the exact archive/payload hash and destination state; changes require
 a fresh preview. Shared records apply transactionally and cases use the established
 per-case staged-file recovery journals. An interrupted multi-case merge can have
