@@ -175,11 +175,13 @@ clear destination actor data.
 
 ## Archive download names
 
-Multi-category downloads use `MWS_YYYYMMDD-HHMMSS_TYPES.zip`, for example
-`MWS_20261029-124901_C_TA_MF.zip`. Identifiers follow the fixed order `C` (cases),
-`T` (tags), `TA` (threat actors), `MF` (malware families). Only explicitly selected
+Multi-category downloads use `MWS_YYYYMMDD-HHMMSS_USERNAME_TYPES.zip`, for example
+`MWS_20261102-204834_tm876w_C_T_TA_MF_TC.zip`. The initiating username is
+made filesystem-safe and fixed when the job is created. Identifiers follow the
+fixed order `C` (cases), `T` (tags), `TA` (threat actors), `MF` (malware families),
+`TC` (task collections). Only explicitly selected
 areas appear, including empty areas; automatically included dependencies do not
-add identifiers. Complete backups include all four identifiers.
+add identifiers. Complete backups include all five identifiers.
 
 The server fixes the name when the operation begins, using `DISPLAY_TIMEZONE`
 (configured by `MARE_DISPLAY_TIMEZONE`, UTC by default), or server-local time when

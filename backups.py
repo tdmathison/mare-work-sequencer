@@ -307,7 +307,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             abort(403)
         if request.endpoint in ('database_backup','api.api_database_backup') and not getattr(g,'backup_worker',False):
             return redirect(url_for('import_export_page'))
-        filename = getattr(g, "backup_archive_name", None) or archive_filename(("cases", "tags", "actors", "families"), app.config.get("DISPLAY_TIMEZONE"))
+        filename = getattr(g, "backup_archive_name", None) or archive_filename(("cases", "tags", "actors", "families"), app.config.get("DISPLAY_TIMEZONE"), username=g.user["username"])
         connection = db()
         connection.execute('BEGIN IMMEDIATE')
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
@@ -398,7 +398,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
     def backup_export():
         areas = set(getattr(g, "backup_areas", ("cases","families","tags","actors","task_collections")))
         try:
-            filename = getattr(g, "backup_archive_name", None) or archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"))
+            filename = getattr(g, "backup_archive_name", None) or archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"), username=g.user["username"])
         except ValueError as exc:
             flash(str(exc))
             return redirect(url_for('import_export_page'))

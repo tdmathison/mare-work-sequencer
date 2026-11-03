@@ -34,19 +34,19 @@ def clock(monkeypatch):
 def test_all_category_combinations_use_explicit_order_and_local_24_hour_time(clock, areas):
     suffix = "_".join(code for key, code in MAPPING if key in areas)
     # Reverse input order to prove that selection order never affects filenames.
-    filename = names.archive_filename(list(reversed(areas)), "America/Los_Angeles")
-    assert filename == "MWS_20260102-150405_" + suffix + ".zip"
-    assert re.fullmatch(r"MWS_\d{8}-\d{6}_(?:C|T|TA|MF|TC)(?:_(?:C|T|TA|MF|TC))*\.zip", filename)
+    filename = names.archive_filename(list(reversed(areas)), "America/Los_Angeles", username="tm876w")
+    assert filename == "MWS_20260102-150405_tm876w_" + suffix + ".zip"
+    assert re.fullmatch(r"MWS_\d{8}-\d{6}_tm876w_(?:C|T|TA|MF|TC)(?:_(?:C|T|TA|MF|TC))*\.zip", filename)
 
 
 def test_no_categories_rejected_and_server_local_fallback(clock):
     with pytest.raises(ValueError, match="Select at least one"):
-        names.archive_filename([], "UTC")
+        names.archive_filename([], "UTC", username="tm876w")
     with pytest.raises(ValueError, match="implemented"):
-        names.archive_filename(["unknown"], "UTC")
+        names.archive_filename(["unknown"], "UTC", username="tm876w")
     expected = Clock.instant.astimezone().strftime("%Y%m%d-%H%M%S")
-    assert names.archive_filename(["tags"]) == f"MWS_{expected}_T.zip"
-    assert names.archive_filename(["tags"], "UTC") == "MWS_20260102-230405_T.zip"
+    assert names.archive_filename(["tags"], username="tm876w") == f"MWS_{expected}_tm876w_T.zip"
+    assert names.archive_filename(["tags"], "UTC", username="tm876w") == "MWS_20260102-230405_tm876w_T.zip"
 
 
 @pytest.mark.parametrize("areas", [["tags"], ["actors"], ["families"], ["cases", "actors", "families"], list(KEYS)])
@@ -54,7 +54,7 @@ def test_download_matches_persisted_name_and_explicit_empty_categories(clock, ar
     client, *_ = setup()
     archive, job = export(client, areas, password="")
     suffix = "_".join(code for key, code in MAPPING if key in areas)
-    expected = f"MWS_20260102-150405_{suffix}.zip"
+    expected = f"MWS_20260102-150405_recovery-admin_{suffix}.zip"
     assert job["archive_name"] == expected
     response = client.get("/backup-restore/jobs/" + job["id"] + "/download")
     assert response.headers["Content-Disposition"] == f"attachment; filename={expected}"
@@ -83,7 +83,10 @@ def test_name_is_fixed_at_job_creation_before_worker_starts(clock, monkeypatch):
         assert response.status_code == 202
     jid = response.json["id"]
     stored = json.loads((service.job_path(jid) / "job.json").read_text())
-    assert stored["archive_name"] == "MWS_20260102-150405_T.zip"
+    assert stored["archive_name"] == "MWS_20260102-150405_recovery-admin_T.zip"
+    assert stored["owner_username"] == "recovery-admin"
+    with app.app_context():
+        db().execute("UPDATE users SET username=? WHERE user_uuid=?", ("renamed-analyst",stored["owner"]));db().commit()
     monkeypatch.setattr(Clock, "instant", datetime(2030, 12, 31, 1, 2, 3, tzinfo=timezone.utc))
     service.submit(stored, "export", "")
     completed = wait(client, jid, "completed")
@@ -95,14 +98,14 @@ def test_name_is_fixed_at_job_creation_before_worker_starts(clock, monkeypatch):
 def test_complete_backup_and_legacy_job_download_names(clock):
     client, *_ = setup()
     archive, job = export(client, complete=True)
-    assert job["archive_name"] == "MWS_20260102-150405_C_T_TA_MF_TC.zip"
+    assert job["archive_name"] == "MWS_20260102-150405_recovery-admin_C_T_TA_MF_TC.zip"
     service = app.extensions["backup_workspace"]
     # Older durable jobs have no archive_name. Resolve using their original start.
     job.pop("archive_name")
     job["created_at"] = "2026-01-02T23:04:05+00:00"
     service.save(job)
     response = client.get("/backup-restore/jobs/" + job["id"] + "/download")
-    assert "MWS_20260102-150405_C_T_TA_MF_TC.zip" in response.headers["Content-Disposition"]
+    assert "MWS_20260102-150405_recovery-admin_C_T_TA_MF_TC.zip" in response.headers["Content-Disposition"]
     assert response.data == archive
 
 
@@ -120,7 +123,7 @@ def test_legacy_portable_endpoint_uses_same_name(clock):
     client, *_ = setup()
     response = post(client, "/import-export/export")
     assert response.status_code == 200
-    assert response.headers["Content-Disposition"] == "attachment; filename=MWS_20260102-150405_C_T_TA_MF_TC.zip"
+    assert response.headers["Content-Disposition"] == "attachment; filename=MWS_20260102-150405_recovery-admin_C_T_TA_MF_TC.zip"
     assert response.mimetype == "application/zip"
     with zipfile.ZipFile(io.BytesIO(response.data)) as source:
         assert "backup.json" in source.namelist()
@@ -128,6 +131,16 @@ def test_legacy_portable_endpoint_uses_same_name(clock):
 
 def test_timezone_date_boundary_and_midnight_zero_padding():
     instant = datetime(2026, 1, 2, 3, 2, 3, tzinfo=timezone.utc)
-    assert names.archive_filename(["cases"], "America/Los_Angeles", started_at=instant) == "MWS_20260101-190203_C.zip"
+    assert names.archive_filename(["cases"], "America/Los_Angeles", started_at=instant, username="tm876w") == "MWS_20260101-190203_tm876w_C.zip"
     midnight = datetime(2026, 1, 2, 8, 2, 3, tzinfo=timezone.utc)
-    assert names.archive_filename(["cases"], "America/Los_Angeles", started_at=midnight) == "MWS_20260102-000203_C.zip"
+    assert names.archive_filename(["cases"], "America/Los_Angeles", started_at=midnight, username="tm876w") == "MWS_20260102-000203_tm876w_C.zip"
+
+
+@pytest.mark.parametrize('username,expected',[('tm876w','tm876w'),('analyst name','analyst_name'),('../../../','user'),('analyst\r\nname','analyst_name')])
+def test_username_is_filesystem_safe(clock,username,expected):
+    assert names.archive_filename(['tags'],'UTC',username=username)==f'MWS_20260102-230405_{expected}_T.zip'
+
+
+def test_requested_complete_filename_example():
+    instant=datetime(2026,11,2,20,48,34,tzinfo=timezone.utc)
+    assert names.archive_filename(list(KEYS),'UTC',username='tm876w',started_at=instant)=='MWS_20261102-204834_tm876w_C_T_TA_MF_TC.zip'

@@ -1,6 +1,7 @@
 .vscode
 .venv
 **/__pycache__/**
+**/.mare-backup-work-**
 data/
 vendor/cyberchef/dist/
 node_modules/

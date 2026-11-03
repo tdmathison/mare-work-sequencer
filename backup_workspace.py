@@ -285,6 +285,7 @@ class BackupWorkspace:
             data["archive_name"] = archive_filename(
                 data["areas"], self.app.config.get("DISPLAY_TIMEZONE"),
                 started_at=datetime.fromisoformat(data["created_at"]),
+                username=data.get("owner_username", g.user["username"]),
             )
             self.save(data)
         return data
@@ -1255,6 +1256,7 @@ class BackupWorkspace:
                 id=jid,
                 kind=kind,
                 owner=g.user["user_uuid"],
+                owner_username=g.user["username"],
                 created_epoch=time.time(),
                 created_at=stamp(),
                 state="queued",
@@ -1266,7 +1268,7 @@ class BackupWorkspace:
                 choices={},
             )
             if kind == "export":
-                data["archive_name"] = archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"))
+                data["archive_name"] = archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"), username=g.user["username"])
             if kind == "inspect":
                 upload = request.files.get("archive")
                 if not upload or not upload.filename:
