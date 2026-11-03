@@ -11,6 +11,7 @@ import hashlib
 import shutil
 from datetime import datetime
 from flask import request, abort, g, send_file, after_this_request
+from authorization import has_permission
 from indicator_types import CATALOG, analyze, inspect_sections, canonical_type, duplicate_key
 from indicator_stix import reconcile_rows, build_bundle, import_document
 DEFAULT_COLUMNS = ['type', 'value', 'description']
@@ -325,6 +326,7 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             return response
 
     def save(cid, columns, rows, revision, sections=None):
+        if not has_permission(g.user, 'cases:update', db()):abort(403)
         validate_table(columns, rows)
         connection = db()
         with connection:
@@ -399,6 +401,7 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
     @app.post('/cases/<int:cid>/indicators/import/preview')
     def indicators_import_preview(cid):
         case(cid)
+        if not has_permission(g.user, 'cases:update', db()):abort(403)
         try:
             current=load_table(db,cid)
             target=next((s for s in current['sections'] if s['id']==request.form.get('section_id')),None)
@@ -412,9 +415,12 @@ def register_indicators(app, ROOT, db, case, package, ensure_package, mark_pendi
             validate_table(DEFAULT_COLUMNS,rows)
             existing={key for row in target['rows'] if (key:=duplicate_key(row)) is not None}
             preview=[]
+            incoming=set()
             for index,row in enumerate(rows):
-                result=analyze(row);duplicate=duplicate_key(row, result=result) in existing
-                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None,'to_ids':intents[index] if intents else None})
+                result=analyze(row);key=duplicate_key(row, result=result);duplicate=key in existing
+                repeated=key is not None and key in incoming
+                if key is not None:incoming.add(key)
+                preview.append({'row':result['row'],'reason':result.get('error',''),'duplicate':duplicate,'duplicate_in_import':repeated,'normalized':bool(result.get('normalized')),'unknown':canonical_type(row[0]) is None,'original_type':originals[index] if originals else None,'to_ids':intents[index] if intents else None})
             return {'section_id':target['id'],'section':target['title'],'rows':preview,'skipped':skipped,'revision':current['revision']}
         except (ValueError,TypeError,KeyError,UnicodeError,csv.Error,RecursionError) as exc:return {'error':str(exc)},400
 

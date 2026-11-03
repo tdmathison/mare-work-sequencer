@@ -63,7 +63,7 @@
     dirty = false,
     busy = false,
     importTarget = null,
-    editTarget = null, importFormat = "csv", importPreview = null, previewGeneration = 0;
+    editTarget = null, importFormat = "csv", importPreview = null, previewGeneration = 0, bulkLines = [];
   let locked = root.dataset.locked === "true";
   function changed() {
     dirty = true;
@@ -271,6 +271,7 @@
             document.getElementById("indicator-csv-file").value = "";
             document.getElementById("indicator-csv-text").value = "";
             document.getElementById("indicator-stix-file").value = "";
+            for(const id of ["indicator-bulk-type","indicator-bulk-values","indicator-bulk-description"])document.getElementById(id).value="";
             selectImportFormat("csv");
             document.getElementById("indicator-import-dialog").showModal();
           }),
@@ -554,6 +555,7 @@
   }
   function selectImportFormat(format){
     importFormat=format;clearPreview();
+    document.getElementById("confirm-indicator-import").textContent=format==="bulk"?"Import":"Append accepted rows";
     document.querySelectorAll("[data-indicator-format]").forEach(tab=>{
       const active=tab.dataset.indicatorFormat===format;tab.setAttribute("aria-selected",String(active));tab.tabIndex=active?0:-1;
       document.getElementById(tab.getAttribute("aria-controls")).hidden=!active;
@@ -561,21 +563,28 @@
   }
   const tabs=[...document.querySelectorAll("[data-indicator-format]")];
   tabs.forEach(tab=>{
-    tab.addEventListener("click",()=>selectImportFormat(tab.dataset.indicatorFormat));
+    tab.addEventListener("click",()=>{if(!busy)selectImportFormat(tab.dataset.indicatorFormat);});
     tab.addEventListener("keydown",event=>{
-      if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
-      event.preventDefault();const next=event.key==="Home"?tabs[0]:event.key==="End"?tabs[1]:tabs[1-tabs.indexOf(tab)];selectImportFormat(next.dataset.indicatorFormat);next.focus();
+      if(busy||!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
+      event.preventDefault();const next=event.key==="Home"?tabs[0]:event.key==="End"?tabs[tabs.length-1]:tabs[(tabs.indexOf(tab)+(event.key==="ArrowLeft"?-1:1)+tabs.length)%tabs.length];selectImportFormat(next.dataset.indicatorFormat);next.focus();
     });
   });
-  ["indicator-csv-file","indicator-csv-text","indicator-stix-file"].forEach(id=>document.getElementById(id).addEventListener("input",clearPreview));
+  ["indicator-csv-file","indicator-csv-text","indicator-stix-file","indicator-bulk-type","indicator-bulk-values","indicator-bulk-description"].forEach(id=>document.getElementById(id).addEventListener("input",clearPreview));
   document.getElementById("indicator-import-dialog").addEventListener("close",clearPreview);
   document.getElementById("preview-indicator-import").addEventListener("click",run(async()=>{
     clearPreview();const generation=previewGeneration,form=data(),message=document.getElementById("indicator-import-status");
-    form.set("section_id",importTarget);form.set("format",importFormat);
+    form.set("section_id",importTarget);form.set("format",importFormat==="bulk"?"csv":importFormat);
     try{
     if(importFormat==="csv"){
       const file=document.getElementById("indicator-csv-file").files[0],text=document.getElementById("indicator-csv-text").value;
       if(file&&text.trim())throw Error("Choose a CSV file or pasted CSV, not both.");form.set("csv",file||text);
+    }else if(importFormat==="bulk"){
+      const kind=document.getElementById("indicator-bulk-type").value.trim(),description=document.getElementById("indicator-bulk-description").value;
+      if(!kind||!typeInfo(kind))throw Error("Choose a supported indicator type.");
+      bulkLines=document.getElementById("indicator-bulk-values").value.split(/\r\n|\n|\r/).map((value,index)=>({value:value.trim(),line:index+1})).filter(item=>item.value);
+      if(!bulkLines.length)throw Error("Enter at least one nonempty value, one per line.");
+      const quote=value=>'"'+value.replaceAll('"','""')+'"';
+      form.set("csv",[["type","value","description"],...bulkLines.map(item=>[kind,item.value,description])].map(row=>row.map(quote).join(',')).join('\n'));
     }else{
       const file=document.getElementById("indicator-stix-file").files[0];if(!file)throw Error("Choose a STIX JSON file.");form.set("stix",file);
     }
@@ -583,14 +592,18 @@
       const preview=await request("/import/preview",form);
       if(generation!==previewGeneration)return;
       importPreview=preview;const host=document.getElementById("indicator-import-preview");
-      const ready=preview.rows.filter(item=>!item.reason&&!item.duplicate).length;
-      message.textContent=`${ready} supported rows ready · ${preview.rows.filter(item=>item.reason).length} need correction · ${preview.skipped.length} unsupported/skipped · ${preview.rows.filter(item=>item.duplicate).length} exact destination duplicates · ${preview.rows.filter(item=>item.normalized).length} normalized aliases.`;
-      for(const item of preview.rows){
+      const ready=preview.rows.filter(item=>!item.reason&&!item.duplicate&&!item.duplicate_in_import).length;
+      message.textContent=`${ready} supported rows ready · ${preview.rows.filter(item=>item.reason).length} need correction · ${preview.skipped.length} unsupported/skipped · ${preview.rows.filter(item=>item.duplicate).length} exact destination duplicates · ${preview.rows.filter(item=>item.duplicate_in_import).length} duplicates within this import · ${preview.rows.filter(item=>item.normalized).length} normalized aliases.`;
+      for(const [index,item] of preview.rows.entries()){
         const line=document.createElement("div");line.className="indicator-preview-row";
         const accept=document.createElement("input");accept.type="checkbox";accept.checked=true;accept.setAttribute("aria-label","Accept this row");item.accept=accept;
         line.append(accept);
+        if(importFormat==="bulk"){
+          const label=document.createElement("strong");label.className="indicator-source-line";label.textContent="Line "+bulkLines[index].line;line.prepend(label);
+          accept.setAttribute("aria-label","Accept line "+bulkLines[index].line);
+        }
         item.row.forEach((value,index)=>{const field=document.createElement(index===0?"input":"textarea");field.value=value;field.setAttribute("aria-label",["Type","Value","Description"][index]);if(index===0){field.classList.add("indicator-type-input");field.setAttribute("list","indicator-type-options");}field.addEventListener("input",()=>{item.row[index]=field.value;});line.append(field);});
-        const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":"Ready";line.append(reason);
+        const reason=document.createElement("small");reason.textContent=item.reason?"Needs correction: "+item.reason:item.duplicate?"Exact duplicate in destination (skipped by default)":item.duplicate_in_import?"Duplicate of an earlier incoming row (skipped by default)":"Ready";line.append(reason);
         if(item.unknown){
           for(const kind of ["text","other"]){const button=document.createElement("button");button.type="button";button.textContent="Use "+kind;button.addEventListener("click",()=>{item.original_type=item.original_type??item.row[0];item.row[0]=kind;item.to_ids=false;line.querySelector('input[list]').value=kind;reason.textContent="Contextual "+kind+"; original type retained: "+item.original_type;});line.append(button);}
         }

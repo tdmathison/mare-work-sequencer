@@ -996,6 +996,7 @@ footer {
 .indicator-import-tabs [aria-selected="false"]{background:var(--panel);color:var(--text);border:1px solid var(--line)}
 #indicator-import-dialog [hidden]{display:none!important}
 .indicator-preview-row{display:grid;grid-template-columns:22px minmax(120px,1fr) minmax(150px,2fr) minmax(150px,2fr);gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.indicator-preview-row .indicator-source-line{grid-column:1/-1}
 .indicator-preview-row small{grid-column:2/-1;color:var(--accent)}
 .indicator-preview-row input{margin:0;padding:6px;min-width:0}
 .indicator-preview-row input[type="checkbox"],.indicator-duplicates input{width:auto;display:inline-block}

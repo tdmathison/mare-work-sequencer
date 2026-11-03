@@ -1,8 +1,9 @@
+{% set indicators_readonly=c.workspace_locked or not can_edit_indicators %}
 <section
   class="panel"
   id="indicator-workspace"
   data-case-id="{{c.id}}"
-  data-locked="{{'true' if c.workspace_locked else 'false'}}"
+  data-locked="{{'true' if indicators_readonly else 'false'}}"
   data-csrf="{{csrf}}"
 >
   <div class="heading">
@@ -20,7 +21,7 @@
     class="workflow-controls"
     {%
     if
-    c.workspace_locked
+    indicators_readonly
     %}disabled{%
     endif
     %}
@@ -36,7 +37,7 @@
     </div>
     <div id="indicator-sections"></div>
   </fieldset>
-  {% if c.workspace_locked %}<a class="button-secondary" href="/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
+  {% if indicators_readonly %}<a class="button-secondary" href="/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
   <p id="indicator-status" role="status" aria-live="polite">
     Loading indicators…
   </p>
@@ -70,6 +71,7 @@
   <div class="indicator-import-tabs" role="tablist" aria-label="Import format">
     <button type="button" role="tab" id="indicator-csv-tab" aria-selected="true" aria-controls="indicator-csv-panel" data-indicator-format="csv">CSV</button>
     <button type="button" role="tab" id="indicator-stix-tab" aria-selected="false" aria-controls="indicator-stix-panel" tabindex="-1" data-indicator-format="stix">STIX</button>
+    <button type="button" role="tab" id="indicator-bulk-tab" aria-selected="false" aria-controls="indicator-bulk-panel" tabindex="-1" data-indicator-format="bulk">Type in bulk</button>
   </div>
   <div id="indicator-csv-panel" role="tabpanel" aria-labelledby="indicator-csv-tab">
     <label>CSV file<input type="file" id="indicator-csv-file" accept=".csv,text/csv"></label>
@@ -79,7 +81,14 @@
     <label>STIX 2.1 JSON file<input type="file" id="indicator-stix-file" accept=".json,.stix,application/json,application/stix+json"></label>
     <p class="muted">Uploaded-document references only; no external requests. Complex patterns remain skipped with review reasons. Incoming IDs are not adopted as local row identities.</p>
   </div>
+  <div id="indicator-bulk-panel" role="tabpanel" aria-labelledby="indicator-bulk-tab" hidden>
+    <label>Type<input type="text" class="indicator-type-input" id="indicator-bulk-type" list="indicator-type-options" required aria-describedby="indicator-bulk-help"></label>
+    <label>Values — one per line<textarea id="indicator-bulk-values" rows="8" required></textarea></label>
+    <label>Description (optional)<textarea id="indicator-bulk-description" rows="3"></textarea></label>
+    <p id="indicator-bulk-help" class="muted">Choose a supported type. Blank lines are ignored; each remaining line becomes one value. Preview before importing. Import saves accepted rows immediately, just like CSV import. Rows with validation errors are saved as drafts; STIX export stays unavailable until corrected.</p>
+  </div>
   <label class="indicator-duplicates"><input type="checkbox" id="indicator-skip-duplicates" checked> Skip exact duplicates (canonical type + normalized value) in the destination section</label>
+  <p class="muted">Duplicate checks include the destination section and earlier rows in this import. Uncheck Skip exact duplicates to keep them.</p>
   <p id="indicator-import-status" role="status" aria-live="polite"></p>
   <div id="indicator-import-preview"></div>
   <div class="dialog-actions">
