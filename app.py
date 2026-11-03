@@ -31,7 +31,7 @@ from flask import make_response, Flask, request, session, redirect, render_templ
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
-from mip import dated_title, title_date, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
+from mip import title_date, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
 from authorization import has_permission, initialize_roles
 
 STAGES = ['Not started', 'Malware Analysis',
@@ -715,11 +715,9 @@ def allocate_case_number(connection):
 
 @app.post('/cases')
 def new_case():
-    title = request.form.get('name', '').strip()
+    title = request.form.get('name', '')
     reference = external_reference(request.form)
-    if title:
-        title = dated_title(title)
-    if not title or len(title) > 200 or reference is None:
+    if not title.strip() or len(title) > 200 or reference is None:
         flash('Enter a case name. For an external reference, provide both its system and number.')
         return render_template('create_case.html', values=request.form), 400
     system, external = reference

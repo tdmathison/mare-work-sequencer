@@ -36,6 +36,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const name = document.getElementById('case-name');
+    // Focus only: the GET form supplies its default value. Never rewrite it here.
     // Leave restored content and any interaction before initialization alone.
     if (performance.getEntriesByType('navigation')[0]?.type === 'back_forward' ||
         name.value !== name.defaultValue ||

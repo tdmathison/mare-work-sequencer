@@ -183,13 +183,11 @@ def test_api_page_lists_endpoints_and_tokens(admin):
     assert b'api-tokens' not in client.get('/account', follow_redirects=True).data
 
 
-def test_case_name_gets_date_prefix(admin):
-    from datetime import datetime
+def test_case_name_is_preserved_without_adding_date_prefix(admin):
     client = app.test_client()
-    today = datetime.now().strftime('%Y%m%d')
     plain = client.post('/api/v1/cases', json={'name': 'Plain'}, headers=admin[1]).json['case']['name']
     dated = client.post('/api/v1/cases', json={'name': '20200102: Old'}, headers=admin[1]).json['case']['name']
-    assert plain == today + ': Plain' and dated == '20200102: Old'
+    assert plain == 'Plain' and dated == '20200102: Old'
 
 
 def test_title_date_drives_report_and_package_names():

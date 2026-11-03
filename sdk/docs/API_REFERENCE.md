@@ -387,7 +387,7 @@ Required role permission: cases:read.
 def create(self, *, data: CasesCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> CasesCreateResponse
 ```
 
-Create a case. POST /api/v1/cases. A date prefix is added to the title if absent; the resulting name must remain ≤200 characters. External system and number must be supplied together. Owner must be active.
+Create a case. POST /api/v1/cases. The supplied name is stored unchanged (1–200 characters and not whitespace-only). The web Create Case form supplies its default date prefix only when first opened. External system and number must be supplied together. Owner must be active.
 
 Required role permission: cases:create.
 
@@ -2057,7 +2057,7 @@ Required role permission: cases:read.
 async def create(self, *, data: CasesCreateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> CasesCreateResponse
 ```
 
-Create a case. POST /api/v1/cases. A date prefix is added to the title if absent; the resulting name must remain ≤200 characters. External system and number must be supplied together. Owner must be active.
+Create a case. POST /api/v1/cases. The supplied name is stored unchanged (1–200 characters and not whitespace-only). The web Create Case form supplies its default date prefix only when first opened. External system and number must be supplied together. Owner must be active.
 
 Required role permission: cases:create.
 

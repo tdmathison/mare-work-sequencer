@@ -160,7 +160,7 @@ class AsyncCasesResource(AsyncResource):
         return await self._transport.request('GET', 'cases', params=params, response_model=CasesListResponse)
 
     async def create(self, *, data: CasesCreateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> CasesCreateResponse:
-        'Create a case. POST /api/v1/cases. A date prefix is added to the title if absent; the resulting name must remain ≤200 characters. External system and number must be supplied together. Owner must be active.\n\nRequired role permission: cases:create.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Create a case. POST /api/v1/cases. The supplied name is stored unchanged (1–200 characters and not whitespace-only). The web Create Case form supplies its default date prefix only when first opened. External system and number must be supplied together. Owner must be active.\n\nRequired role permission: cases:create.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('POST', 'cases', data=data, files=files, request_model=CasesCreateRequest, media='application/json', response_model=CasesCreateResponse)
 
     async def delete(self, case_id: int) -> None:

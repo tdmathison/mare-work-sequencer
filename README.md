@@ -37,7 +37,7 @@ The workflow has four stages: **Not started → Malware Analysis → Packaging &
 
 Restrictions are enforced by the server as well as the UI. Existing cases migrate automatically on startup: Initial Triage, Data Collection, and the former Reports stage map to Malware Analysis, with history and deferred reasons preserved. Packaging & Delivery and Completed retain their meaning. Stop the service before replacing application files, then restart it after the upgrade.
 
-The MIP board shows each case's stage and seven package readiness indicators, separately. Create case opens a dedicated creation page. New cases automatically receive a unique, immutable number such as `MARE-2026-000001`, plus a package and report/table templates. An optional Vortex, XSIAM, or JIRA reference is stored separately and included in the exported README and manifest. Existing case numbers are preserved on upgrade.
+The MIP board shows each case's stage and seven package readiness indicators, separately. Create case opens a dedicated creation page. Its new form is prefilled once with the existing local-date prefix (`YYYYMMDD: `). Web and API creation preserve the supplied name exactly, including custom names; submission and validation retries do not add a prefix. New cases automatically receive a unique, immutable number such as `MARE-2026-000001`, plus a package and report/table templates. An optional Vortex, XSIAM, or JIRA reference is stored separately and included in the exported README and manifest. Existing case numbers are preserved on upgrade.
 
 ### Workbench
 
