@@ -149,6 +149,10 @@ Stop the service, replace application files while preserving the data directory,
 
 Case tabs are ordered Workbench, Tasks, Indicators, References, Package, Report, Review & Export. Tasks has an Add Task button that opens a Name/Description/Priority dialog. New tasks start in Not Started. Compact, grouped rows show name, description, priority, and a separate status control; selection checkboxes never change completion. Edit task opens a full-workspace dialog to update Markdown, priority, and state (Not Started, In Progress, or Completed). Priority options are Low, Normal, High, and Critical. Existing completed tasks remain completed on upgrade. Completion-checklist task links open the Tasks tab.
 
+Case tab activation revalidates saved content through the existing Case page and tab APIs, including direct links and browser Back/Forward. Successful mutations refresh dependent checklists immediately. Editor modules retain unsaved buffers, selections, and revision tokens; remote changes are reported without replacing drafts. Report autosave pauses on a detected remote-content conflict, and manual replacement requires confirmation. Refresh failures show a retry action and warn that saved data may be outdated. No polling or page reload is used for synchronization.
+
+Regression checks: `npm run test:case-tabs` (isolated browser fixture) and `.venv/bin/python -m pytest -q tests/test_case_tab_sync.py`.
+
 Asset uploads retain descriptions but no longer collect or export usage text. Package cards show the relevant directory's files and a Readiness menu. Not applicable no longer requires a reason. Backups remain hidden from file lists and archives.
 
 Expanded report editors have Raw and Preview tabs, defaulting to Raw each time. Preview renders the current editor text locally without saving or calling AI, supporting headings, lists, code, emphasis, links, and tables. Raw HTML is escaped, unsafe URL schemes are blocked, and uploaded case images are rendered; remote image URLs are shown as labels without being fetched. Escape collapses the editor; editing and saving continue through the normal report controls.

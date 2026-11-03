@@ -6,8 +6,8 @@
     status = document.getElementById("asset-status"),
     list = document.getElementById("asset-files"),
     locked = !!form.querySelector("fieldset:disabled"),
-    key = "mare-asset-category-" + cid;
-  let busy = false;
+    key = "mare-asset-category-" + document.querySelector(".case-tabs").dataset.userId + "-" + cid;
+  let busy = false, sequence = 0;
   try {
     const saved = sessionStorage.getItem(key);
     if ([...category.options].some((option) => option.value === saved))
@@ -16,19 +16,20 @@
   async function request(url, data) {
     const response = await fetch(
       url,
-      data ? { method: "POST", body: data } : {},
+      data ? { method: "POST", body: data } : { cache: "no-store" },
     );
     const result = await response.json();
     if (!response.ok) throw Error(result.error || "Asset request failed.");
+    if (data) window.MareCaseData?.invalidate("package");
     return result;
   }
   async function load() {
-    const selected = category.value;
+    const selected = category.value, current = ++sequence;
     try {
       const result = await request(
         "/cases/" + cid + "/assets?category=" + encodeURIComponent(selected),
       );
-      if (category.value !== selected) return;
+      if (category.value !== selected || current !== sequence) return;
       list.replaceChildren();
       for (const file of result.files) {
         const row = document.createElement("div"),
@@ -61,11 +62,6 @@
         list.append(row);
       }
       if (!result.files.length) list.textContent = "Directory is empty.";
-      window.dispatchEvent(
-        new CustomEvent("mare:assets-changed", {
-          detail: { category: selected },
-        }),
-      );
     } catch (e) {
       status.textContent = e.message;
     }
@@ -97,5 +93,6 @@
       form.querySelector("fieldset").disabled = locked;
     }
   });
+  window.MareAssets = { refresh: load };
   load();
 })();

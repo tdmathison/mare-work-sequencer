@@ -21,7 +21,7 @@
 
 {% block content %}
     <a href="/">MIP board</a>
-    <div class="heading">
+    <div class="heading" id="case-heading">
         <div>
             <span class="eyebrow">{{c.number}}</span>
             <h1>{{c.name}}</h1>
@@ -29,6 +29,7 @@
         <span class="badge">{{stages[c.stage]}}</span>
     </div>
     
+    <div id="case-state-notices">
     {% if c.stage==0 %}
         <p class="workflow-notice">Start analysis to unlock notes, tasks, uploads, and reports.</p>
     {% elif c.stage==3 %}
@@ -42,13 +43,15 @@
         <p class="notice">Assign an active owner in <a href="#case-details">Case details</a> to start or resume this case at its current stage.</p>
     {% endif %}
     
-    {% call bar('Case sections', 'case-tabs', attributes={'data-case-id':c.id}) %}
+    </div>
+    {% call bar('Case sections', 'case-tabs', attributes={'data-case-id':c.id, 'data-user-id':g.user.id}) %}
         {% for key,label in [('workbench','Workbench'),('notes','Notes'),('tasks','Tasks'),('indicators','Indicators'),('references','References'),('package','Package'),('report','Report'),('review','Review & Export')] %}
             {{item(label, 'tab-'+key, active=key=='workbench', controls='panel-'+key,
                 disabled=(c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'],
                 title=('Assign an active owner to resume' if c.owner_required and not c.owner_active else 'Start analysis to unlock this tab') if (c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'] else '')}}
         {% endfor %}
     {% endcall %}
+    <p id="case-data-status" class="muted" role="status" aria-live="polite"></p>
     <section id="panel-workbench" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-workbench">
         {% include 'case_tags.html' %}
         <div class="columns workbench-columns"><div>
@@ -80,8 +83,11 @@
                                 <label>Reason<input name="reason" placeholder="Required for no work or deferral"></label>
                             </div>
                             {% endif %}
-                        </input>
-                        <button {% if (c.stage==0 or c.owner_required) and not c.owner_active %}disabled{% endif %}>{{'Start analysis' if c.stage==0 else 'Continue to '+stages[c.stage+1]}}</button>
+                        {% set needs_owner=(c.stage==0 or c.owner_required) and not c.owner_active %}
+                        {% if needs_owner %}
+                            <p id="stage-owner-required" class="muted">Assign an active owner in <a href="?tab=workbench#case-details" data-case-tab="workbench">Case details</a> to {{'start analysis' if c.stage==0 else 'continue this case'}}. Select an owner and choose Save assigned owner.</p>
+                        {% endif %}
+                        <button {% if needs_owner %}disabled aria-describedby="stage-owner-required" title="Assign an active owner in Case details first"{% endif %}>{{'Start analysis' if c.stage==0 else 'Continue to '+stages[c.stage+1]}}</button>
                     </form>
                 {% endif %}
                     
@@ -115,14 +121,15 @@
                 <section class="panel"><details id="case-details" open>
                     <summary>Case details</summary><p>Creator: <strong>{{c.creator_name}}</strong></p>
                     <form method="post" action="/cases/{{c.id}}/owner">{{token(csrf)}}{% set selected_owner=c.owner or '' %}
-                        <label>Assigned owner (optional)
-                            <select name="owner_id">
+                        <label>Assigned owner
+                            <select id="case-owner" name="owner_id" aria-describedby="case-owner-help">
                                 <option value="">Unassigned</option>
                                 {% for person in active_users %}
                                     <option value="{{person.id}}" {{'selected' if selected_owner|string==person.id|string else ''}}>{{person.username}}</option>
                                 {% endfor %}
                             </select>
                         </label>
+                        <p id="case-owner-help" class="muted">An active owner is required to start or resume analysis. Save your selection before continuing.</p>
                         <button>Save assigned owner</button>
                     </form>
                     <form method="post">

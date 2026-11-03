@@ -63,6 +63,7 @@
         const button=document.createElement('button');button.type='button';button.dataset.removeTag='';button.setAttribute('aria-label',`Remove ${tag.name} from case`);button.textContent='×';remove.append(button);chip.append(remove);
         bar.insertBefore(chip,bar.querySelector('.tag-autocomplete'));
       }
+      window.MareCaseData?.invalidate('metadata');
       feedback.textContent='';
       if(removedFocus)bar.querySelector('input[name=name]')?.focus({preventScroll:true});
       for(const {el,x,y} of nested){if(el.scrollLeft!==x)el.scrollLeft=x;if(el.scrollTop!==y)el.scrollTop=y;}

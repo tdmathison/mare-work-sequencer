@@ -21,14 +21,15 @@
             </label>
         </div>
             {% set selected_owner=values.get('owner_id','') %}
-            <label>Assigned owner (optional)
-                <select name="owner_id">
+            <label>Assigned owner
+                <select name="owner_id" aria-describedby="create-owner-help">
                     <option value="">Unassigned</option>
                     {% for person in active_users %}
                         <option value="{{person.id}}" {{'selected' if selected_owner|string==person.id|string else ''}}>{{person.username}}</option>
                     {% endfor %}
                 </select>
             </label>
+            <p id="create-owner-help" class="muted">An active owner is required to start analysis. Choose Unassigned only if you plan to assign an owner later in Case details.</p>
             <div class="action-row"><button>Create case & MIP</button><a href="/">Cancel</a></div>
     </form>
 </section>

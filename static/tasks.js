@@ -1,8 +1,10 @@
 (() => {
   const cid = document.querySelector(".case-tabs")?.dataset.caseId;
   if (!cid) return;
-  for (const dialog of document.querySelectorAll(".task-workspace-dialog")) {
-    if (!dialog.querySelector("[data-task-raw]")) continue;
+  function initialize(dialog) {
+    if (dialog.dataset.initialized || !dialog.querySelector("[data-task-raw]")) return;
+    dialog.dataset.initialized = 'true';
+    window.MareEditors.init(dialog);
     const form = dialog.querySelector("form"),
       section = dialog.querySelector(".manual-section"),
       area = section.querySelector(".markdown-source"),
@@ -10,17 +12,23 @@
       preview = section.querySelector("[data-task-preview]"),
       pane = section.querySelector(".markdown-preview"),
       editor = section.querySelector(".markdown-editor");
-    let sequence = 0, checked = false;
+    let sequence = 0, submitting = false;
     form.addEventListener('submit', async event => {
-      if (checked) return;
       event.preventDefault();
+      if (submitting) return;
+      submitting = true;
+      const status = section.querySelector('[data-editor-status]');
       try {
         await window.MareTaskCase.ensureEditable();
-        checked = true;
-        form.requestSubmit(event.submitter || undefined);
-      } catch (error) {
-        section.querySelector('[data-editor-status]').textContent = error.message;
-      } finally { checked = false; }
+        const response = await fetch(form.action, {method:'POST', body:new FormData(form)});
+        const identity = new DOMParser().parseFromString(await response.text(),'text/html').querySelector('.case-tabs');
+        if (!response.ok || identity?.dataset.caseId !== cid || identity?.dataset.userId !== document.querySelector('.case-tabs').dataset.userId)
+          throw Error('Task could not be saved. Check your session and Case permissions; your draft is retained.');
+        dialog.close();
+        await window.MareTaskCase.refresh();
+        await window.MareCaseData.invalidate('tasks');
+      } catch (error) { status.textContent = error.message; }
+      finally { submitting = false; }
     });
     function rawView() {
       sequence++;
@@ -84,6 +92,23 @@
       sequence++;
     });
   }
+  for (const dialog of document.querySelectorAll('.task-workspace-dialog')) initialize(dialog);
+  window.MareTaskDialogs = { async open(task) {
+    let dialog = document.getElementById('edit-task-dialog-'+task.id);
+    if (!dialog) {
+      const response = await fetch('/cases/'+cid, {cache:'no-store'});
+      if (!response.ok || response.redirected) throw Error('Unable to load the task editor. Your other drafts are retained.');
+      const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+      dialog = page.getElementById('edit-task-dialog-'+task.id);
+      if (!dialog) throw Error('This task is no longer available. Refresh the task list.');
+      document.getElementById('panel-tasks').append(dialog); initialize(dialog);
+    }
+    const form = dialog.querySelector('form');
+    form.elements.name.value = task.title; form.elements.priority.value = task.priority; form.elements.state.value = task.state;
+    window.MareEditors.get(dialog.querySelector('.markdown-source')).setValue(task.body || '');
+    dialog.showModal(); document.body.classList.add('task-dialog-open');
+    window.MareEditors.get(dialog.querySelector('.markdown-source')).measure();
+  }};
   for (const button of document.querySelectorAll("[data-open-task]"))
     button.addEventListener("click", () => {
       const dialog = document.getElementById(button.dataset.openTask);

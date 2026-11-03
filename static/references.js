@@ -2,12 +2,12 @@
   const root = document.getElementById("reference-workspace");
   if (!root) return;
   const cid = root.dataset.caseId,
-    locked = root.dataset.locked === "true",
     status = document.getElementById("reference-status"),
     table = document.getElementById("reference-table");
   let state,
     dirty = false,
     busy = false;
+  let locked = root.dataset.locked === "true";
   function changed() {
     dirty = true;
     status.textContent = "Unsaved changes";
@@ -126,10 +126,11 @@
   async function request(path, data) {
     const response = await fetch(
       `/cases/${cid}/references${path}`,
-      data ? { method: "POST", body: data } : {},
+      data ? { method: "POST", body: data } : { cache: "no-store" },
     );
     const result = await response.json();
     if (!response.ok) throw Error(result.error || "Request failed");
+    if (data) { revalidation++; window.MareCaseData?.invalidate("references"); }
     return result;
   }
   function data() {
@@ -172,15 +173,29 @@
       await save();
     }),
   );
-  request("")
-    .then((result) => {
-      state = result;
-      render();
-      status.textContent = locked
-        ? "Read-only. Reopen the case to edit references."
-        : "Ready. Click a cell to edit; Tab moves between cells, Enter moves down, and Shift+Enter adds a line break.";
-    })
-    .catch((e) => (status.textContent = e.message));
+  let revalidation = 0;
+  async function revalidate() {
+    const current = ++revalidation;
+    if (!state) status.textContent = "Loading saved references…";
+    const result = await request("");
+    locked = root.dataset.locked === "true";
+    if (current !== revalidation || busy) return;
+    editable();
+    if (dirty) {
+      status.textContent = result.revision !== state.revision
+        ? "Saved references changed in another client. Your unsaved changes are retained; resolve the revision conflict before replacing them."
+        : "Unsaved changes retained; saved references are current.";
+      return;
+    }
+    if (state && result.revision === state.revision) return;
+
+    state = result;
+    render();
+
+    status.textContent = "Saved references are current.";
+  }
+  window.MareReferences = { refresh: revalidate };
+  revalidate().catch(error => { status.textContent = error.message; });
   const autosaveTimer = window.MareAutosave.register({
     onCountdown: (seconds, running, paused) => {
       const label = document.getElementById("save-references-countdown");
@@ -211,6 +226,7 @@
           (dirty ? " — newer changes pending" : "");
       } finally {
         busy = false;
+        editable();
       }
     },
     onError: (error) => {

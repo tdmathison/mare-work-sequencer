@@ -2,8 +2,8 @@
   const list = document.querySelector(".case-tabs");
   if (!list) return;
   const allTabs = [...list.querySelectorAll('[role="tab"]')];
-  const tabs = allTabs.filter((tab) => !tab.disabled);
-  const key = `mare-case-tab-${list.dataset.caseId}`;
+  let tabs = allTabs.filter((tab) => !tab.disabled);
+  const key = `mare-case-tab-${list.dataset.userId}-${list.dataset.caseId}`;
   function select(tab, focus = false) {
     window.MwsTabs.setActive(list,tab);
     try {
@@ -15,7 +15,9 @@
   try {
     saved = sessionStorage.getItem(key);
   } catch (_) {}
-  function routeTab(url, fallback = tabs[0]) {
+  function routeTab(url, fallback) {
+    tabs = allTabs.filter(tab => !tab.disabled);
+    fallback = fallback && !fallback.disabled ? fallback : tabs[0];
     const anchor = document.getElementById(url.hash.slice(1))?.closest('.case-tab-panel') ||
       (url.hash.startsWith('#readiness-') ? document.getElementById('panel-package') : null);
     return tabs.find(tab => anchor && tab.getAttribute('aria-controls') === anchor.id) ||

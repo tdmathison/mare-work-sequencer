@@ -43,6 +43,7 @@
       throw Error("Request failed. Check your login session and retry.");
     }
     if (!response.ok) throw Error(result.error || "Request failed.");
+    if (options?.method === "POST" && !url.endsWith("/markdown-preview")) { loadSequence++; window.MareCaseData?.invalidate("report"); }
     return result;
   }
   function ensurePdfOption(available) {
@@ -94,19 +95,27 @@
         "&download=1";
     window.MareArtifactRegister?.refresh();
   }
+  let loadSequence = 0, reportConflict = false, mappingConflict = false;
   async function load() {
-    state = await jsonRequest(`/cases/${cid}/report-data`);
+    const current = ++loadSequence;
+    const result = await jsonRequest(`/cases/${cid}/report-data`, {cache: "no-store"});
+    if (current !== loadSequence || saving || mitreMappingsSaving) return;
+    reportConflict ||= dirty && JSON.stringify(state.sections) !== JSON.stringify(result.sections);
+    mappingConflict ||= mitreMappingsDirty && JSON.stringify(state.mitre_mappings) !== JSON.stringify(result.mitre_mappings);
+    if (reportConflict || mappingConflict)
+      saveStatus.textContent = "Saved report content changed in another client. Your unsaved changes are retained; autosave is paused. Review before replacing the saved version.";
+    state = result;
     ensurePdfOption(state.pdf_converter_available);
     if (!dirty)
       for (const [key, value] of Object.entries(state.sections)) {
         const area = form.elements[key];
-        if (area) {
+        if (area && window.MareEditors.getValue(area) !== value) {
           window.MareEditors.setValue(area, value);
         }
       }
     if (!mitreMappingsDirty) {
-      window.MareEditors.setValue(mitreAttack, state.mitre_mappings?.attack || "");
-      window.MareEditors.setValue(mitreMbc, state.mitre_mappings?.mbc || "");
+      for (const [area, value] of [[mitreAttack, state.mitre_mappings?.attack || ""], [mitreMbc, state.mitre_mappings?.mbc || ""]])
+        if (window.MareEditors.getValue(area) !== value) window.MareEditors.setValue(area, value);
     }
     reportLink(state);
     open.hidden = !state.report_exists;
@@ -115,7 +124,9 @@
   }
   async function poll() {
     try {
+      const current = loadSequence;
       const result = await jsonRequest(`/cases/${cid}/report-job`);
+      if (current !== loadSequence) return;
       state.job = result.job;
       state.report_exists = result.report_exists;
       reportLink(result);
@@ -142,6 +153,8 @@
   }
   async function saveReport(automatic = false) {
     if (saving || loading || form.querySelector("fieldset").disabled) return;
+    if (reportConflict && (automatic || !confirm('Saved report content changed in another client. Replace it with your current draft?'))) return;
+    reportConflict = false;
     saving = true;
     save.disabled = true;
     generate.disabled = true;
@@ -151,6 +164,8 @@
       data.set("ajax", "1");
       if (automatic) data.set("automatic", "1");
       await jsonRequest(form.action, { method: "POST", body: data });
+      const savedSections = Object.fromEntries(JSON.parse(snapshot));
+      state.sections = Object.fromEntries(Object.keys(state.sections).map(key => [key, savedSections[key] || ""]));
       dirty = reportValues() !== snapshot;
       if (!automatic) autosaveTimer.reset();
       saveStatus.textContent =
@@ -186,6 +201,7 @@
               String(seconds % 60).padStart(2, "0");
     },
     canSave: () =>
+      !reportConflict &&
       !loading &&
       !saving &&
       !form.querySelector("fieldset").disabled &&
@@ -310,6 +326,8 @@
       mappingStatus.textContent = "Unsaved MITRE mappings";
     });
   async function saveMitreMappings(automatic = false) {
+    if (mappingConflict && (automatic || !confirm('Saved MITRE mappings changed in another client. Replace them with your current draft?'))) return;
+    mappingConflict = false;
     if (
       mitreMappingsSaving ||
       loading ||
@@ -332,6 +350,7 @@
         method: "POST",
         body: data,
       });
+      state.mitre_mappings = {attack:snapshot[0], mbc:snapshot[1]};
       mitreMappingsDirty =
         window.MareEditors.getValue(mitreAttack) !== snapshot[0] || window.MareEditors.getValue(mitreMbc) !== snapshot[1];
       // Saving never replaces the editor document, cursor, history, or scroll.
@@ -361,6 +380,7 @@
             String(seconds % 60).padStart(2, "0");
     },
     canSave: () =>
+      !mappingConflict &&
       mitreMappingsDirty &&
       !mitreMappingsSaving &&
       !loading &&
@@ -614,6 +634,7 @@
     }
   });
 
+  window.MareReport = { refresh: load };
   load().catch((e) => {
     saveStatus.textContent = e.message;
     loading = false;

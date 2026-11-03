@@ -374,7 +374,7 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  const task=page.locator('#add-task-dialog');await checkToolbar(task);await checkMenus(task);await task.locator('[name=name]').fill('CM task');await task.locator('.cm-content').fill('Task **Markdown**');
  assert.equal(await task.locator('textarea[name=description]').evaluate(area=>new FormData(area.form).get('description')),'Task **Markdown**');
  await task.locator('[data-editor-preview]').click();await task.locator('.markdown-preview strong').waitFor();await checkToolbar(task);await checkMenus(task);await task.locator('[data-editor-preview]').click();
- await task.getByRole('button',{name:'Create task'}).click();await page.waitForURL(`**/cases/${cid}?tab=tasks`);assert.ok(await page.locator('.task-body').filter({hasText:'Task **Markdown**'}).count());
+ await task.getByRole('button',{name:'Create task'}).click();await page.locator('.task-body').filter({hasText:'Task **Markdown**'}).waitFor();assert.ok(new URL(page.url()).searchParams.get('tab')==='tasks');
  await page.locator('#tab-report').click();
  const mappingSample='### MITRE Mapping\n\n| ID | Evidence |\n|---|---|\n| T1000 | **Observed** and *reviewed* |\n\n- First\n- Second\n\n```text\ncode sample\n```\n\n[Reference](https://example.com)\n\n'+('Additional evidence\n\n'.repeat(80));
  const mappingWrites=[];

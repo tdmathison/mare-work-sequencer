@@ -57,7 +57,6 @@
   const root = document.getElementById("indicator-workspace");
   if (!root) return;
   const cid = root.dataset.caseId,
-    locked = root.dataset.locked === "true",
     status = document.getElementById("indicator-status"),
     container = document.getElementById("indicator-sections");
   let state,
@@ -65,6 +64,7 @@
     busy = false,
     importTarget = null,
     editTarget = null, importFormat = "csv", importPreview = null, previewGeneration = 0;
+  let locked = root.dataset.locked === "true";
   function changed() {
     dirty = true;
     status.textContent = "Unsaved changes";
@@ -445,10 +445,11 @@
   async function request(path, data) {
     const response = await fetch(
       "/cases/" + cid + "/indicators" + path,
-      data ? { method: "POST", body: data } : {},
+      data ? { method: "POST", body: data } : { cache: "no-store" },
     );
     const result = await response.json();
     if (!response.ok) throw Error(result.error || "Request failed");
+    if (data) { revalidation++; window.MareCaseData?.invalidate("indicators"); }
     return result;
   }
   async function refreshPackage() {
@@ -609,7 +610,7 @@
     try{
       const result=await request("/import",form);state=result;dirty=false;autosaveTimer.reset();render();
       status.textContent=`Added ${result.added} rows; skipped ${result.skipped_duplicates} duplicates. ${result.stix.available?'CSV/STIX saved.':'Draft/CSV saved; correct flagged rows for STIX.'}`;
-      document.getElementById("indicator-import-dialog").close();await refreshPackage();
+      await refreshPackage();document.getElementById("indicator-import-dialog").close();
     }catch(error){document.getElementById("indicator-import-status").textContent=error.message;throw error;}
   }));
   document.getElementById("download-indicator-stix").addEventListener("click",run(async()=>{
@@ -617,17 +618,31 @@
     const response=await fetch(`/cases/${cid}/indicators/stix`);if(!response.ok){const error=await response.json();throw Error(error.error);}
     const url=URL.createObjectURL(await response.blob()),link=document.createElement("a");link.href=url;link.download="indicators.stix.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }));
-  request("")
-    .then((result) => {
-      state = result;
-      const options=document.getElementById("indicator-type-options");
-      for(const item of [...state.types].sort((a,b)=>a.category.localeCompare(b.category)||a.name.localeCompare(b.name))){const option=document.createElement("option");option.value=item.name;option.label=item.category+" — "+item.label+([...item.aliases,...item.search_aliases].length?" — "+[...item.aliases,...item.search_aliases].join(", "):"");options.append(option);}
-      render();
-      status.textContent = locked
-        ? "Read-only. Reopen the case to edit indicators."
-        : "Ready. Click a cell to edit; Tab moves between cells, Enter moves down, and Shift+Enter adds a line break.";
-    })
-    .catch((e) => (status.textContent = e.message));
+  let revalidation = 0;
+  async function revalidate() {
+    const current = ++revalidation;
+    if (!state) status.textContent = "Loading saved indicators…";
+    const result = await request("");
+    locked = root.dataset.locked === "true";
+    if (current !== revalidation || busy) return;
+    editable();
+    if (dirty) {
+      status.textContent = result.revision !== state.revision
+        ? "Saved indicators changed in another client. Your unsaved changes are retained; resolve the revision conflict before replacing them."
+        : "Unsaved changes retained; saved indicators are current.";
+      return;
+    }
+    if (state && result.revision === state.revision) return;
+
+    state = result;
+    const options=document.getElementById("indicator-type-options");options.replaceChildren();
+    for(const item of [...state.types].sort((a,b)=>a.category.localeCompare(b.category)||a.name.localeCompare(b.name))){const option=document.createElement("option");option.value=item.name;option.label=item.category+" — "+item.label+([...item.aliases,...item.search_aliases].length?" — "+[...item.aliases,...item.search_aliases].join(", "):"");options.append(option);}
+    render();
+
+    status.textContent = "Saved indicators are current.";
+  }
+  window.MareIndicators = { refresh: revalidate };
+  revalidate().catch(error => { status.textContent = error.message; });
   const autosaveTimer = window.MareAutosave.register({
     onCountdown: (seconds, running, paused) => {
       const label = document.getElementById("save-indicators-countdown");
@@ -675,7 +690,7 @@
           (dirty ? " — newer changes pending" : result.stix.available ? " — STIX current" : " — STIX unavailable; correct flagged rows");
         await refreshPackage();
       } finally {
-        busy = false;updateDownloadState();
+        busy = false;editable();
       }
     },
     onError: (error) => {
