@@ -125,7 +125,7 @@ def test_manual_generation_and_final_word_upload(monkeypatch,tmp_path):
     pdf_rel=report.with_suffix('.pdf').relative_to(root).as_posix()
     upload=post(f'/cases/{cid}/upload',category='reports',file=(io.BytesIO(b'%PDF-1.4\n%%EOF\n'),Path(pdf_rel).name))
     assert upload.status_code==302 and (root/pdf_rel).is_file()
-    page=client.get(f'/cases/{cid}').data.decode();reports_directory=page.split('id="readiness-reports"',1)[1].split('</article>',1)[0]
+    page=client.get(f'/cases/{cid}').data.decode();reports_directory=json.dumps(client.get(f'/cases/{cid}/package-register?section=reports').json['rows'])
     assert 'Open latest Word report' in page and 'Expand editor' in page and report_rel in reports_directory and Path(pdf_rel).name in reports_directory
     download=client.get(f'/cases/{cid}/file?path={report_rel}&download=1');assert download.data==final.read_bytes()
     post(f'/cases/{cid}/stage',expected='1')

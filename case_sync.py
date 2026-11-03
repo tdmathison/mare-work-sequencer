@@ -496,6 +496,9 @@ class CaseSync:
 
     def reconcile(self, cid):
         state = self.ensure(cid)
+        from package_status import normalize
+        record=self.db().execute('SELECT * FROM cases WHERE id=?',(cid,)).fetchone()
+        normalize(self.db(),record,self.root/'cases'/str(cid)/'mip',events=True)
         from content_metrics import collect_case
         collect_case(self.db(),self.root,cid)
         from case_notes import collect as collect_notes

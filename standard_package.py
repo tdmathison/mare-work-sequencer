@@ -39,6 +39,8 @@ def planned_standard(connection, record, root, *, indicator_table=None):
     from indicators import load_table
     from indicator_stix import build_bundle
     files=selected_files(record,root)
+    from package_status import carriers
+    files.update(carriers(connection,record["id"],existing=files))
     bundle,_=build_bundle((indicator_table if indicator_table is not None else load_table(lambda:connection,record['id']))['sections'])
     files.pop('iocs/indicators.stix.json',None)
     if bundle is not None:

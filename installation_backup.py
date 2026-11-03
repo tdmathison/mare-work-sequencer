@@ -443,6 +443,11 @@ def restore_installation(archive_path, destination, *, help_content=None):
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from help_guide import recover as recover_help
             help_missing = recover_help(upgraded, help_content)
+            upgraded.row_factory=sqlite3.Row
+            from package_status import initialize as initialize_package_status
+            package_tables={r[0] for r in upgraded.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if {'cases','readiness','schema_migrations','indicator_tables','indicator_sections','reference_tables'}<=package_tables:
+                initialize_package_status(upgraded,stage)
         # No running connection or partially copied tree is ever exposed. Keep all
         # integer and UUID identities together by replacing the complete database.
         if destination.exists() or destination.is_symlink():

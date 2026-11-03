@@ -149,6 +149,9 @@ def register_assets(app, db, case, package, ensure_package, safe_path, mark_pend
     @app.post('/cases/<int:cid>/assets/delete')
     def delete_asset(cid):
         case(cid)
+        from authorization import has_permission
+        from flask import g
+        if not has_permission(g.user,'cases:assets',db()):abort(403)
         rel = request.form.get('path', '')
         from mip import CATEGORIES
         if rel.split('/')[0] not in CATEGORIES:
@@ -158,6 +161,9 @@ def register_assets(app, db, case, package, ensure_package, safe_path, mark_pend
         path = safe_path(cid, rel)
         if not path.is_file():
             abort(404)
+        from package_status import GENERATED
+        from reporting import current_report
+        if rel in GENERATED or rel in ('mappings/mitre-attack.md','mappings/mitre-mbc.md') or rel==current_report(case(cid),package(cid)) or rel==Path(current_report(case(cid),package(cid))).with_suffix('.pdf').as_posix():return {'error':'Manage generated content in its owning tab.'},409
         if rel in PROTECTED_REPORT_MARKDOWN:
             abort(400)
         template = INTERNAL_REPORT_SCAFFOLDS.get(rel)

@@ -10,7 +10,8 @@
         await response.text(),
         "text/html",
       );
-      for (const id of ["panel-package", "panel-review"]) {
+      window.MareArtifactRegister?.refresh();
+      for (const id of ["panel-review"]) {
         const current = document.getElementById(id),
           updated = page.getElementById(id);
         if (current && updated) current.innerHTML = updated.innerHTML;

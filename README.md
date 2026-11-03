@@ -63,7 +63,7 @@ Uploads are routed by category, with a description and optional usage command. T
 
 Uploads to Samples are immediately wrapped in AES-encrypted ZIP archives using the site-wide password configured by an administrator under Settings. The default is `infected`. Changing the password affects future uploads only; existing sample archives retain their original password.
 
-Mark each category Pending, Populated, or Not applicable after reviewing it. Not applicable requires a reason. Reports always apply. New uploads and text edits reset that category to Pending so the dashboard reflects the need for review.
+Package uses the Artifact Register: saved content automatically makes a section Populated. Empty sections can be explicitly marked Not applicable; successful qualifying saves clear that decision, and removing the final item leaves Empty. Content presence does not certify review or quality. See [Artifact Register](docs/ARTIFACT_REGISTER.md) for content definitions, migration, API compatibility, and backup behavior.
 
 ### Report
 
@@ -71,7 +71,7 @@ Edit the four narrative sections and generate a Word report locally from a selec
 
 ### Review & Export
 
-Review the file preview and checklist. Pending categories, open tasks, and deferred stages are listed. They can be resolved or explicitly acknowledged for export; acknowledgments are included in the manifest and README. The untouched report template or an empty report cannot be exported. The site checks presence and template state, not analytical quality. Samples are excluded by default. Explicitly check the red danger option to include password-protected sample archives; exports containing samples end in `-MAL`.
+Review the file preview and checklist. Empty sections, advisory open tasks, and deferred stages are listed. They can be resolved or explicitly acknowledged for export; acknowledgments are included in the manifest and README. The untouched report template or an empty report cannot be exported. The site checks presence and template state, not analytical quality. Samples are excluded by default. Explicitly check the red danger option to include password-protected sample archives; exports containing samples end in `-MAL`.
 
 Export generates `YYYYMMDD-MIP-Case_Name.zip`, containing the seven folders, README.md, manifest.json, selected notes, and file hashes. Empty folders are preserved. Untouched executive-summary and MITRE table templates are omitted from export; the archive preview reflects this. Sample archives are excluded by default; checking the red warning adds them and appends `-MAL` to the archive filename. Export does not automatically complete the case. Completing Packaging & Delivery requires the readiness checklist to be resolved.
 
@@ -1777,7 +1777,7 @@ Rule-file inspection is lexical, not Snort engine validation; recognizing a
 complete option block does not certify option spelling, semantics or compatibility.
 
 Inventory/open GETs never change files. Atomic writes preserve artifact metadata,
-set readiness Pending and use normal revision/search/audit mechanisms. Existing
+update derived package presence and use normal revision/search/audit mechanisms. Existing
 permissions, ownership and lifecycle restrictions apply. No complete file is
 regenerated from parsed rules, and no selected rule is appended as a duplicate.
 

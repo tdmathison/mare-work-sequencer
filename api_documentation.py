@@ -60,7 +60,7 @@ SCHEMAS = {
                  'state': {**TEXT, 'enum': ['Not Started', 'In Progress', 'Completed']}, 'done': INT, 'created': TEXT,'group_id':NULL_TEXT,'source_collection_id':NULL_TEXT,'source_template_id':NULL_TEXT,'source_revision':NULL_INT,'position':INT}),
     'Note': obj({'case_id':INT, **NOTE_FIELDS, 'include_export': INT, 'id': INT, 'author': TEXT, 'created': TEXT, **dict.fromkeys(('note_uuid','author_uuid','edited','event_type','source_id','migrated_at','html'),TEXT), 'note_type':{**TEXT,'enum':['user','system']}, 'event_metadata':obj({},additionalProperties=True), 'activity_link':obj({'href':TEXT,'label':TEXT},nullable=True), 'can_manage':BOOL}),
     'Draft': obj({'title': TITLE, 'body': MARKDOWN, 'updated': TEXT}, nullable=True),
-    'Readiness': array(obj({'category': CATEGORY, 'label': TEXT, 'status': TEXT, 'reason': TEXT, 'count': INT})),
+    'Readiness': array(obj({'category': CATEGORY, 'label': TEXT, 'status': {**TEXT,'enum':['Empty','Populated','Not applicable','Pending'],'description':'Canonical servers emit Empty, Populated, or Not applicable; Pending is retained for SDK reads from older servers.'}, 'legacy_status':TEXT, 'reason': TEXT, 'count': INT})),
     'File': obj({'path': TEXT, 'size': INT, 'description': TEXT}),
     'IndicatorRowIdentity': obj({'id':TEXT,'created':TEXT,'modified':TEXT,'digest':TEXT,'original_type':{**TEXT,'maxLength':4000},'to_ids':{'type':'boolean','description':'Optional explicit detection intent; preserve when provided by import or API.'}}),
     'IndicatorSection': obj({'id': {**TEXT, 'pattern': '^[A-Za-z0-9_-]{1,64}$'}, 'title': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLength': 4000}, 'rows': array(array(CELL, minItems=3, maxItems=3), maxItems=10000), 'row_meta':array({'allOf':[ref('IndicatorRowIdentity')], 'nullable':True}), 'stix_meta':ref('IndicatorRowIdentity')}, ('id', 'title', 'description', 'rows')),
@@ -163,8 +163,8 @@ contract('advance_case', 'POST', 'Advance one workflow stage', result(case=ref('
          description='expected must equal the current stage. Active owner required to start; skipped/deferred outcomes require a reason. Completion checks readiness and review blockers. Stage 0 always records Started.', errors=(409,))
 contract('reopen_case', 'POST', 'Reopen a completed case for analysis', result(case=ref('Case')), description='Completed cases only; active owner required when ownership is mandatory.', errors=(409,))
 contract('case_readiness', 'GET', 'Read package readiness', result(readiness=ref('Readiness')))
-contract('case_readiness', 'PUT', 'Set one category readiness', result(readiness=ref('Readiness')), body=obj({'category': CATEGORY, 'status': {**TEXT, 'enum': ['Pending', 'Populated', 'Not applicable']}, 'reason': TEXT}, ('category', 'status')),
-         description='Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.', errors=(409,))
+contract('case_readiness', 'PUT', 'Set section applicability; content presence is automatic', result(readiness=ref('Readiness')), body=obj({'category': CATEGORY, 'status': {**TEXT, 'enum': ['Empty', 'Not applicable']}, 'reason': TEXT}, ('category', 'status')),
+         description='Content presence is automatic. Empty clears applicability; Not applicable is allowed only without qualifying saved content. Obsolete Pending/Populated writes return 400. Reads include legacy_status=Pending for Empty.', errors=(409,))
 contract('case_tasks', 'GET', 'List case tasks', paged('tasks', ref('Task')), parameters=PAGING)
 contract('case_tasks', 'POST', 'Create a task', result(task=ref('Task')), body=obj(TASK_FIELDS, ('title',)), status=201)
 contract('case_task', 'PATCH', 'Update a task', result(task=ref('Task')), body=obj({**TASK_FIELDS, 'state': SCHEMAS['Task']['properties']['state']}))

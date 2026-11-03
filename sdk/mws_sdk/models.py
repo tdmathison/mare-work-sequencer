@@ -623,7 +623,7 @@ class PackagesSetReadinessRequest(APIModel):
     """PackagesSetReadinessRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
     category: Literal['reports', 'iocs', 'signatures', 'scripts', 'mappings', 'supporting', 'samples'] = ...
-    status: Literal['Pending', 'Populated', 'Not applicable'] = ...
+    status: Literal['Empty', 'Not applicable'] = ...
     reason: str | None = None
 
 class PackagesSetReadinessResponse(APIModel):
@@ -1803,7 +1803,8 @@ class ReadinessValueItem(APIModel):
     """ReadinessValueItem version-1 API fields."""
     category: Literal['reports', 'iocs', 'signatures', 'scripts', 'mappings', 'supporting', 'samples'] | None = None
     label: str | None = None
-    status: str | None = None
+    status: Literal['Empty', 'Populated', 'Not applicable', 'Pending'] | None = None
+    legacy_status: str | None = None
     reason: str | None = None
     count: int | None = None
 

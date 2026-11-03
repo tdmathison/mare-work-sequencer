@@ -1200,8 +1200,8 @@
     "media": "application/json",
     "binary": false,
     "collection": null,
-    "summary": "Set one category readiness",
-    "description": "Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
+    "summary": "Set section applicability; content presence is automatic",
+    "description": "Content presence is automatic. Empty clears applicability; Not applicable is allowed only without qualifying saved content. Obsolete Pending/Populated writes return 400. Reads include legacy_status=Pending for Empty.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically."
   },
   {
     "resource": "references",

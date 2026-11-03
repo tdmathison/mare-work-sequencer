@@ -493,26 +493,14 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
             return {'readiness': readiness(case_id)}
         editable_case(case_id)
         value = body()
-        category = value.get('category')
-        status = value.get('status')
-        reason = value.get('reason', '')
-        if not isinstance(reason, str):
-            return jsonify(error='reason must be a string.'), 400
-        reason = reason.strip()
-        from mip import CATEGORIES
-        if category not in CATEGORIES or status not in ('Pending', 'Populated', 'Not applicable'):
-            return jsonify(error='Invalid category or readiness status.'), 400
-        if category == 'reports' and status == 'Not applicable':
-            return jsonify(error='A report is required for every MIP.'), 400
-        if status == 'Not applicable' and not reason:
-            return jsonify(error='A reason is required when a category is not applicable.'), 400
-        if status == 'Populated':
-            root = ensure_package(case_id)
-            if not any(path.is_file() and not path.is_symlink() for path in (root/category).rglob('*')):
-                return jsonify(error='Add content before marking this category populated.'), 409
-        run('INSERT OR REPLACE INTO readiness VALUES(?,?,?,?)', (case_id,
-            category, status, reason if status == 'Not applicable' else ''))
-        audit(f'Case {case_id}: {category} {status}')
+        from package_status import applicability
+        try:
+            reason=value.get('reason','')
+            if not isinstance(reason,str):raise ValueError('reason must be text.')
+            changed=applicability(db(),case(case_id),ensure_package(case_id),value.get('category'),value.get('status'),reason)
+        except FileExistsError as error:return {'error':str(error)},409
+        except ValueError as error:return {'error':str(error)},400
+        if changed:audit(f'Case {case_id}: package applicability updated')
         return {'readiness': readiness(case_id)}
 
     @api.route('/cases/<int:case_id>/tasks', methods=['GET', 'POST'])
@@ -628,6 +616,9 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
             relative = value.get('path', '')
             if not isinstance(relative, str) or relative.split('/')[0] not in CATEGORIES:
                 return jsonify(error='Invalid asset path.'), 400
+            from package_status import GENERATED
+            from report_assets import PROTECTED_REPORT_MARKDOWN
+            if relative in GENERATED or relative in PROTECTED_REPORT_MARKDOWN or relative in ('mappings/mitre-attack.md','mappings/mitre-mbc.md') or relative==current_report(current,package(case_id)) or relative==Path(current_report(current,package(case_id))).with_suffix('.pdf').as_posix():return {'error':'Manage generated content in its owning tab.'},409
             path = safe_path(case_id, relative)
             if not path.is_file():
                 abort(404)
@@ -691,6 +682,10 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
     def download_case_asset(case_id, relative_path):
         case(case_id)
         path = safe_path(case_id, relative_path)
+        if relative_path in ('iocs/indicators.csv','supporting/references.csv'):
+            from package_status import carriers
+            derived=carriers(db(),case_id,existing=(relative_path,))
+            if relative_path in derived:return send_file(io.BytesIO(derived[relative_path]),as_attachment=True,download_name=path.name,mimetype='text/csv')
         if not path.is_file():
             abort(404)
         if path==(package(case_id)/'iocs/indicators.stix.json').resolve():

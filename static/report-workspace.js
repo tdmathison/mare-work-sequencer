@@ -92,35 +92,7 @@
         "/file?path=" +
         encodeURIComponent(result.report_path) +
         "&download=1";
-    const reportDirectory = document.querySelector(
-      "#readiness-reports .package-directory",
-    );
-    if (!reportDirectory || !Array.isArray(result.report_files)) return;
-    reportDirectory
-      .querySelectorAll("[data-managed-report]")
-      .forEach((item) => item.remove());
-    for (const file of result.report_files) {
-      const item = document.createElement("div");
-      item.dataset.managedReport = "1";
-      const link = document.createElement("a");
-      link.href =
-        "/cases/" +
-        cid +
-        "/file?path=" +
-        encodeURIComponent(file.path) +
-        "&download=1";
-      link.textContent = file.path;
-      item.append(link, document.createTextNode(" "));
-      const details = document.createElement("small");
-      details.textContent =
-        file.size +
-        " bytes" +
-        (file.path === result.report_path
-          ? " · Working Word source; omitted from Standard archive"
-          : "");
-      item.append(details);
-      reportDirectory.append(item);
-    }
+    window.MareArtifactRegister?.refresh();
   }
   async function load() {
     state = await jsonRequest(`/cases/${cid}/report-data`);

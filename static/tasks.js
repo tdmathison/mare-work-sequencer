@@ -2,6 +2,7 @@
   const cid = document.querySelector(".case-tabs")?.dataset.caseId;
   if (!cid) return;
   for (const dialog of document.querySelectorAll(".task-workspace-dialog")) {
+    if (!dialog.querySelector("[data-task-raw]")) continue;
     const form = dialog.querySelector("form"),
       section = dialog.querySelector(".manual-section"),
       area = section.querySelector(".markdown-source"),

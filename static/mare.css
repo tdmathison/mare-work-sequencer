@@ -1064,3 +1064,6 @@ input.indicator-type-input::-webkit-calendar-picker-indicator { opacity:0; }
 
 .review-export-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .review-export-actions > form { margin: 0; min-width: 0; }
+
+/* Automatic package disposition reuses the former unresolved indicator. */
+.readiness-icon.empty{color:var(--muted)}

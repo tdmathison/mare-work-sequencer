@@ -30,7 +30,7 @@
   <table class="mip-table" role="table">
     <thead role="rowgroup">
       <tr role="row">
-        {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Reviewed','reviewed')] %}
+        {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Section disposition','reviewed')] %}
         {% set active = board_sort == key %}
         {% set next_direction = 'desc' if active and sort_direction == 'asc' else 'asc' %}
         <th role="columnheader" scope="col" class="mip-table-{{column_class}}" aria-sort="{{('ascending' if sort_direction == 'asc' else 'descending') if active else 'none'}}">
@@ -60,7 +60,7 @@
         <td role="cell" data-label="Creator" class="mip-table-person"><span title="{{c.creator_name}}">{{c.creator_name}}</span></td>
         <td role="cell" data-label="Stage"><span class="mip-table-stage-badge {{'is-completed' if c.stage==stages|length-1 else 'is-active' if c.stage else 'is-not-started'}}">{{stages[c.stage]}}</span></td>
         <td role="cell" data-label="Reviewed">
-          {{c.readiness|rejectattr('status','equalto','Pending')|list|length}} /
+          {{c.readiness|rejectattr('status','equalto','Empty')|rejectattr('status','equalto','Pending')|list|length}} /
           {{c.readiness|length}}
         </td>
       </tr>
@@ -113,8 +113,8 @@
         {% endfor %}
       </div>
       <div class="card-footer">
-        {{c.readiness|rejectattr('status','equalto','Pending')|list|length}} /
-        {{c.readiness|length}} categories reviewed <span>Open workbench</span>
+        {{c.readiness|rejectattr('status','equalto','Empty')|rejectattr('status','equalto','Pending')|list|length}} /
+        {{c.readiness|length}} sections with content or Not applicable <span>Open workbench</span>
       </div></a
     >
   </article>

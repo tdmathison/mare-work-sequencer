@@ -15,8 +15,8 @@ KINDS=('case','family','actor')
 CATEGORY_LABELS={'indicators':'Indicators','references':'References','reports':'Reports',
                  'files':'Package files','images':'Images'}
 DEFINITIONS={
- 'indicators':'Nonblank entries in exported indicators.csv; if absent, saved rows represented by generated STIX. CSV and STIX are not counted twice.',
- 'references':'Nonblank entries in exported supporting/references.csv, excluding the header.',
+ 'indicators':'Saved nonblank indicator values from Indicators. Derived CSV/STIX files are not counted twice.',
+ 'references':'Saved nonblank links from References, independent of generated CSV files.',
  'reports':'Included PDF, Word, RTF and ODT documents. Existing Standard export report exclusions apply.',
  'images':'Included image files only; report-editor/source images excluded by Standard export are not counted.',
  'files':'Other included files, plus the generated README.md and manifest.json. Indicator/reference carrier files, report documents and images are counted only in their own categories.'}
@@ -94,17 +94,15 @@ def package_categories(connection, record, root, allowed):
     columns={}
     restricted=[]
     csv_paths={'indicators':'iocs/indicators.csv','references':'supporting/references.csv'}
+    from indicators import load_table, report_table
+    from references import load_references
     for kind,path in csv_paths.items():
         if not allowed[kind+':read']:
             restricted.append(kind);continue
-        if path in files:
-            columns[kind],rows=read_csv(files[path]);groups[kind]=[dict(cells=row) for row in rows]
-        elif kind=='indicators' and 'iocs/indicators.stix.json' in files:
-            # Every non-grouping exported object represents one validated row.
-            from indicators import load_table, report_table
-            table=report_table(load_table(lambda:connection,record['id']))
-            columns[kind]=table['columns']
-            groups[kind]=[dict(cells=row) for section in table['sections'] for row in section['rows']]
+        table=report_table(load_table(lambda:connection,record['id'])) if kind=='indicators' else load_references(lambda:connection,record['id'])
+        columns[kind]=table['columns']
+        values=[row for section in table['sections'] for row in section['rows']] if kind=='indicators' else table['rows']
+        groups[kind]=[dict(cells=row) for row in values if (len(row)>1 and row[1].strip())] if kind=='indicators' else [dict(cells=row) for row in values if row and row[0].strip()]
     for path,content in files.items():
         if path in {*csv_paths.values(),'iocs/indicators.stix.json'}:continue
         suffix=Path(path).suffix.lower()

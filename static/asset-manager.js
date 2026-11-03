@@ -51,7 +51,7 @@
           data.set("path", file.path);
           try {
             await request("/cases/" + cid + "/assets/delete", data);
-            status.textContent = "Asset deleted. Readiness needs review.";
+            status.textContent = "Asset deleted. Package content status updated.";
             await load();
           } catch (e) {
             status.textContent = e.message;
@@ -88,7 +88,7 @@
       form.elements.file.value = "";
       form.elements.description.value = "";
       status.textContent =
-        uploaded.message || "Uploaded into " + data.get("category") + "/. Readiness needs review.";
+        uploaded.message || "Uploaded into " + data.get("category") + "/. Package content status updated.";
       await load();
     } catch (e) {
       status.textContent = e.message;

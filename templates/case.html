@@ -157,46 +157,8 @@
 <section id="panel-tasks" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-tasks" hidden>
 {% include 'tasks.html' %}</section>
 <section id="panel-package" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-package" hidden>
-    <section class="panel">
-        <h2>Package contents</h2><p class="muted">Assets live in the package as you add them. Readiness counts and Standard exports include only deliverable files.</p>
-        <div class="readiness-grid">
-            {% for r in ready %}
-                <article class="readiness-card" id="readiness-{{r.category}}">
-                    <div class="heading"><h3>{{r.label}}</h3><span class="state state-{{r.status|replace(' ','-')|lower}}">{{r.status}}</span></div>
-                    <p>{{r.count}} deliverable files · {{r.category}}/</p>
-                    <div class="package-directory">
-                        {% for f in package_view_files if f.path.startswith(r.category+'/') %}
-                            <div {% if f.path in report_output_paths %}data-managed-report="1"{% endif %}>
-                                {% if f.dir %}
-                                    <strong>{{f.path}}/</strong>
-                                {% else %}
-                                    <a href="{{url_for('file',cid=c.id,path=f.path,download=1)}}">{{f.path}}</a> 
-                                    <small>{{f.size}} bytes{% if f.path==word_report_path %} · Working Word source; omitted from Standard archive{% endif %}</small>
-                                {% endif %}
-                            </div>
-                        {% else %}<p class="muted">Directory is empty.</p>
-                        {% endfor %}
-                    </div>
-                    <form method="post" action="/cases/{{c.id}}/readiness">
-                        <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
-                            <input type="hidden" name="category" value="{{r.category}}">
-                            <label>Readiness<select name="status">
-                                {% for status in ['Pending','Populated','Not applicable'] %}
-                                    <option {{'selected' if r.status==status else ''}}>{{status}}</option>
-                                {% endfor %}
-                            </select>
-                        </label>
-                        <button>Save readiness</button>
-                        </fieldset>
-                        {% if c.workspace_locked %}
-                            <p class="muted">Start analysis or reopen the case to edit content.</p>
-                        {% endif %}
-                    </form>
-                </article>
-                {% endfor %}
-            </div>
-        </section>
-    </section>
+    {% include 'package_register.html' %}
+</section>
 <section id="panel-indicators" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-indicators" hidden>{% include 'indicators.html' %}</section>
 <section id="panel-references" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-references" hidden>{% include 'references.html' %}</section>
 <section id="panel-report" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-report" hidden>{% include 'report_workspace.html' %}</section>

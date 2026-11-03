@@ -6967,8 +6967,8 @@
         "x-required-permission": "cases:read"
       },
       "put": {
-        "summary": "Set one category readiness",
-        "description": "Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.",
+        "summary": "Set section applicability; content presence is automatic",
+        "description": "Content presence is automatic. Empty clears applicability; Not applicable is allowed only without qualifying saved content. Obsolete Pending/Populated writes return 400. Reads include legacy_status=Pending for Empty.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -7122,8 +7122,7 @@
                   "status": {
                     "type": "string",
                     "enum": [
-                      "Pending",
-                      "Populated",
+                      "Empty",
                       "Not applicable"
                     ]
                   },
@@ -24622,6 +24621,16 @@
               "type": "string"
             },
             "status": {
+              "type": "string",
+              "enum": [
+                "Empty",
+                "Populated",
+                "Not applicable",
+                "Pending"
+              ],
+              "description": "Canonical servers emit Empty, Populated, or Not applicable; Pending is retained for SDK reads from older servers."
+            },
+            "legacy_status": {
               "type": "string"
             },
             "reason": {

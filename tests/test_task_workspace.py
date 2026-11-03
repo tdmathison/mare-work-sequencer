@@ -33,7 +33,8 @@ def test_task_states_package_fields_and_markdown_preview():
     workbench=page.split('id="panel-workbench"')[1].split('id="panel-tasks"')[0]
     assert 'Add task' not in workbench and 'Save task' not in workbench
     package=page.split('id="panel-package"')[1].split('id="panel-indicators"')[0]
-    assert 'name="reason"' not in package and 'scripts/decode.py' in package
+    assert 'name="reason"' not in package and 'data-artifact-register' in package
+    assert any(row['path']=='scripts/decode.py' for row in client.get(base+'/package-register').json['rows'])
     assert 'Usage (for scripts)' not in page and 'editor-preview-tab' in page
     result=post('/markdown-preview',text='# Heading\n\n**bold**\n\n|A|B|\n|---|---|\n|1|2|\n\n<script>alert(1)</script>\n\n[bad](javascript:alert(1))\n\n![image](https://example.org/track.png)')
     assert result.status_code==200

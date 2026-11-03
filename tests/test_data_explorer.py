@@ -133,6 +133,7 @@ def test_zero_counts_read_only_missing_package_and_paging():
     with app.app_context():
         root=ROOT/'cases'/str(cid)/'mip'
         (root/'supporting'/'references.csv').write_text('Link,Description\n'+'https://example.com,source\n'*201)
+        db().execute('INSERT OR REPLACE INTO reference_tables VALUES(?,?,1)',(cid,json.dumps([['https://example.com','source']]*201)));db().commit()
     data=c.get(f'/data-explorer/cases/{cid}/contents/references?page=1').json
     assert data['count']==201 and data['pages']==2 and len(data['items'])==1
     assert c.get(f'/data-explorer/cases/{cid}/contents/references?page=-1').status_code==400

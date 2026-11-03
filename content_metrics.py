@@ -519,6 +519,8 @@ def collect_case(con, root, cid, legacy=False):
             or is_backup(rel)
         ):
             continue
+        from package_status import meaningful
+        if not meaningful(path):continue
         category = rel.split("/")[0]
         kind = classifications.get(rel)
         if category == "samples":

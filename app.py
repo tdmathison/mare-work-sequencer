@@ -290,19 +290,8 @@ def deliverable_file(cid, rel):
 
 
 def readiness(cid):
-    root = ensure_package(cid)
-    saved = {r['category']: dict(r) for r in db().execute(
-        'SELECT * FROM readiness WHERE case_id=?', (cid,))}
-    result = []
-    for category, label in CATEGORIES.items():
-        r = saved.get(category, {'status': 'Pending', 'reason': ''})
-        count = sum(1 for p in (root/category).rglob('*') if p.is_file() and not p.is_symlink() and (p.suffix.lower()
-                    == '.zip' if category == 'samples' else deliverable_file(cid, p.relative_to(root).as_posix())))
-        if r['status'] == 'Populated' and not count:
-            r['status'] = 'Pending'
-        result.append(dict(category=category, label=label,
-                      status=r['status'], reason=r['reason'], count=count))
-    return result
+    from package_status import states
+    return states(db(), case(cid), ensure_package(cid))
 
 
 def completion_items(cid):
@@ -310,12 +299,9 @@ def completion_items(cid):
     c = case(cid)
     items = []
     for r in readiness(cid):
-        if r['category'] == 'reports' and r['status'] != 'Populated':
-            items.append({'message': 'Reports needs review. Mark Reports as Populated after reviewing the latest document.',
-                         'action': 'Review Reports', 'target': 'readiness-reports', 'tab': 'package'})
-        elif r['status'] == 'Pending':
-            items.append({'message': r['label']+': Pending. Review its content and mark it Populated, or choose Not applicable with a reason.',
-                         'action': 'Review '+r['label'], 'target': 'readiness-'+r['category'], 'tab': 'package'})
+        if r['status'] == 'Empty':
+            items.append({'message': r['label']+': Empty. Add saved content or mark the section Not applicable.',
+                         'action': 'Open '+r['label'], 'target': 'readiness-'+r['category'], 'tab': 'package'})
     from indicator_types import inspect_sections
     from indicators import load_table as indicator_table
     indicator_issues=inspect_sections(indicator_table(db,cid)['sections'])['issues']
@@ -426,7 +412,7 @@ def enforce_case_stage():
     c = case(cid)
     message = None
     # Copying definitions to the global library does not mutate the source Case.
-    if request.endpoint in ('assign_case_owner', 'backup_single_export', 'delete_case', 'markdown_preview', 'case_notebook_preview', 'web_task_collection_from_tasks'):
+    if request.endpoint in ('assign_case_owner', 'package_bulk_download', 'backup_single_export', 'delete_case', 'markdown_preview', 'case_notebook_preview', 'web_task_collection_from_tasks'):
         return
     if c['owner_required'] and not c['owner_active'] and request.endpoint != 'detail' and not (request.endpoint == 'progress' and c['stage'] == 0):
         return {'error': 'Assign an active owner in Case details to resume this case at its current stage.'}, 409
@@ -652,7 +638,7 @@ def dashboard():
         'owner': lambda c: (c['owner_name'] or 'Unassigned').casefold(),
         'creator': lambda c: c['creator_name'].casefold(),
         'stage': lambda c: c['stage'],
-        'reviewed': lambda c: sum(r['status'] != 'Pending' for r in c['readiness']) / (len(c['readiness']) or 1),
+        'reviewed': lambda c: sum(r['status'] not in ('Empty','Pending') for r in c['readiness']) / (len(c['readiness']) or 1),
     }
     cases.sort(key=lambda c: (sort_keys[board_sort](c), c['id']), reverse=sort_direction == 'desc')
     view = request.args.get('view')
@@ -901,24 +887,16 @@ def resolve_deferred(cid, stage):
 
 @app.post('/cases/<int:cid>/readiness')
 def set_readiness(cid):
-    case(cid)
-    category = request.form.get('category')
-    status = request.form.get('status')
-    reason = request.form.get('reason', '').strip()
-    if category not in CATEGORIES or status not in ('Pending', 'Populated', 'Not applicable'):
-        abort(400)
-    if category == 'reports' and status == 'Not applicable':
-        flash('A report is required for every MIP.')
-        return redirect(f'/cases/{cid}')
-    reason = ''
-    root = ensure_package(cid)
-    if status == 'Populated' and not any(p.is_file() for p in (root/category).rglob('*')):
-        flash('Add content before marking this category populated.')
-        return redirect(f'/cases/{cid}')
-    run('INSERT OR REPLACE INTO readiness VALUES(?,?,?,?)',
-        (cid, category, status, reason))
-    audit(f'Case {cid}: {category} {status}')
-    return redirect(f'/cases/{cid}')
+    c = case(cid)
+    if not has_permission(g.user, 'cases:update', db()): abort(403)
+    from package_status import applicability
+    try:
+        changed=applicability(db(),c,ensure_package(cid),request.form.get('category'),request.form.get('status'),request.form.get('reason',''))
+    except FileExistsError as error: return {'error':str(error)},409
+    except ValueError as error: return {'error':str(error)},400
+    if changed:audit('Updated package applicability '+c['number'])
+    if request.form.get('ajax')=='1':return {'readiness':readiness(cid)}
+    return redirect(f'/cases/{cid}?tab=package')
 
 
 @app.post('/cases/<int:cid>/draft')
@@ -1020,6 +998,12 @@ def file(cid):
     case(cid)
     rel = request.values.get('path', '')
     p = safe_path(cid, rel)
+    if request.method=='GET' and request.args.get('download') and rel in ('iocs/indicators.csv','supporting/references.csv'):
+        if not has_permission(g.user,'cases:assets',db()):abort(403)
+        from package_status import carriers
+        derived=carriers(db(),cid,existing=(rel,))
+        if rel in derived:
+            return send_file(io.BytesIO(derived[rel]),as_attachment=True,download_name=Path(rel).name,mimetype='text/csv')
     if not p.is_file():
         abort(404)
     if p.suffix.lower() == '.yara':
@@ -1037,22 +1021,31 @@ def file(cid):
     if generated_stix:
         from indicators import stix_file_is_current
         if not stix_file_is_current(db,cid,p):abort(409,description='STIX is stale or unavailable. Save/correct the Indicators table first.')
-    editable = p.suffix.lower() in ('.md', '.txt', '.json', '.csv', '.yml', '.yaml',
+    from package_status import GENERATED
+    managed = rel in GENERATED
+    editable = not managed and not rel.startswith('samples/') and p.suffix.lower() in ('.md', '.txt', '.json', '.csv', '.yml', '.yaml',
                                     '.yar', '.sigma', '.py', '.sh', '.ps1') and p.stat().st_size < 1024*1024 and not generated_stix
+    if request.method == 'GET' and request.args.get('ajax')=='1':
+        if not editable or rel.startswith('reports/sections/') or rel in ('mappings/mitre-attack.md','mappings/mitre-mbc.md') or not has_permission(g.user,'cases:assets',db()):abort(403)
+        return {'content':p.read_text(encoding='utf-8',errors='replace'),'revision':hashlib.sha256(p.read_bytes()).hexdigest()}
     if request.method == 'POST':
+        if not has_permission(g.user,'cases:assets',db()):abort(403)
         if not editable:
             abort(400)
+        if request.form.get('ajax')=='1' and request.form.get('revision')!=hashlib.sha256(p.read_bytes()).hexdigest():return {'error':'File changed; your draft is retained. Reload before replacing it.'},409
         content = request.form.get('content', '')
         if p.suffix == '.json':
             try:
                 json.loads(content)
             except ValueError:
+                if request.form.get('ajax')=='1':return {'error':'Invalid JSON; file was not saved.'},400
                 flash('Invalid JSON; file was not saved.')
                 return redirect(request.url)
         if p.read_text(encoding='utf-8') != content:
             p.write_text(content, encoding='utf-8')
             mark_pending(cid, rel)
         audit(f'Edited case {cid}: {rel}')
+        if request.form.get('ajax')=='1':return {'saved':True,'revision':hashlib.sha256(p.read_bytes()).hexdigest()}
         flash('Saved.')
         return redirect(f'/cases/{cid}')
     if request.args.get('download') or not editable:
@@ -1063,6 +1056,7 @@ def file(cid):
 @app.post('/cases/<int:cid>/upload')
 def upload(cid):
     case(cid)
+    if not has_permission(g.user,'cases:assets',db()):abort(403)
     folder = request.form.get('category') or request.form.get('folder', '')
     if folder not in CATEGORIES:
         abort(400)
@@ -1072,6 +1066,7 @@ def upload(cid):
     if not name:
         abort(400)
     relative_name = name
+    if request.content_length and request.content_length>101*1024*1024:abort(413)
     if folder == 'signatures' and name.lower().endswith('.rules'):
         if not all(has_permission(g.user, p, db()) for p in ('cases:read','cases:assets','cases:update')): abort(403)
         from signature_files import persist, LIMIT, Conflict
@@ -1093,6 +1088,7 @@ def upload(cid):
         relative_name = name+'.zip'
         target = safe_path(cid, folder+'/'+relative_name)
         if target.exists():
+            if request.form.get('ajax')=='1':return {'error':'A sample with that name already exists. Rename the queued file explicitly.'},409
             flash('A sample with that name already exists. Rename it before uploading.')
             return redirect(f'/cases/{cid}')
         import pyzipper
@@ -1109,6 +1105,7 @@ def upload(cid):
     else:
         target = safe_path(cid, folder+'/'+relative_name)
         if target.exists():
+            if request.form.get('ajax')=='1':return {'error':'A file with that name already exists. Rename the queued file explicitly.'},409
             flash('A file with that name already exists. Rename it before uploading.')
             return redirect(f'/cases/{cid}')
         with target.open('xb') as out:
@@ -1126,9 +1123,8 @@ def upload(cid):
 
 
 def mark_pending(cid, rel):
-    category = rel.split('/')[0]
-    if category in CATEGORIES:
-        run("INSERT OR REPLACE INTO readiness VALUES(?,?,'Pending','Content changed; review this category.')", (cid, category))
+    # Applicability clears only after successful persistence, in CaseSync's transaction.
+    pass
 
 
 @app.post('/cases/<int:cid>/artifact')
@@ -1189,6 +1185,9 @@ def build_archive(cid, archive_type, include_samples=False):
         'system': c['external_system'], 'number': c['external_number']}, 'description': c['description'], 'created_at': c['created'], 'packaged_at': now(), 'readiness': statuses, 'acknowledged_issues': issues, 'artifacts': metadata, 'files': []}
     from standard_package import selected_files
     contents = selected_files(c, root, raw=archive_type=='raw', include_samples=include_samples)
+    if archive_type=='standard':
+        from package_status import carriers
+        contents.update(carriers(db(),cid,existing=contents))
     selected = db().execute(
         "SELECT * FROM notes WHERE case_id=? AND include_export=1 AND note_type='user' ORDER BY id", (cid,)).fetchall()
     if selected and archive_type == 'raw':
@@ -1448,6 +1447,8 @@ register_content_metrics(app, db, ROOT)
 from case_notes import initialize as initialize_notes, baseline as baseline_notes, register as register_notes
 register_notes(app,db)
 with app.app_context():
+    from package_status import initialize as initialize_package_status
+    initialize_package_status(db(), ROOT)
     initialize_notes(db())
     for row in db().execute("SELECT id FROM cases").fetchall():
         baseline_notes(db(),row[0])
@@ -1455,6 +1456,9 @@ with app.app_context():
 from help_guide import register as register_help
 register_help(app, db, audit)
 BackupWorkspace(app, ROOT, db, backup_helpers)
+
+from package_register import register as register_package
+register_package(app, db, case, package, safe_path)
 
 from api_extensions import register_api_extensions
 register_api_extensions(app, db)

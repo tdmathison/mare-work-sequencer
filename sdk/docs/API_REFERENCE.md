@@ -889,7 +889,7 @@ Required role permission: cases:read.
 def set_readiness(self, case_id: int, *, data: PackagesSetReadinessRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> PackagesSetReadinessResponse
 ```
 
-Set one category readiness. PUT /api/v1/cases/{case_id}/readiness. Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.
+Set section applicability; content presence is automatic. PUT /api/v1/cases/{case_id}/readiness. Content presence is automatic. Empty clears applicability; Not applicable is allowed only without qualifying saved content. Obsolete Pending/Populated writes return 400. Reads include legacy_status=Pending for Empty.
 
 Required role permission: cases:update.
 
@@ -2559,7 +2559,7 @@ Required role permission: cases:read.
 async def set_readiness(self, case_id: int, *, data: PackagesSetReadinessRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> PackagesSetReadinessResponse
 ```
 
-Set one category readiness. PUT /api/v1/cases/{case_id}/readiness. Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.
+Set section applicability; content presence is automatic. PUT /api/v1/cases/{case_id}/readiness. Content presence is automatic. Empty clears applicability; Not applicable is allowed only without qualifying saved content. Obsolete Pending/Populated writes return 400. Reads include legacy_status=Pending for Empty.
 
 Required role permission: cases:update.
 

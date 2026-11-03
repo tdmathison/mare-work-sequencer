@@ -272,10 +272,8 @@ def mutate(con, user, cid, value, nid=None, delete=False):
 
 
 def pending(con, cid):
-    con.execute(
-        "INSERT OR REPLACE INTO readiness(case_id,category,status,reason) VALUES(?,'reports','Pending','Content changed; review this category.')",
-        (cid,),
-    )
+    # Package presence is derived; Notes do not overwrite section applicability.
+    pass
 
 
 def audit(con, user, message):
