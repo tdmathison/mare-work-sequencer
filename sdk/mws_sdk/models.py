@@ -1358,13 +1358,6 @@ class RolesPermissionsResponse(APIModel):
     """RolesPermissionsResponse version-1 API fields."""
     permissions: list[RolesPermissionsResponsePermissionsItem] | None = None
 
-class PluginsCapabilitiesResponse(APIModel):
-    """PluginsCapabilitiesResponse version-1 API fields."""
-    tools: list[dict[str, Any]] | None = None
-    plugin_registry: bool | None = None
-    description: str | None = None
-    plugins: list[PluginsCapabilitiesResponsePluginsItem] | None = None
-
 class RolesListResponse(APIModel):
     """RolesListResponse version-1 API fields."""
     roles: list[Role] | None = None
@@ -1567,7 +1560,6 @@ class AuthenticationCreateTokenResponse(APIModel):
 class ToolsListResponse(APIModel):
     """ToolsListResponse version-1 API fields."""
     tools: list[ToolsListResponseToolsItem] | None = None
-    plugin_registry: bool | None = None
     description: str | None = None
 
 class ToolsSnortDownloadRequest(APIModel):
@@ -2072,14 +2064,6 @@ class RolesPermissionsResponsePermissionsItem(APIModel):
     """RolesPermissionsResponsePermissionsItem version-1 API fields."""
     name: str | None = None
     description: str | None = None
-
-class PluginsCapabilitiesResponsePluginsItem(APIModel):
-    """PluginsCapabilitiesResponsePluginsItem version-1 API fields."""
-    id: str | None = None
-    name: str | None = None
-    development: str | None = None
-    enabled: int | None = None
-    published_version: str | None = None
 
 class SettingsGetResponseSettings(APIModel):
     """SettingsGetResponseSettings version-1 API fields."""

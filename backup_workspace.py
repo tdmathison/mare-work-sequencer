@@ -94,6 +94,9 @@ def lock(path, exclusive):
 def persistent(root):
     for path in sorted(Path(root).rglob("*")):
         rel = path.relative_to(root)
+        from retired_plugins import obsolete_path
+        if obsolete_path(rel.as_posix()):
+            continue
         if (
             rel.parts[0] in TRANSIENT
             or rel.parts[0].startswith("case-import-")
@@ -893,7 +896,7 @@ class BackupWorkspace:
             shared_actions=shared_actions,
             handoff=handoff,
             legacy=legacy,
-            warnings=(["Archive predates Help: existing Help content will be retained."] if complete and recovery.get("help_missing") else []) + (
+            warnings=(["Legacy plugin data was skipped; no plugin code, credentials or permissions will be restored."] if complete and recovery.get("plugins_skipped") else []) + (["Archive predates Help: existing Help content will be retained."] if complete and recovery.get("help_missing") else []) + (
                 [
                     "Legacy archive: newer data areas may be absent; missing sections never delete destination data."
                 ]
@@ -1096,7 +1099,9 @@ class BackupWorkspace:
         recovery.mkdir(mode=0o700)
         old = recovery / "old"
         old.mkdir(mode=0o700)
-        names = [p.name for p in self.root.iterdir() if p.name not in LOCKS]
+        from retired_plugins import obsolete_path
+        # Operator-owned retired packages stay outside replacement/TTL cleanup.
+        names = [p.name for p in self.root.iterdir() if p.name not in LOCKS and not obsolete_path(p.name)]
         incoming = [p.name for p in restored.iterdir() if p.name not in LOCKS]
         journal = {
             "phase": "prepared",

@@ -378,8 +378,6 @@ def protect():
             return {'error': 'Change the temporary password in the web account before using the API.'}, 403
         g.user = user
         g.api_token_id = user['api_token_id']
-        from plugin_execution import enforce_grant
-        enforce_grant(db())
         import time
         limit = int(os.environ.get('MARE_API_RATE_LIMIT', '600'))
         minute = int(time.time()//60)
@@ -1440,11 +1438,11 @@ from import_sync import ImportSync
 case_sync = CaseSync(app, ROOT, db, backup_helpers['case_metadata'], validate_metadata)
 ImportSync(app, ROOT, db, case_sync, backup_helpers, allocate_case_number, now)
 
-os.close(backup_bootstrap_fd)
 from backup_workspace import BackupWorkspace
-from plugin_store import initialize as initialize_plugin_store
+from retired_plugins import retire as retire_plugins
 with app.app_context():
-    initialize_plugin_store(db())
+    retire_plugins(db(), live=True)
+os.close(backup_bootstrap_fd)
 from content_metrics_dashboard import register as register_content_metrics
 register_content_metrics(app, db, ROOT)
 from case_notes import initialize as initialize_notes, baseline as baseline_notes, register as register_notes
@@ -1464,14 +1462,9 @@ register_api_extensions(app, db)
 from developer_pages import register_developer_pages
 from application_shell import register_shell
 register_developer_pages(app, db)
-from plugin_routes import register_plugins
-register_plugins(app, db, audit)
 register_shell(app, db)
 
-from plugin_execution import register_execution
-register_execution(app, db, audit)
-from developer_configuration import register_configuration
-register_configuration(app, db, audit)
+
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)

@@ -2186,13 +2186,14 @@ SDK development tests require `python -m pip install -e '.[test]'`. Backend-only
 installations do not need httpx or pydantic; in-process SDK integration tests skip
 when those optional development dependencies are absent.
 
-### Developer tools and folder plugins
+### Developer documentation
 
-Developer contains API, SDK and Plugins. Author Python plugins externally with
-VS Code and the local SDK, then install their existing `plugin.json` package into
-`MARE_PLUGINS_DIR` and rescan in Plugins. See [external plugin development](docs/PLUGIN_DEVELOPMENT.md)
-and [isolated operational runtime](docs/PLUGIN_RUNTIME.md). SDK documentation,
-REST APIs and plugin discovery do not require an execution service.
+Developer contains API and SDK. The installable Python SDK supports external
+analyst scripts through authenticated, permission-checked REST APIs. No separate
+execution service is required. See [SDK documentation](sdk/README.md).
+
+For upgrades from the retired extension feature, see
+[deployment retirement and backup compatibility](docs/RETIRED_PLUGINS.md).
 
 ### Reusable task collections
 

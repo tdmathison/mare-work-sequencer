@@ -289,6 +289,7 @@ def restore_installation(archive_path, destination, *, help_content=None):
         )
     if not destination.parent.is_dir():
         raise ValueError("The destination parent directory must already exist.")
+    plugins_skipped = False
     with tempfile.TemporaryDirectory(
         prefix=".mare-recovery-", dir=destination.parent
     ) as temporary:
@@ -357,17 +358,25 @@ def restore_installation(archive_path, destination, *, help_content=None):
                 if name == "installation.json" or info.is_dir():
                     continue
                 relative = Path(*name.split("/")[1:])
+                from retired_plugins import obsolete_path
+                skip = obsolete_path(relative.as_posix())
+                plugins_skipped |= skip
                 target = stage / relative
-                target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                if not skip:
+                    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
                 digest = hashlib.sha256()
                 size = 0
-                with archive.open(info) as src, target.open("xb") as dst:
-                    os.chmod(target, 0o600)
+                from contextlib import nullcontext
+                with archive.open(info) as src, (nullcontext(None) if skip else target.open("xb")) as dst:
+                    if not skip:
+                        os.chmod(target, 0o600)
                     while chunk := src.read(1024**2):
                         digest.update(chunk)
                         size += len(chunk)
-                        dst.write(chunk)
-                restore_mtime(target, info)
+                        if dst is not None:
+                            dst.write(chunk)
+                if not skip:
+                    restore_mtime(target, info)
                 if manifest is not None:
                     expected = manifest["files"][name]
                     if (
@@ -429,8 +438,8 @@ def restore_installation(archive_path, destination, *, help_content=None):
                 from case_notes import initialize as initialize_notes
                 initialize_notes(upgraded)
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
-            from plugin_store import retire_editor_schema
-            retire_editor_schema(upgraded)
+            from retired_plugins import scrub_snapshot
+            plugins_skipped |= scrub_snapshot(upgraded)
         with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
             from help_guide import recover as recover_help
             help_missing = recover_help(upgraded, help_content)
@@ -442,8 +451,9 @@ def restore_installation(archive_path, destination, *, help_content=None):
     return {
         "counts": counts,
         "help_missing": help_missing,
+        "plugins_skipped": plugins_skipped,
         "legacy": manifest is None,
-        "message": (
+        "message": ("Legacy plugin data was skipped. " if plugins_skipped else "") + (
             "Backup predates malware-family support; profiles will be initialized empty on startup."
             if not has_families
             else "Profiles, OSINT links, attached reports and tag relationships restored with their original identities."

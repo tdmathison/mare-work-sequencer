@@ -18042,122 +18042,6 @@
         "x-required-permission": "roles:manage"
       }
     },
-    "/plugins": {
-      "get": {
-        "summary": "Inspect existing plugin integration capabilities",
-        "description": "\n\nRequired role permission: any authenticated API user.",
-        "responses": {
-          "200": {
-            "description": "Successful response.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "tools": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {},
-                        "additionalProperties": true
-                      }
-                    },
-                    "plugin_registry": {
-                      "type": "boolean"
-                    },
-                    "description": {
-                      "type": "string"
-                    },
-                    "plugins": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string"
-                          },
-                          "name": {
-                            "type": "string"
-                          },
-                          "development": {
-                            "type": "string"
-                          },
-                          "enabled": {
-                            "type": "integer"
-                          },
-                          "published_version": {
-                            "type": "string",
-                            "nullable": true
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Missing, expired, revoked or invalid bearer token.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                },
-                "example": {
-                  "error": "Illustrative error; consult the actual response."
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Missing role permission or required password change.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                },
-                "example": {
-                  "error": "Illustrative error; consult the actual response."
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Per-token request limit exceeded (default 600/minute).",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                },
-                "example": {
-                  "error": "Illustrative error; consult the actual response."
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Unexpected server error.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                },
-                "example": {
-                  "error": "Illustrative error; consult the actual response."
-                }
-              }
-            }
-          }
-        },
-        "parameters": [],
-        "operationId": "plugin_capabilities_get",
-        "tags": [
-          "Plugins"
-        ],
-        "x-required-permission": null
-      }
-    },
     "/roles": {
       "get": {
         "summary": "List roles and permissions",
@@ -21702,9 +21586,6 @@
                           }
                         }
                       }
-                    },
-                    "plugin_registry": {
-                      "type": "boolean"
                     },
                     "description": {
                       "type": "string"

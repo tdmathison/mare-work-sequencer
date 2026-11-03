@@ -21,7 +21,7 @@ def api_account():
 
 def test_coverage_graph_views_tags_and_registry(api_account):
     c,uid,h,cid=api_account
-    for endpoint in ('/coverage?scope=all','/explorer/graph','/tools','/plugins','/search?q='):
+    for endpoint in ('/coverage?scope=all','/explorer/graph','/tools','/search?q='):
         response=c.get('/api/v1'+endpoint,headers=h)
         assert response.status_code==200,response.text
         assert app.test_client().get('/api/v1'+endpoint).status_code==401

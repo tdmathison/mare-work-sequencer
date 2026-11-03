@@ -40,7 +40,7 @@ NAMES={
  'templates_get':('templates','list'),'templates_post':('templates','upload'),'select_template_put':('templates','select'),'template_item_get':('templates','download'),'template_item_delete':('templates','delete'),
 'case_backup_post':('backups','case'),'export_all_cases_post':('backups','export_cases'),'api_import_backup_post':('backups','import_cases'),'api_import_backup_post_raw':('backups','import_raw'),'api_database_backup_post':('backups','legacy_database'),'metrics_get':('metrics','get'),
 'sync_api_review_get':('backups','sync_review'), 'sync_api_preview_post':('backups','sync_preview'),'sync_api_apply_post':('backups','sync_apply'),
- 'tool_registry_get':('tools','list'), 'plugin_capabilities_get':('plugins','capabilities'),
+ 'tool_registry_get':('tools','list'),
 }
 
 models={}

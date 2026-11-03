@@ -5,12 +5,6 @@ PERMISSIONS = {
     'task_collections:manage': 'Manage all global task collections',
     'developer:api': 'View interactive API documentation',
     'developer:sdk': 'View Python SDK documentation',
-    'plugins:read': 'View installed plugins',
-    'plugins:install': 'Register installed folder plugins',
-    'plugins:execute': 'Run enabled published plugins',
-    'plugins:versions': 'Manage plugin versions and enablement',
-    'plugins:delete': 'Delete owned plugin registrations',
-    'plugins:configure': 'Configure owned plugins',
     'tags:read': 'Read tags and filter cases',
     'tags:create': 'Create shared tags',
     'tags:assign': 'Assign and remove case tags',
@@ -79,9 +73,6 @@ def initialize_roles(connection):
 
 def has_permission(user, permission, connection):
     if not user:
-        return False
-    from flask import g, has_request_context
-    if has_request_context() and hasattr(g, 'plugin_permissions') and permission not in g.plugin_permissions:
         return False
     if user['role'] == 'Administrator':
         return True

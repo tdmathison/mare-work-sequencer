@@ -388,12 +388,6 @@ class AsyncPackagesResource(AsyncResource):
         'Set one category readiness. PUT /api/v1/cases/{case_id}/readiness. Not applicable requires a reason and is forbidden for reports. Populated requires an existing file.\n\nRequired role permission: cases:update.\n\nContent edits require Malware Analysis or Packaging & Delivery stage and an active owner when ownership is mandatory.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('PUT', 'cases/{case_id}/readiness'.replace('{case_id}', path_value(case_id, nested=False)), data=data, files=files, request_model=PackagesSetReadinessRequest, media='application/json', response_model=PackagesSetReadinessResponse)
 
-class AsyncPluginsResource(AsyncResource):
-    """Authorized plugins operations. Server-side RBAC remains authoritative."""
-    async def capabilities(self) -> PluginsCapabilitiesResponse:
-        'Inspect existing plugin integration capabilities. GET /api/v1/plugins. \n\nRequired role permission: any authenticated API user.'
-        return await self._transport.request('GET', 'plugins', response_model=PluginsCapabilitiesResponse)
-
 class AsyncReferencesResource(AsyncResource):
     """Authorized references operations. Server-side RBAC remains authoritative."""
     async def get(self, case_id: int) -> References:

@@ -28,7 +28,6 @@ Authentication is the existing personal bearer-token system: SHA-256 hashes, one
 | Text Manipulation | `/tools/text/process`; `tools.process_text` | Same bounded offline local operations |
 | YARA/Snort editing, assets, local drafts, downloads and bounded jobs | `/tools/yara`, `/tools/snort`, case tool paths; `tools` | Existing validation, job ownership, engine availability and case asset permissions retained |
 | CyberChef recipes and interactive execution | Registry metadata only | Browser-owned JavaScript application, no server execution API exists; no fake execution method |
-| Plugins | `/plugins`; `plugins.capabilities` | There is no user plugin registry. This reports that fact plus installed tools; external plugins use the standalone REST client |
 | Account/role/token administration | `/users`, `/roles`, `/permissions`, `/tokens`, `/me`; `users`, `roles`, `authentication` | Existing last-admin/role-grant/forced-password/revocation protections retained |
 | Application secret configuration | `/settings`; `settings` | Existing sample-password configured status/write-only update; secrets not exposed as settings reads |
 | Per-user browser autosave interval | Browser Settings | UI preference, not an investigation or integration capability; no second SDK autosave scheduler |

@@ -74,7 +74,7 @@ existing privileged audit log; the notebook does not replace that log.
 counts, total, pagination and current editability. Existing individual-note
 GET/PATCH/DELETE paths are unchanged. POST creates only User notes; optional
 `request_id` is a 32-character lowercase hex retry identity scoped to Case/author.
-Authentication, plugin grants and role permissions use the existing API layer.
+Authentication and role permissions use the existing API layer.
 
 ```python
 entries = client.notes.list(case_id, params={"type": "user", "q": "finding"})

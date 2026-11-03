@@ -9,8 +9,6 @@ from authorization import has_permission
 from markdown_support import markdown_parser
 
 DOCUMENTS = {
-    "runtime": ("Operational plugin runtime", "docs/PLUGIN_RUNTIME.md"),
-    "plugins": ("External plugin development", "docs/PLUGIN_DEVELOPMENT.md"),
     "guide": ("SDK guide", "sdk/README.md"),
     "reference": ("API reference", "sdk/docs/API_REFERENCE.md"),
     "coverage": ("Endpoint coverage", "sdk/docs/API_COVERAGE.md"),
@@ -55,10 +53,3 @@ def register_developer_pages(app, db):
             sections=sections,
             content=content,
         )
-
-
-    @app.get("/plugins")
-    def plugins_page():
-        if not has_permission(g.user, "plugins:read", db()):
-            abort(403)
-        return render_template("developer_plugins.html")

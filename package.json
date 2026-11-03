@@ -12,8 +12,7 @@
     "test:explorer": "node tests/browser/data-explorer.cjs",
     "test:explorer-selection": "node tests/browser/explorer-selection.cjs",
     "test:explorer-research": "node tests/browser/explorer-research.cjs",
-    "test:explorer-coverage": "node tests/browser/explorer-coverage.cjs",
-    "test:plugins": "node tests/browser/plugin-pages.cjs"
+    "test:explorer-coverage": "node tests/browser/explorer-coverage.cjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

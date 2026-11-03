@@ -120,7 +120,6 @@ Generated from registered routes and reviewed OpenAPI contracts. All rows are im
 | GET | `/api/v1/me` | Authenticated / handler checks | None | AuthenticationMeResponse | `client.authentication.me` | Implemented |
 | GET | `/api/v1/metrics` | metrics:read | None | MetricsGetResponse | `client.metrics.get` | Implemented |
 | GET | `/api/v1/permissions` | roles:manage | None | RolesPermissionsResponse | `client.roles.permissions` | Implemented |
-| GET | `/api/v1/plugins` | Authenticated / handler checks | None | PluginsCapabilitiesResponse | `client.plugins.capabilities` | Implemented |
 | GET | `/api/v1/roles` | roles:manage | None | RolesListResponse | `client.roles.list` | Implemented |
 | POST | `/api/v1/roles` | roles:manage | RolesCreateRequest | Role | `client.roles.create` | Implemented |
 | DELETE | `/api/v1/roles/{name}` | roles:manage | None | No body | `client.roles.delete` | Implemented |

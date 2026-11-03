@@ -4,7 +4,7 @@ import pytest
 from flask import template_rendered
 from app import app, db
 from authorization import initialize_roles
-from plugin_fixtures import browser
+from web_helpers import browser
 
 ORDER = [
     "MIP Board",
@@ -62,20 +62,18 @@ def test_exact_hierarchy_and_existing_destinations():
         "Audit": "▤",
     }
     developer = by_name["Developer"]["children"]
-    assert [i["label"] for i in developer] == ["API", "SDK", "Plugins"]
+    assert [i["label"] for i in developer] == ["API", "SDK"]
     assert [i["url"] for i in developer] == [
         "/api",
         "/developer/sdk",
-        "/plugins",
     ]
-    assert len({item["url"] for item in developer}) == 3
-    assert developer[2]["icon"] == "◇"
+    assert len({item["url"] for item in developer}) == 2
     assert all(child.get("icon") for item in items for child in item["children"])
     tools = by_name["Tools"]["children"]
     assert [child["icon"] for child in tools] == [tool.icon for tool in app.extensions["analyst_tools"].values() if tool.enabled]
     assert "Metrics" not in by_name and "Plugins" not in by_name
     assert "Users" not in by_name and "Import & Export" not in by_name
-    assert response.text.count('href="/plugins"') == 1
+    assert response.text.count('href="/plugins"') == 0
     for item in items:
         assert client.get(item["url"]).status_code == 200, item
         for child in item["children"]:
@@ -99,7 +97,7 @@ def test_exact_hierarchy_and_existing_destinations():
         ("/settings/import-export", "Settings", "Import & Export"),
         ("/settings/general", "Settings", "General"),
         ("/settings/audit", "Settings", "Audit"),
-        ("/plugins", "Developer", "Plugins"),
+        ("/developer/sdk", "Developer", "SDK"),
         ("/api", "Developer", "API"),
         ("/developer/api", "Developer", "API"),
         ("/developer/sdk", "Developer", "SDK"),
@@ -132,17 +130,16 @@ def test_default_user_and_explicit_developer_access():
     for path in (
         "/settings/users",
         "/settings/import-export",
-        "/plugins",
         "/api",
     ):
         assert client.get(path).status_code == 403, path
     assert client.get("/metrics").status_code == 200
     with app.app_context():
-        db().execute("INSERT INTO role_permissions VALUES('User','plugins:read')")
+        db().execute("INSERT INTO role_permissions VALUES('User','developer:sdk')")
         db().commit()
-    _, items = navigation(client, "/plugins")
-    assert [i["label"] for i in items[-2]["children"]] == ["Plugins"]
-    assert items[-2]["active"] and client.get("/plugins").status_code == 200
+    _, items = navigation(client, "/developer/sdk")
+    assert [i["label"] for i in items[-2]["children"]] == ["SDK"]
+    assert items[-2]["active"] and client.get("/developer/sdk").status_code == 200
     assert client.get("/api").status_code == 403
 
 
@@ -156,5 +153,5 @@ def test_restricted_role_does_not_gain_moved_permissions():
     assert [i["label"] for i in items] == ["Dashboards", "Tools", "Settings", "Help"]
     assert [i["label"] for i in items[-2]["children"]] == ["General"]
     assert 'href="/metrics"' not in client.get("/dashboards").text
-    for path in ("/metrics", "/plugins", "/settings/users", "/settings/import-export"):
+    for path in ("/metrics", "/settings/users", "/settings/import-export"):
         assert client.get(path).status_code == 403, path

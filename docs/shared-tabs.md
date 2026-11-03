@@ -1,6 +1,6 @@
 # Shared workspace tabs
 
-Case Workbench, Tools, Settings, Import/Export, Developer plugin details and
+Case Workbench, Tools, Settings, Import/Export, Developer documentation and
 research profile sections use `templates/components/tabs.html`,
 `static/mws-tabs.css` and `static/mws-tabs.js`. The stylesheet is extracted from
 Case Workbench: 4 px gap, muted inactive text, gold active text and 3 px underline,
@@ -32,9 +32,9 @@ keyboard behavior, history, dirty-form protection and responsive overflow.
 ## Application-wide audit and adoption
 
 The same component now also renders **Import & Export → Export backup / Import
-archive**, **Developer → Plugins detail sections**, and the **Malware Family /
+archive**, **Developer documentation**, and the **Malware Family /
 Threat Actor profile sections** (one shared profile template). Obsolete backup,
-profile and plugin-detail tab selectors, active indicators and responsive padding
+profile tab selectors, active indicators and responsive padding
 rules were removed. Case/Tools adapters no longer reproduce ARIA selection and
 panel switching; click handling is also owned by the component.
 

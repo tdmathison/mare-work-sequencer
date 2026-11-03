@@ -28,12 +28,12 @@ def test_comparable_page_tabs_adopt_component_without_local_style_copies():
     from pathlib import Path
     import re
     root = Path(app.root_path)
-    for filename in ('case.html', 'tools.html', 'settings_shell.html', 'backup_workspace.html', 'developer_plugins.html', 'malware_families.html', 'tags.html'):
+    for filename in ('case.html', 'tools.html', 'settings_shell.html', 'backup_workspace.html', 'malware_families.html', 'tags.html'):
         source = (root / 'templates' / filename).read_text()
         assert "from 'components/tabs.html' import bar, item" in source
         assert 'call bar(' in source
         assert 'role="tablist"' not in source or filename == 'case.html'  # Archive-format selector is intentionally separate.
-    aliases = r'\.(?:mws-tabs|mws-tab|case-tabs|tool-tabs|settings-categories|backup-tabs|plugin-detail-tabs|family-tabs)(?![\w-])'
+    aliases = r'\.(?:mws-tabs|mws-tab|case-tabs|tool-tabs|settings-categories|backup-tabs|family-tabs)(?![\w-])'
     for path in (root / 'static').glob('*.css'):
         if path.name == 'mws-tabs.css':
             continue

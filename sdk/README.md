@@ -12,7 +12,7 @@ export MWS_BASE_URL=https://mws.example.com
 export MWS_API_KEY=your-personal-bearer-token
 ```
 
-Create a token once using the application's API page, after completing any forced password change. Existing tokens are user-bound SHA-256 hashes with optional expiration, revocation and the user's **current** RBAC permissions. Token secrets are returned once; store them in a secret manager. The SDK uses bearer authentication, not login cookies or browser CSRF tokens. There is no second API-key database or plugin runtime.
+Create a token once using the application's API page, after completing any forced password change. Existing tokens are user-bound SHA-256 hashes with optional expiration, revocation and the user's **current** RBAC permissions. Token secrets are returned once; store them in a secret manager. The SDK uses bearer authentication, not login cookies or browser CSRF tokens. There is no second API-key database.
 
 ```python
 from mws_sdk import MWSClient
@@ -92,7 +92,7 @@ with MWSClient() as client:
 
 `templates` manages the caller's Word templates. `reports.upload` accepts an edited DOCX in the `report` multipart field. Final Word/PDF downloads and image transfers use the same permissions as the web application. Standard and RAW remain different exporter modes; the SDK does not reconstruct archives. Samples require an explicit `include_samples` option and `samples:export`. Upload dictionaries accept local paths, caller-owned binary handles or httpx `(filename, handle, content_type)` tuples; repeated multipart fields use a list of `(field, value)` pairs. SDK-opened file handles are closed; caller-owned handles remain caller-owned. Downloads stream to a temporary sibling file and publish only after success; existing destinations require `overwrite=True`. They do not trust server-provided filenames. Async file I/O uses bounded synchronous filesystem operations while HTTP transfers remain asynchronous.
 
-## Coverage, profiles, tools and plugins
+## Coverage, profiles and tools
 
 ```python
 with MWSClient() as client:
@@ -102,12 +102,11 @@ with MWSClient() as client:
     for gap in result.gaps:
         print(gap.name, gap.explanation)
     print(client.tools.list().tools)
-    print(client.plugins.capabilities().plugin_registry)  # False: no plugin registry exists.
 ```
 
 Coverage is saved-content presence, never an analysis-quality or completion score; inspect `limited`, `note`, `pages` and `gap_pages`. Current-Graph scope accepts the existing JSON-encoded `ids` query field supplied by a caller; viewport state is not guessed by the SDK. `explorer` exposes authorized graph data, evidence, bounded connections/shared indicators, contents and owner-scoped saved views. `families`, `actors` and `tags` expose profiles, aliases, shared associations, OSINT/report attachments and tag management. Profile changes require the current `version`; omitted profile fields/relationships are preserved, while explicitly empty alias/association collections remove them.
 
-Future plugins use this client exactly like any external integration: retrieve `cases.get`, read/update report/indicator data, submit `notes` findings, references and assets, inspect coverage, and invoke permitted tool actions. There is no invented registration, install or arbitrary execution endpoint. CyberChef runs only in the browser; the registry describes it but does not invent a server execution method. Native text operations, Snort and YARA drafts, saves, job submission/status/cancel and downloads are actual server handlers. Engine availability and upload limits remain server-managed; source is JSON-encoded in the established `source_json` field. Job results and tool-specific contexts retain forward-compatible extra fields.
+CyberChef runs only in the browser; the registry describes it but does not invent a server execution method. Native text operations, Snort and YARA drafts, saves, job submission/status/cancel and downloads are actual server handlers. Engine availability and upload limits remain server-managed; source is JSON-encoded in the established `source_json` field. Job results and tool-specific contexts retain forward-compatible extra fields.
 
 ## Users, roles, settings, metrics and backups
 
@@ -153,52 +152,6 @@ with MWSClient() as client:
     # After validating the replacement credential, explicitly revoke the old token ID:
     # client.authentication.revoke_token(old_token_id)
 ```
-
-### External plugin development
-
-Use Python 3 in VS Code or another external environment. From a repository checkout:
-
-```sh
-python3 -m venv .venv-plugin
-.venv-plugin/bin/python -m pip install -e ./sdk
-.venv-plugin/bin/python -m pip install pytest
-```
-
-Select `.venv-plugin/bin/python` in VS Code. Install the Python/Pylance extensions
-if desired; IntelliSense uses the installed SDK's type annotations. No application
-editor or language service is required. Set `MWS_BASE_URL` to your HTTPS MWS origin
-and `MWS_API_KEY` to a short-lived API token with only the required permissions.
-Keep credentials in your shell/secret manager, outside source control and packages.
-For example, run a standalone script using the SDK's environment configuration:
-
-```python
-from mws_sdk import MWSClient
-
-with MWSClient() as client:
-    print(client.plugins.capabilities())
-```
-
-Copy `examples/hello_world_plugin` from the repository as a starting package:
-`plugin.json` declares `mws-plugin/1`, its validated identifier, SDK/API versions,
-permissions and `main.py:run` entrypoint; `main.py` defines `run(context)`.
-Test locally using pytest and a fixture implementing `mws_sdk.plugin.PluginContext`.
-Use an explicit case identifier when accessing case data. The installed runtime's
-SDK grants are scoped to that case, declared permissions and current user RBAC.
-`context.configuration` holds public configuration; approved connector credentials
-remain in the gateway and are accessed through `context.external(service,path)`.
-
-An administrator copies the complete package directory into `MARE_PLUGINS_DIR`
-(default: repository `plugins/`), then opens Developer → Plugins and refreshes.
-Discovery validates the manifest/source contract without executing Python. Configure
-required values, then Enable. To deploy changes, increment the manifest version,
-replace the directory atomically and rescan; existing executions retain their
-immutable snapshots. Source files are managed on disk, never through the web UI.
-The operator must review dependencies and include them in the approved runtime
-image; no dependency installation happens during execution.
-
-`client.plugins.capabilities()` reports available tools and authorized registered
-plugins. It does not execute code. Normal enabled-plugin runs remain isolated;
-see the repository's `docs/PLUGIN_RUNTIME.md` for deployment and lifecycle routes.
 
 ## Task collections
 

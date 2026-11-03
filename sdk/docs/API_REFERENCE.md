@@ -897,18 +897,6 @@ Content edits require Malware Analysis or Packaging & Delivery stage and an acti
 
 Execute affects real application data. Nothing executes automatically.
 
-### PluginsResource
-
-Authorized plugins operations. Server-side RBAC remains authoritative.
-
-```python
-def capabilities(self) -> PluginsCapabilitiesResponse
-```
-
-Inspect existing plugin integration capabilities. GET /api/v1/plugins. 
-
-Required role permission: any authenticated API user.
-
 ### ReferencesResource
 
 Authorized references operations. Server-side RBAC remains authoritative.
@@ -2579,18 +2567,6 @@ Content edits require Malware Analysis or Packaging & Delivery stage and an acti
 
 Execute affects real application data. Nothing executes automatically.
 
-### AsyncPluginsResource
-
-Authorized plugins operations. Server-side RBAC remains authoritative.
-
-```python
-async def capabilities(self) -> PluginsCapabilitiesResponse
-```
-
-Inspect existing plugin integration capabilities. GET /api/v1/plugins. 
-
-Required role permission: any authenticated API user.
-
 ### AsyncReferencesResource
 
 Authorized references operations. Server-side RBAC remains authoritative.
@@ -4175,10 +4151,6 @@ MetricsGetResponse version-1 API fields.
 
 RolesPermissionsResponse version-1 API fields.
 
-### PluginsCapabilitiesResponse
-
-PluginsCapabilitiesResponse version-1 API fields.
-
 ### RolesListResponse
 
 RolesListResponse version-1 API fields.
@@ -4558,10 +4530,6 @@ MetricsGetResponseCompletedItem version-1 API fields.
 ### RolesPermissionsResponsePermissionsItem
 
 RolesPermissionsResponsePermissionsItem version-1 API fields.
-
-### PluginsCapabilitiesResponsePluginsItem
-
-PluginsCapabilitiesResponsePluginsItem version-1 API fields.
 
 ### SettingsGetResponseSettings
 

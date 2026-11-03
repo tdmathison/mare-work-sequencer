@@ -229,6 +229,7 @@ from app import app,db,ROOT
 from werkzeug.security import generate_password_hash
 with app.app_context():
     uid=db().execute("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",('bootstrap',generate_password_hash('bootstrap-password'),'Administrator')).lastrowid;db().commit()
+operator=ROOT/'plugins'/'operator-owned.py';operator.parent.mkdir();operator.write_text('operator-owned package, never executed')
 client=app.test_client()
 with client.session_transaction() as session:session.update(uid=uid,version=1,csrf='dr')
 r=client.post('/backup-restore/jobs',data={'csrf':'dr','kind':'inspect','passphrase':'a strong recovery passphrase','archive':(io.BytesIO(open('ARCHIVE','rb').read()),'complete.zip')},content_type='multipart/form-data')
@@ -251,6 +252,7 @@ r=client.post('/login',data={'csrf':client.get('/login').text.split('name="csrf"
 assert r.status_code==302,r.text
 with app.app_context():
     assert db().execute("SELECT value FROM site_settings WHERE name='recovery-setting'").fetchone()[0]=='preserved'
+    assert operator.read_text()=='operator-owned package, never executed'
     view=db().execute("SELECT v.* FROM explorer_views v JOIN users u ON u.user_uuid=v.owner_uuid WHERE u.username='recovery-admin'").fetchone()
     assert view['name']=='Recovery graph' and __import__('json').loads(view['configuration'])['positions']
     assert len(client.get('/data-explorer/views').json['views'])==1

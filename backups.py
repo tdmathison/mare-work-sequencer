@@ -340,12 +340,17 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                     if snapshot_connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='actor_reports'").fetchone():
                         for report in snapshot_connection.execute('SELECT * FROM actor_reports'):
                             verify_report(ROOT, report, spec=ACTOR)
+                    from retired_plugins import scrub_snapshot
+                    scrub_snapshot(snapshot_connection)
                     counts = record_counts(snapshot_connection)
                     family_schema = snapshot_connection.execute("SELECT 1 FROM schema_migrations WHERE name=?", (FAMILY_MIGRATION,)).fetchone() is not None
                 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, strict_timestamps=False) as archive:
                     expanded = add_file(archive, snapshot, 'data/workflow.sqlite3', files)
                     for file in sorted(ROOT.rglob('*')):
                         rel = file.relative_to(ROOT)
+                        from retired_plugins import obsolete_path
+                        if obsolete_path(rel.as_posix()):
+                            continue
                         if file.is_symlink() or not file.is_file() or rel.parts[0].startswith(('case-import-', 'report-jobs')) or rel.parts[0] in ('search-index', 'snort-jobs', 'yara-jobs', 'family-report-staging','actor-report-staging') or file.name in ('.backup.lock', '.case-sync.lock', '.maintenance.lock', 'workflow.sqlite3', 'workflow.sqlite3-wal', 'workflow.sqlite3-shm', 'workflow.sqlite3-journal'):
                             continue
                         expanded = add_file(archive, file, (Path('data')/rel).as_posix(), files, expanded=expanded)

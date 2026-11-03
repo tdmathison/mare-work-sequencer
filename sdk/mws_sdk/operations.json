@@ -2992,23 +2992,6 @@
     "description": "\n\nRequired role permission: roles:manage."
   },
   {
-    "resource": "plugins",
-    "name": "capabilities",
-    "operation_id": "plugin_capabilities_get",
-    "path": "plugins",
-    "method": "GET",
-    "permission": null,
-    "paths": [],
-    "request": null,
-    "response": "PluginsCapabilitiesResponse",
-    "query": null,
-    "media": "application/json",
-    "binary": false,
-    "collection": "tools",
-    "summary": "Inspect existing plugin integration capabilities",
-    "description": "\n\nRequired role permission: any authenticated API user."
-  },
-  {
     "resource": "roles",
     "name": "list",
     "operation_id": "roles_get",

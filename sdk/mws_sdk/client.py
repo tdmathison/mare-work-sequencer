@@ -34,7 +34,6 @@ class MWSClient:
     metrics: sync_resources.MetricsResource
     notes: sync_resources.NotesResource
     packages: sync_resources.PackagesResource
-    plugins: sync_resources.PluginsResource
     references: sync_resources.ReferencesResource
     reports: sync_resources.ReportsResource
     roles: sync_resources.RolesResource
@@ -73,7 +72,6 @@ class AsyncMWSClient:
     metrics: async_resources.AsyncMetricsResource
     notes: async_resources.AsyncNotesResource
     packages: async_resources.AsyncPackagesResource
-    plugins: async_resources.AsyncPluginsResource
     references: async_resources.AsyncReferencesResource
     reports: async_resources.AsyncReportsResource
     roles: async_resources.AsyncRolesResource

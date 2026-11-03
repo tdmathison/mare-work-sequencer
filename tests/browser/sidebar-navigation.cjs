@@ -29,7 +29,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   await Promise.all([page.waitForURL(base + '/'), page.locator('form button').click()]);
   const sidebar = page.locator('#application-sidebar');
   assert.deepEqual(await sidebar.locator('nav > .sidebar-item > .sidebar-link-row > a > .sidebar-label').allTextContents(),
-    ['MIP Board', 'Workbench', 'Search', 'Intelligence', 'Dashboards', 'Tools', 'Data Explorer', 'Settings', 'Developer']);
+    ['MIP Board', 'Workbench', 'Search', 'Intelligence', 'Dashboards', 'Tools', 'Data Explorer', 'Settings', 'Developer', 'Help']);
   async function group(name) {
     const toggle = sidebar.locator(`[data-group="${name}"]`);
     return {toggle, panel: page.locator('#' + await toggle.getAttribute('aria-controls'))};
@@ -44,7 +44,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   for (const [route, parent, child] of [
     ['/malware-families', 'Intelligence', 'Malware Families'], ['/threat-actors', 'Intelligence', 'Threat Actors'], ['/tags', 'Intelligence', 'Tags'],
     ['/settings/users', 'Settings', 'Users'], ['/settings/import-export', 'Settings', 'Import & Export'],
-    ['/plugins', 'Developer', 'Plugins'],
+    ['/developer/sdk', 'Developer', 'SDK'],
   ]) {
     await page.goto(base + route);
     const active = sidebar.locator('.sidebar-item.is-active');
@@ -54,7 +54,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
     assert.equal(await panel.getByRole('link', {name: child, exact: true}).getAttribute('aria-current'), 'page');
   }
   const developer = await group('Developer');
-  assert.deepEqual(await labels(developer.panel), ['API', 'SDK', 'Plugins']);
+  assert.deepEqual(await labels(developer.panel), ['API', 'SDK']);
   await page.goto(base + '/dashboards');
   await Promise.all([page.waitForURL(base + '/metrics'), page.getByRole('link', {name: 'Open dashboard: Metrics', exact: true}).click()]);
   assert.equal(await sidebar.locator('[aria-current=page]').getAttribute('title'), 'Dashboards');
@@ -76,7 +76,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
   assert.equal(await page.locator('#sidebar-menu').getAttribute('aria-expanded'), 'true');
   await page.getByRole('button', {name: 'Open Developer menu', exact: true}).tap();
   const mobileDeveloper = await group('Developer');
-  await Promise.all([page.waitForURL(base + '/plugins'), mobileDeveloper.panel.getByRole('link', {name: 'Plugins', exact: true}).tap()]);
+  await Promise.all([page.waitForURL(base + '/developer/sdk'), mobileDeveloper.panel.getByRole('link', {name: 'SDK', exact: true}).tap()]);
   await page.locator('#sidebar-menu').tap(); await page.keyboard.press('Escape');
   assert.equal(await page.locator('#sidebar-menu').getAttribute('aria-expanded'), 'false');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);

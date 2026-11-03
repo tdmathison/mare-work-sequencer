@@ -144,7 +144,6 @@ def register_shell(app, db):
         for label, permission, target, icon in [
             ("API", "developer:api", "api_page", "⇆"),
             ("SDK", "developer:sdk", "developer_sdk", "▥"),
-            ("Plugins", "plugins:read", "plugins_page", "◇"),
         ]:
             if can(permission):
                 developer.append(
