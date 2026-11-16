@@ -13,7 +13,7 @@
   async function update() {
     try {
       const response = await fetch(
-        "/cases/" + caseId + "/assets?category=samples",
+        window.MWS.path("/cases/") + caseId + "/assets?category=samples",
         { cache: "no-store" },
       );
       if (!response.ok) return;

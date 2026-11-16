@@ -22,7 +22,7 @@
     window.MareEditors.get(area).insert(text);
   }
   async function images() {
-    const result = await request("/cases/" + cid + "/report-images");
+    const result = await request(window.MWS.path("/cases/") + cid + "/report-images");
     for (const section of document.querySelectorAll(".manual-section:not([data-note-editor])")) {
       const area = section.querySelector(".markdown-source"),
         list = section.querySelector(".report-image-list");
@@ -33,7 +33,7 @@
         const row = document.createElement("div"),
           link = document.createElement("a"),
           remove = document.createElement("button");
-        link.href = "/cases/" + cid + "/report-images/" + image.name;
+        link.href = window.MWS.path("/cases/") + cid + "/report-images/" + image.name;
         link.target = "_blank";
         link.rel = "noopener";
         link.textContent = image.name;
@@ -51,7 +51,7 @@
             const data = new FormData();
             data.set("csrf", form.elements.csrf.value);
             await request(
-              "/cases/" + cid + "/report-images/" + image.name + "/delete",
+              window.MWS.path("/cases/") + cid + "/report-images/" + image.name + "/delete",
               data,
             );
             for (const editor of document.querySelectorAll(".markdown-source")) {
@@ -82,7 +82,7 @@
       data.set("section", area.dataset.imageSection || area.name);
       data.set("image", file);
       status.textContent = "Saving image…";
-      const result = await request("/cases/" + cid + "/report-images", data);
+      const result = await request(window.MWS.path("/cases/") + cid + "/report-images", data);
       insert(
         area,
         "\n::: figure\n![Image](" +

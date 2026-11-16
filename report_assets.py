@@ -1,3 +1,4 @@
+from base_path import app_url
 import io
 import re
 import secrets
@@ -115,7 +116,7 @@ def register_assets(app, db, case, package, ensure_package, safe_path, mark_pend
                          (cid, section, name, figure))
         mark_pending(cid, 'reports/sections/assets/'+name)
         audit(f'Added report image for case {cid}')
-        return {'figure': figure, 'name': name, 'markdown_url': 'assets/'+name, 'url': f'/cases/{cid}/report-images/{name}', 'section': section}
+        return {'figure': figure, 'name': name, 'markdown_url': 'assets/'+name, 'url': app_url(f'/cases/{cid}/report-images/{name}', internal=True), 'section': section}
 
     @app.post('/cases/<int:cid>/report-images/<name>/delete')
     def delete_report_image(cid, name):

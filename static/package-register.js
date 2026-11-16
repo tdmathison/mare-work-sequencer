@@ -1,6 +1,6 @@
 (() => {
  const root=document.querySelector('[data-artifact-register]');if(!root)return;
- const cid=root.dataset.caseId,csrf=root.dataset.csrf,base=`/cases/${cid}`,get=s=>root.querySelector(s),el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
+ const cid=root.dataset.caseId,csrf=root.dataset.csrf,base=window.MWS.path(`/cases/${cid}`),get=s=>root.querySelector(s),el=(tag,text)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;return n;};
  const status=get('[data-register-status]'),rows=get('[data-register-rows]'),section=get('[data-register-section-filter]'),search=get('[data-register-search]'),type=get('[data-register-type]');
  let state=null,page=1,sequence=0,requestedSection=null,selected=new Set(),currentRows=[],queue=[],uploading=false;
  const upload=get('.register-upload'),editor=get('.register-editor'),area=get('[data-register-editor-text]');let editing=null,editorRevision='',original='',saving=false,markdown=null;

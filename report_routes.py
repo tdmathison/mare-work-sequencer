@@ -1,3 +1,4 @@
+from base_path import app_url
 from settings_navigation import saved_destination
 import os
 from contextlib import nullcontext
@@ -74,7 +75,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         f = request.files.get('template')
         if not f or not f.filename.lower().endswith('.docx'):
             flash('Upload a DOCX Word template.')
-            return redirect('/settings/general')
+            return redirect(app_url('/settings/general', internal=True))
         directory = ROOT/'users'/str(g.user['id'])/'templates'
         directory.mkdir(parents=True, exist_ok=True)
         tid = secrets.token_hex(16)
@@ -92,14 +93,14 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
             path.unlink(missing_ok=True)
             flash(str(exc) if isinstance(exc, ValueError)
                   else 'The Word template could not be read.')
-            return redirect('/settings/general')
+            return redirect(app_url('/settings/general', internal=True))
         run('INSERT INTO word_templates VALUES(?,?,?,?)',
             (tid, g.user['id'], Path(f.filename).name[:200], now()))
         run('INSERT OR REPLACE INTO report_settings VALUES(?,?)',
             (g.user['id'], tid))
         audit('Uploaded own Word template')
         flash('Template saved and selected.')
-        return redirect(saved_destination('/settings/general'))
+        return redirect(app_url(saved_destination(app_url('/settings/general', internal=True))))
 
     @app.get('/account/templates/<tid>')
     def download_template(tid):
@@ -121,7 +122,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
         (ROOT/'users'/str(g.user['id'])/'templates' /
          (tid+'.docx')).unlink(missing_ok=True)
         flash('Template removed.')
-        return redirect('/settings/general')
+        return redirect(app_url('/settings/general', internal=True))
 
     @app.get('/cases/<int:cid>/report-data')
     def report_data(cid):
@@ -157,7 +158,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
             return {'saved': True}
         persist_sections(cid, request.form)
         audit(f'Saved report sections for case {cid}')
-        return {'saved': True} if request.form.get('ajax') == '1' else redirect(f'/cases/{cid}')
+        return {'saved': True} if request.form.get('ajax') == '1' else redirect(app_url(f'/cases/{cid}', internal=True))
 
     @app.post('/cases/<int:cid>/mitre-mappings')
     def save_mitre_mappings(cid):

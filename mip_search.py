@@ -1,4 +1,5 @@
 """Local derived MIP index. No source writes, URL fetching, or artifact execution."""
+from base_path import app_url
 
 import hashlib
 import io
@@ -1127,7 +1128,7 @@ def register_search(app, root, db, case_query, stages):
             if query
             else (0, [])
         )
-        case_url = f'/cases/{doc["cid"]}' if doc["cid"] is not None else ""
+        case_url = app_url(f'/cases/{doc["cid"]}', internal=True) if doc["cid"] is not None else ""
         asset_url = ""
         if doc["source"] == "current" and doc["type"] != "Database":
             asset_url = url_for("file", cid=doc["cid"], path=doc["label"], download=1)

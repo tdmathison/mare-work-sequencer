@@ -13,7 +13,7 @@
     id="report-form"
     data-case-id="{{c.id}}"
     method="post"
-    action="/cases/{{c.id}}/report-sections"
+    action="{{request.script_root}}/cases/{{c.id}}/report-sections"
   >
     <fieldset
       class="workflow-controls"
@@ -183,7 +183,7 @@
     id="final-report-form"
     method="post"
     enctype="multipart/form-data"
-    action="/cases/{{c.id}}/final-report"
+    action="{{request.script_root}}/cases/{{c.id}}/final-report"
   >
     <fieldset
       class="workflow-controls"

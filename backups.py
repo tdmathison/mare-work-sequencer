@@ -1,3 +1,4 @@
+from base_path import app_url
 from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
 """Portable case backups: nested RAW packages plus validated workbench metadata."""
 from backup_filenames import archive_filename
@@ -286,12 +287,12 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         case(cid)
         if db().execute("SELECT 1 FROM report_jobs WHERE case_id=? AND status IN ('queued','running')", (cid,)).fetchone():
             flash('Wait for report generation to finish before backing up this case.')
-            return redirect('/')
+            return redirect(app_url('/', internal=True))
         try:
             out, name = case_backup(cid, True)
         except ValueError as exc:
             flash(str(exc))
-            return redirect('/')
+            return redirect(app_url('/', internal=True))
         audit(
             f'Backed up RAW case {cid} with Python filenames converted for email')
         response = send_file(out, as_attachment=True, download_name=name +
@@ -306,7 +307,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             from flask import abort
             abort(403)
         if request.endpoint in ('database_backup','api.api_database_backup') and not getattr(g,'backup_worker',False):
-            return redirect(url_for('import_export_page'))
+            return redirect(app_url(url_for('import_export_page')))
         filename = getattr(g, "backup_archive_name", None) or archive_filename(("cases", "tags", "actors", "families"), app.config.get("DISPLAY_TIMEZONE"), username=g.user["username"])
         connection = db()
         connection.execute('BEGIN IMMEDIATE')
@@ -317,7 +318,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                 out.close()
                 flash(
                     'Wait for report generation to finish before creating the database backup.')
-                return redirect(url_for('account'))
+                return redirect(app_url(url_for('account')))
             with tempfile.TemporaryDirectory(prefix='mare-database-') as directory:
                 snapshot = Path(directory)/'workflow.sqlite3'
                 # Read through a second connection while the write reservation prevents database changes.
@@ -379,7 +380,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             connection.rollback()
             out.close()
             flash(str(exc))
-            return redirect(url_for('account'))
+            return redirect(app_url(url_for('account')))
         except Exception:
             connection.rollback()
             out.close()
@@ -401,10 +402,10 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             filename = getattr(g, "backup_archive_name", None) or archive_filename(areas, app.config.get("DISPLAY_TIMEZONE"), username=g.user["username"])
         except ValueError as exc:
             flash(str(exc))
-            return redirect(url_for('import_export_page'))
+            return redirect(app_url(url_for('import_export_page')))
         if db().execute("SELECT 1 FROM report_jobs WHERE status IN ('queued','running')").fetchone():
             flash('Wait for report generation to finish before exporting the backup.')
-            return redirect(url_for('import_export_page'))
+            return redirect(app_url(url_for('import_export_page')))
         out = tempfile.SpooledTemporaryFile(max_size=8*1024**2)
         try:
             index = {'schema': SCHEMA, 'exporter_uuid': app.extensions['case_sync'].installation(), 'created': now(), 'cases': [], 'tagging': portable_tags(db())}
@@ -477,7 +478,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         except ValueError as exc:
             out.close()
             flash(str(exc))
-            return redirect(url_for('import_export_page'))
+            return redirect(app_url(url_for('import_export_page')))
         except Exception:
             out.close()
             raise

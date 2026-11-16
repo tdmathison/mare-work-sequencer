@@ -1,5 +1,5 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content
-%}<a href="/cases/{{cid}}">Back to workbench</a>
+%}<a href="{{request.script_root}}/cases/{{cid}}">Back to workbench</a>
 <section class="panel">
   <h1>{{path}}</h1>
   <form method="post">

@@ -52,7 +52,7 @@
       data.set("csrf", form.elements.csrf.value);
       data.set("text", markdown.getValue());
       try {
-        const response = await fetch("/cases/" + cid + "/markdown-preview", {
+        const response = await fetch(window.MWS.path("/cases/") + cid + "/markdown-preview", {
           method: "POST",
           body: data,
         });
@@ -96,7 +96,7 @@
   window.MareTaskDialogs = { async open(task) {
     let dialog = document.getElementById('edit-task-dialog-'+task.id);
     if (!dialog) {
-      const response = await fetch('/cases/'+cid, {cache:'no-store'});
+      const response = await fetch(window.MWS.path('/cases/')+cid, {cache:'no-store'});
       if (!response.ok || response.redirected) throw Error('Unable to load the task editor. Your other drafts are retained.');
       const page = new DOMParser().parseFromString(await response.text(), 'text/html');
       dialog = page.getElementById('edit-task-dialog-'+task.id);

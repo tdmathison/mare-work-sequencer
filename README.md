@@ -2212,3 +2212,13 @@ for migration, permission defaults, API/SDK usage and backup behavior.
 ### Content Metrics — private Content Overview
 
 [Content Metrics definitions, history coverage and backup behavior](docs/CONTENT_METRICS.md) describe the private inventory and additions dashboard, available after Case Metrics in Dashboards. The existing `/metrics` URL and Case Metrics calculations are preserved.
+
+### Hosting beneath a URL prefix
+
+`MWS_BASE_PATH` defaults to empty (`/`). Set it to `/mws` (or another valid
+slash-separated prefix) at startup for a stripped-prefix reverse proxy deployment.
+Use `deploy/mws.env.example` as the environment configuration reference. Forwarded
+headers are ignored unless the immediate proxy is listed in `MWS_TRUSTED_PROXIES`.
+See [the production subpath deployment guide](docs/PRODUCTION_SUBPATH_DEPLOYMENT.md)
+for the Ubuntu service, Nginx additions and verification steps. SDK clients already
+accept a deployment subpath in `base_url`, e.g. `https://server/mws`.

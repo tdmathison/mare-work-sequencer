@@ -18,7 +18,7 @@
   window.MwsTabs.bind(workflowTabs,tab=>{window.MwsTabs.setActive(workflowTabs,tab);remember();});
   async function request(url,data){
     const options=data?{method:'POST',body:data}:{};const r=await fetch(url,{...options,cache:'no-store'});
-    if(r.redirected&&new URL(r.url).pathname.endsWith('/login'))throw Error('Your session ended. For complete replacement, sign in using a restored administrator account.');
+    if(r.redirected&&new URL(r.url).pathname.endsWith(window.MWS.path('/login')))throw Error('Your session ended. For complete replacement, sign in using a restored administrator account.');
     const json=(r.headers.get('content-type')||'').includes('application/json');
     let value=null;if(json){try{value=await r.json();}catch(_){}}
     if(!r.ok||!value||typeof value!=='object'){

@@ -8,10 +8,10 @@
     <button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags or selected_stages %} ({{selected_tags|length + selected_stages|length}}){% endif %}</button>
     <a
       class="board-create"
-      href="/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}{% for stage in selected_stages %}&amp;stage={{stage}}{% endfor %}"
+      href="{{request.script_root}}/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}{% for stage in selected_stages %}&amp;stage={{stage}}{% endfor %}"
       >{{'Card view' if view=='table' else 'Table view'}}</a
     >
-    <a class="board-create" href="/cases/new">Create case</a>
+    <a class="board-create" href="{{request.script_root}}/cases/new">Create case</a>
   </div>
 </div>
 <div class="tag-board-layout">
@@ -54,7 +54,7 @@
       {% for c in cases %}
       <tr role="row">
         <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% else %} <span class="mip-table-reference muted">None</span>{% endif %}</td>
-        <td role="cell" data-label="Case title" class="mip-table-title"><a href="/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
+        <td role="cell" data-label="Case title" class="mip-table-title"><a href="{{request.script_root}}/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
         {% set owner_label = (c.owner_name or 'Unassigned') ~ (' (disabled)' if c.owner_name and not c.owner_active else '') %}
         <td role="cell" data-label="Assigned owner" class="mip-table-person"><span title="{{owner_label}}">{{owner_label}}</span></td>
         <td role="cell" data-label="Creator" class="mip-table-person"><span title="{{c.creator_name}}">{{c.creator_name}}</span></td>
@@ -77,7 +77,7 @@
 <div class="case-grid mip-board">
   {% for c in cases %}
   <article class="panel case-card mip-card">
-    <a class="case-card-link" href="/cases/{{c.id}}"
+    <a class="case-card-link" href="{{request.script_root}}/cases/{{c.id}}"
       ><div class="heading">
         <span class="eyebrow">{{c.number}}</span
         ><span
@@ -122,7 +122,7 @@
   <section class="panel">
     <h2>No cases found</h2>
     <p>
-      <a href="/">Clear filters</a> or create a case. Its package folders and report templates will be ready immediately.
+      <a href="{{request.script_root}}/">Clear filters</a> or create a case. Its package folders and report templates will be ready immediately.
     </p>
   </section>
   {% endfor %}

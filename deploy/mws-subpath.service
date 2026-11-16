@@ -1,0 +1,21 @@
+[Unit]
+Description=MARE Work Sequencer (subpath deployment)
+After=network.target
+
+[Service]
+User=mws
+Group=mws
+WorkingDirectory=/opt/mws
+EnvironmentFile=/etc/mws/mws.env
+# Werkzeug handles proxy headers only after checking the immediate peer.
+# Disable Gunicorn's independent forwarded-header processing.
+ExecStart=/opt/mws/.venv/bin/gunicorn --workers 1 --threads 4 --bind 127.0.0.1:8001 --forwarded-allow-ips= app:app
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/mws
+
+[Install]
+WantedBy=multi-user.target

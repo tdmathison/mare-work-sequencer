@@ -88,7 +88,7 @@
   function reportLink(result) {
     if (result.report_path)
       open.href =
-        "/cases/" +
+        window.MWS.path("/cases/") +
         cid +
         "/file?path=" +
         encodeURIComponent(result.report_path) +
@@ -98,7 +98,7 @@
   let loadSequence = 0, reportConflict = false, mappingConflict = false;
   async function load() {
     const current = ++loadSequence;
-    const result = await jsonRequest(`/cases/${cid}/report-data`, {cache: "no-store"});
+    const result = await jsonRequest(window.MWS.path(`/cases/${cid}/report-data`), {cache: "no-store"});
     if (current !== loadSequence || saving || mitreMappingsSaving) return;
     reportConflict ||= dirty && JSON.stringify(state.sections) !== JSON.stringify(result.sections);
     mappingConflict ||= mitreMappingsDirty && JSON.stringify(state.mitre_mappings) !== JSON.stringify(result.mitre_mappings);
@@ -125,7 +125,7 @@
   async function poll() {
     try {
       const current = loadSequence;
-      const result = await jsonRequest(`/cases/${cid}/report-job`);
+      const result = await jsonRequest(window.MWS.path(`/cases/${cid}/report-job`));
       if (current !== loadSequence) return;
       state.job = result.job;
       state.report_exists = result.report_exists;
@@ -346,7 +346,7 @@
       ? "Autosaving MITRE mappings…"
       : "Saving MITRE mappings…";
     try {
-      const result = await jsonRequest(`/cases/${cid}/mitre-mappings`, {
+      const result = await jsonRequest(window.MWS.path(`/cases/${cid}/mitre-mappings`), {
         method: "POST",
         body: data,
       });
@@ -450,7 +450,7 @@
     generate.disabled = true;
     try {
       let mode = "";
-      const status = await jsonRequest(`/cases/${cid}/report-job`);
+      const status = await jsonRequest(window.MWS.path(`/cases/${cid}/report-job`));
       if (status.report_exists) {
         mode = await replacementChoice();
         if (!mode) return;
@@ -459,7 +459,7 @@
       data.set("previous", mode || "");
       data.set("generation_mode", "manual");
       data.set("generate_pdf", generatePdf.checked ? "1" : "0");
-      await jsonRequest(`/cases/${cid}/generate-report`, {
+      await jsonRequest(window.MWS.path(`/cases/${cid}/generate-report`), {
         method: "POST",
         body: data,
       });
@@ -542,7 +542,7 @@
       preview.setAttribute("aria-selected", "true");
       pane.textContent = "Rendering preview…";
       try {
-        const result = await jsonRequest(`/cases/${cid}/markdown-preview`, {
+        const result = await jsonRequest(window.MWS.path(`/cases/${cid}/markdown-preview`), {
           method: "POST",
           body: data,
         });

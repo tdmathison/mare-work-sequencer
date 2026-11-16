@@ -445,7 +445,7 @@
   }
   async function request(path, data) {
     const response = await fetch(
-      "/cases/" + cid + "/indicators" + path,
+      window.MWS.path("/cases/") + cid + "/indicators" + path,
       data ? { method: "POST", body: data } : { cache: "no-store" },
     );
     const result = await response.json();
@@ -628,7 +628,7 @@
   }));
   document.getElementById("download-indicator-stix").addEventListener("click",run(async()=>{
     await save();if(!state.stix.available)throw Error("STIX unavailable: correct the flagged section/row errors, then save again.");
-    const response=await fetch(`/cases/${cid}/indicators/stix`);if(!response.ok){const error=await response.json();throw Error(error.error);}
+    const response=await fetch(window.MWS.path(`/cases/${cid}/indicators/stix`));if(!response.ok){const error=await response.json();throw Error(error.error);}
     const url=URL.createObjectURL(await response.blob()),link=document.createElement("a");link.href=url;link.download="indicators.stix.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }));
   let revalidation = 0;

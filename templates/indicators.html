@@ -37,7 +37,7 @@
     </div>
     <div id="indicator-sections"></div>
   </fieldset>
-  {% if indicators_readonly %}<a class="button-secondary" href="/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
+  {% if indicators_readonly %}<a class="button-secondary" href="{{request.script_root}}/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
   <p id="indicator-status" role="status" aria-live="polite">
     Loading indicators…
   </p>

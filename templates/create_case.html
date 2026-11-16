@@ -1,9 +1,9 @@
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
-<div class="hero compact"><a href="/">Back to MIP board</a></div>
+<div class="hero compact"><a href="{{request.script_root}}/">Back to MIP board</a></div>
 <section class="panel">
     <h1>Create case</h1>
     <p class="muted">A unique MARE case number will be assigned when you create the case.</p>
-    <form method="post" action="/cases">
+    <form method="post" action="{{request.script_root}}/cases">
         {{token(csrf)}}
         <label>Case name<input id="case-name" name="name" maxlength="200" required value="{{values.get('name','')}}"></label>
         <label>Description<textarea name="description" rows="4">{{values.get('description','')}}</textarea></label>
@@ -30,7 +30,7 @@
                 </select>
             </label>
             <p id="create-owner-help" class="muted">An active owner is required to start analysis. Choose Unassigned only if you plan to assign an owner later in Case details.</p>
-            <div class="action-row"><button>Create case & MIP</button><a href="/">Cancel</a></div>
+            <div class="action-row"><button>Create case & MIP</button><a href="{{request.script_root}}/">Cancel</a></div>
     </form>
 </section>
 {% if request.method == 'GET' %}

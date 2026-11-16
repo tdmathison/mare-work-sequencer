@@ -153,8 +153,8 @@ function mountYaraTool({ theme, highlighting }) {
     if (!response.ok) throw Error("Request failed (" + response.status + "). Check permissions or session.");
     return response;
   }
-  const tool = (path, fields) => api("/tools/yara-rule-editor/" + path, fields);
-  const caseCall = (cid, path, fields) => api("/cases/" + cid + "/" + path, fields);
+  const tool = (path, fields) => api(window.MWS.path("/tools/yara-rule-editor/") + path, fields);
+  const caseCall = (cid, path, fields) => api(window.MWS.path("/cases/") + cid + "/" + path, fields);
   function choice(title, message, options) {
     const dialog = $("[data-choice]");
     $("[data-choice-title]").textContent = title;

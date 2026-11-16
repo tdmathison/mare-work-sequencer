@@ -33,7 +33,7 @@
     }, true);
   });
   const search = async (query, signal) => {
-    const response = await fetch(`/tags/search?q=${encodeURIComponent(query)}`, {signal});
+    const response = await fetch(window.MWS.path(`/tags/search?q=${encodeURIComponent(query)}`), {signal});
     if (!response.ok) throw Error('Unable to load tags. Please try again.');
     const data=await response.json();data.tags.exactId=data.exact_id;return data.tags;
   };
@@ -58,7 +58,7 @@
         const chip=document.createElement('span');chip.className='tag-chip';chip.dataset.tagId=tag.id;
         chip.title=`${tag.name} — assigned ${tag.assigned_at} by ${tag.assigned_by||'unknown user'}`;
         chip.append(document.createTextNode(tag.name));
-        const remove=document.createElement('form');remove.method='post';remove.action=`/cases/${bar.querySelector('[data-tag-case]').dataset.tagCase}/tags/${tag.id}/remove`;
+        const remove=document.createElement('form');remove.method='post';remove.action=window.MWS.path(`/cases/${bar.querySelector('[data-tag-case]').dataset.tagCase}/tags/${tag.id}/remove`);
         remove.append(form.querySelector('[name=csrf]').cloneNode(true));
         const button=document.createElement('button');button.type='button';button.dataset.removeTag='';button.setAttribute('aria-label',`Remove ${tag.name} from case`);button.textContent='×';remove.append(button);chip.append(remove);
         bar.insertBefore(chip,bar.querySelector('.tag-autocomplete'));
@@ -91,7 +91,7 @@
     const submit=async option=>{
       if(!option)return;
       input.value=option.name;
-      const action=option.id ? `/cases/${form.dataset.tagCase}/tags/${option.id}/assign` : `/cases/${form.dataset.tagCase}/tags/create`;
+      const action=option.id ? window.MWS.path(`/cases/${form.dataset.tagCase}/tags/${option.id}/assign`) : window.MWS.path(`/cases/${form.dataset.tagCase}/tags/create`);
       clearTimeout(timer);revision++;controller?.abort();close();
       const submitted=input.value;
       if(await updateCaseTags(form,action,new FormData(form))){if(input.value===submitted)input.value='';options=[];}

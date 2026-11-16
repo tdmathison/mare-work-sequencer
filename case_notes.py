@@ -1,4 +1,5 @@
 """Private Case notebook and transactional activity writer (not the audit log)."""
+from base_path import app_url
 
 import json
 import uuid
@@ -113,7 +114,7 @@ def serialize(con, user, row):
             tab = "package"
         if tab:
             value["activity_link"] = {
-                "href": f"/cases/{row['case_id']}?tab={tab}",
+                "href": app_url(f"/cases/{row['case_id']}?tab={tab}", internal=True),
                 "label": "View " + tab.title(),
             }
 
@@ -453,7 +454,7 @@ def render_markdown(cid, text):
         source = token.attrGet("src") or ""
         if re.fullmatch(r"assets/report-image-[a-f0-9]{32}\.png", source):
             return (
-                '<img src="/cases/'
+                '<img src="' + app_url('/cases/', internal=True)
                 + str(cid)
                 + "/report-images/"
                 + source.split("/")[-1]

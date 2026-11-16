@@ -27,7 +27,7 @@
     const selected = category.value, current = ++sequence;
     try {
       const result = await request(
-        "/cases/" + cid + "/assets?category=" + encodeURIComponent(selected),
+        window.MWS.path("/cases/") + cid + "/assets?category=" + encodeURIComponent(selected),
       );
       if (category.value !== selected || current !== sequence) return;
       list.replaceChildren();
@@ -36,7 +36,7 @@
           link = document.createElement("a"),
           remove = document.createElement("button");
         link.href =
-          "/cases/" +
+          window.MWS.path("/cases/") +
           cid +
           "/file?download=1&path=" +
           encodeURIComponent(file.path);
@@ -51,7 +51,7 @@
           data.set("csrf", form.elements.csrf.value);
           data.set("path", file.path);
           try {
-            await request("/cases/" + cid + "/assets/delete", data);
+            await request(window.MWS.path("/cases/") + cid + "/assets/delete", data);
             status.textContent = "Asset deleted. Package content status updated.";
             await load();
           } catch (e) {

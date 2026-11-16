@@ -29,7 +29,7 @@
             <form
               class="inline-form"
               method="post"
-              action="/users/{{u.id}}/{{action}}"
+              action="{{request.script_root}}/users/{{u.id}}/{{action}}"
             >
               {{token(csrf)}}<button
                 {% if action == 'delete' %}onclick="return confirm('Delete this account?')"{% endif %}

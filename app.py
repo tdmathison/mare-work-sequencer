@@ -1,3 +1,4 @@
+from base_path import app_url
 from case_queries import CASE_QUERY, CASE_ELIGIBILITY, inventory, inventory_total
 from settings_navigation import legacy_redirect, saved_destination, register_settings
 from tagging import register_tags, assignments as tag_assignments, case_filter, prototype as tag_prototype
@@ -48,6 +49,8 @@ if not secret.exists():
     fd = os.open(secret, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, 'w') as f:
         f.write(secrets.token_hex(32))
+from base_path import configure_base_path
+
 app = Flask(__name__)
 app.config.update(SECRET_KEY=os.environ.get('MARE_SECRET_KEY') or secret.read_text(), MAX_CONTENT_LENGTH=100*1024*1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE='Lax', SESSION_COOKIE_SECURE=os.environ.get('MARE_SECURE_COOKIES') == '1', PERMANENT_SESSION_LIFETIME=28800)
@@ -396,10 +399,10 @@ def protect():
     if request.endpoint not in ('login', 'static', 'dashboards_directory', 'cases_dashboard', 'cases_dashboard_data', 'family_dashboard', 'family_dashboard_data', 'actor_dashboard', 'actor_dashboard_data'):
         if not g.user:
             from dashboard_directory import safe_dashboard_return
-            destination = safe_dashboard_return(request.path)
-            return redirect(url_for('login', next=destination) if destination else url_for('login'))
+            destination = safe_dashboard_return(app_url(request.path, internal=True))
+            return redirect(app_url(url_for('login', next=destination) if destination else url_for('login')))
         if g.user['forced'] and request.endpoint not in ('account', 'logout'):
-            return redirect(url_for('account'))
+            return redirect(app_url(url_for('account')))
 
 
 @app.before_request
@@ -500,7 +503,7 @@ def login():
             session.permanent = True
             run('DELETE FROM attempts WHERE username=?', (username,))
             run('UPDATE users SET last_login=? WHERE id=?', (now(), u['id']))
-            return redirect(url_for('account') if u['forced'] else (next_url or '/'))
+            return redirect(app_url(url_for('account') if u['forced'] else (next_url or url_for('dashboard'))))
         count = a['count']+1 if a and stamp-a['window'] < 900 else 1
         run('INSERT OR REPLACE INTO attempts VALUES(?,?,?)',
             (username, count, a['window'] if count > 1 else stamp))
@@ -509,7 +512,7 @@ def login():
 
 
 @app.post('/logout')
-def logout(): session.clear(); return redirect('/login')
+def logout(): session.clear(); return redirect(app_url('/login', internal=True))
 
 
 @app.route('/account', methods=['GET', 'POST'])
@@ -529,7 +532,7 @@ def account():
             session['version'] += 1
             audit('Changed own password')
             flash('Password changed.')
-            return redirect(saved_destination('/'))
+            return redirect(app_url(saved_destination(app_url('/', internal=True))))
     password = sample_archive_password(
     ) if g.user['role'] == 'Administrator' else None
     return render_template('account.html', sample_archive_password=password)
@@ -544,11 +547,11 @@ def save_autosave_settings():
             raise ValueError()
     except ValueError:
         flash('Enter a positive whole number of minutes.')
-        return redirect(url_for('account'))
+        return redirect(app_url(url_for('account')))
     run('UPDATE users SET autosave_minutes=? WHERE id=?',
         (minutes, g.user['id']))
     flash('Autosave interval saved. It applies when case pages are opened or refreshed.')
-    return redirect(saved_destination(url_for('account')))
+    return redirect(app_url(saved_destination(url_for('account'))))
 
 
 @app.post('/account/board-view')
@@ -556,10 +559,10 @@ def save_board_view():
     view = request.form.get('board_view')
     if view not in ('cards', 'table'):
         flash('Choose a valid board view.')
-        return redirect(url_for('account'))
+        return redirect(app_url(url_for('account')))
     run('UPDATE users SET board_view=? WHERE id=?', (view, g.user['id']))
     flash('Default board view saved.')
-    return redirect(saved_destination(url_for('account')))
+    return redirect(app_url(saved_destination(url_for('account'))))
 
 
 @app.post('/account/sample-password')
@@ -568,11 +571,11 @@ def save_sample_archive_password():
     password = request.form.get('sample_archive_password', '')
     if not password or len(password) > 256 or '\x00' in password:
         flash('Enter a sample archive password of 1–256 characters.')
-        return redirect(url_for('account'))
+        return redirect(app_url(url_for('account')))
     run("INSERT INTO site_settings(name,value) VALUES('sample_archive_password',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", (password,))
     audit('Changed the sample archive password')
     flash('Sample archive password saved. It applies to future uploads only.')
-    return redirect(saved_destination(url_for('account')))
+    return redirect(app_url(saved_destination(url_for('account'))))
 
 
 BOARD_SORT_COLUMNS = ('number', 'title', 'owner', 'creator', 'stage', 'reviewed')
@@ -586,9 +589,9 @@ def save_board_sort():
         abort(400)
     run('UPDATE users SET board_sort=?,board_sort_direction=? WHERE id=?',
         (column, direction, g.user['id']))
-    return redirect(url_for('dashboard', view='table', q=request.form.get('q', ''),
+    return redirect(app_url(url_for('dashboard', view='table', q=request.form.get('q', ''),
                             match=request.form.get('match', 'any'), tag=request.form.getlist('tag'),
-                            stage=request.form.getlist('stage')))
+                            stage=request.form.getlist('stage'))))
 
 
 @app.get('/')
@@ -734,7 +737,7 @@ def new_case():
         raise
     ensure_package(cid)
     audit('Created case '+number)
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.post('/cases/<int:cid>/owner')
@@ -743,7 +746,7 @@ def assign_case_owner(cid):
     owner = assigned_owner(request.form)
     run('UPDATE cases SET owner=? WHERE id=?', (owner, cid))
     audit('Updated case owner '+c['number'])
-    return redirect(f'/cases/{cid}?tab=workbench#case-details')
+    return redirect(app_url(f'/cases/{cid}?tab=workbench#case-details', internal=True))
 
 
 @app.route('/cases/<int:cid>', methods=['GET', 'POST'])
@@ -754,12 +757,12 @@ def detail(cid):
         reference = external_reference(request.form)
         if not title or len(title) > 200 or reference is None:
             flash('Enter a case name and a complete optional external reference.')
-            return redirect(request.path)
+            return redirect(app_url(request.path, internal=True))
         system, external = reference
         run('UPDATE cases SET name=?,description=?,external_system=?,external_number=?,owner=? WHERE id=?', (title,
             request.form.get('description', ''), system, external, assigned_owner(request.form, c['owner']), cid))
         audit('Updated case details '+c['number'])
-        return redirect(request.path)
+        return redirect(app_url(request.path, internal=True))
     draft = db().execute('SELECT * FROM drafts WHERE case_id=? AND user_id=?',
                          (cid, g.user['id'])).fetchone()
     root = package(cid)
@@ -787,7 +790,7 @@ def delete_case(cid):
     c = case(cid)
     if request.form.get('confirm_number', '').strip() != c['number']:
         flash('Enter the exact system case number to confirm deletion.')
-        return redirect(f'/cases/{cid}#destructive-commands')
+        return redirect(app_url(f'/cases/{cid}#destructive-commands', internal=True))
     connection = db()
     connection.execute('BEGIN IMMEDIATE')
     folder = ROOT/'cases'/str(cid)
@@ -797,7 +800,7 @@ def delete_case(cid):
         if connection.execute("SELECT 1 FROM report_jobs WHERE case_id=? AND status IN ('queued','running')", (cid,)).fetchone():
             connection.rollback()
             flash('Wait for report generation to finish before deleting this case.')
-            return redirect(f'/cases/{cid}#destructive-commands')
+            return redirect(app_url(f'/cases/{cid}#destructive-commands', internal=True))
         if folder.exists():
             folder.rename(staged)
             moved = True
@@ -816,7 +819,7 @@ def delete_case(cid):
         shutil.rmtree(staged)
     flash('Case '+c['number'] +
           ' deleted. Its system case number remains reserved.')
-    return redirect('/')
+    return redirect(app_url('/', internal=True))
 
 
 @app.post('/cases/<int:cid>/stage')
@@ -832,13 +835,13 @@ def progress(cid):
         abort(400)
     if outcome != 'Done' and not reason:
         flash('Add a short reason for skipped or deferred work.')
-        return redirect(f'/cases/{cid}')
+        return redirect(app_url(f'/cases/{cid}', internal=True))
     if c['stage'] != expected:
         flash('Stage changed. Refresh and retry.')
-        return redirect(f'/cases/{cid}')
+        return redirect(app_url(f'/cases/{cid}', internal=True))
     if expected == 0 and (not c['owner'] or not c['owner_active']):
         flash('Assign an active owner in Case details before starting analysis.')
-        return redirect(f'/cases/{cid}#case-details')
+        return redirect(app_url(f'/cases/{cid}#case-details', internal=True))
     if expected == 0:
         outcome = 'Started'
         reason = ''
@@ -848,7 +851,7 @@ def progress(cid):
             flash(
                 f'Completion blocked: {len(blockers)} outstanding actions. See the completion checklist below.')
             audit(f'Case {cid}: completion blocked — ' + '; '.join(blockers))
-            return redirect(f'/cases/{cid}?tab=review#completion-review')
+            return redirect(app_url(f'/cases/{cid}?tab=review#completion-review', internal=True))
     if 0 <= expected < len(STAGES)-1:
         connection = db()
         cursor = connection.execute(
@@ -861,7 +864,7 @@ def progress(cid):
                     'INSERT OR REPLACE INTO deferred VALUES(?,?,?,0)', (cid, expected, reason))
         connection.commit()
         audit(f'Case {cid}: {outcome} — {STAGES[expected]}')
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.post('/cases/<int:cid>/reopen')
@@ -874,14 +877,14 @@ def reopen_case(cid):
         db().execute('INSERT INTO history(case_id,stage,author,created,outcome,reason) VALUES(?,?,?,?,?,?)',
                      (cid, 3, g.user['username'], now(), 'Reopened', 'Returned to Malware Analysis'))
     audit(f'Reopened case {cid}')
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.post('/cases/<int:cid>/deferred/<int:stage>')
 def resolve_deferred(cid, stage):
     case(cid)
     run('UPDATE deferred SET resolved=1 WHERE case_id=? AND stage=?', (cid, stage))
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.post('/cases/<int:cid>/readiness')
@@ -895,7 +898,7 @@ def set_readiness(cid):
     except ValueError as error: return {'error':str(error)},400
     if changed:audit('Updated package applicability '+c['number'])
     if request.form.get('ajax')=='1':return {'readiness':readiness(cid)}
-    return redirect(f'/cases/{cid}?tab=package')
+    return redirect(app_url(f'/cases/{cid}?tab=package', internal=True))
 
 
 @app.post('/cases/<int:cid>/draft')
@@ -912,14 +915,14 @@ def save_draft(cid):
 def notes(cid):
     from case_notes import mutate
     mutate(db(),g.user,cid,dict(body=request.form.get('body',''),title=request.form.get('title',''),include_export=request.form.get('include_export')=='1'))
-    return redirect(f'/cases/{cid}?tab=notes')
+    return redirect(app_url(f'/cases/{cid}?tab=notes', internal=True))
 
 
 @app.post('/cases/<int:cid>/notes/<int:nid>')
 def edit_note(cid, nid):
     from case_notes import mutate
     mutate(db(),g.user,cid,dict(body=request.form.get('body',''),title=request.form.get('title',''),include_export=request.form.get('include_export')=='1'),nid)
-    return redirect(f'/cases/{cid}?tab=notes')
+    return redirect(app_url(f'/cases/{cid}?tab=notes', internal=True))
 
 
 def task_fields():
@@ -943,7 +946,7 @@ def tasks(cid):
     for image in re.findall(r'assets/(report-image-[a-f0-9]{32}\.png)', description):
         run("UPDATE report_images SET section=? WHERE case_id=? AND name=? AND section='task-draft'",
             (f'task-{task["id"]}', cid, image))
-    return redirect(f'/cases/{cid}?tab=tasks')
+    return redirect(app_url(f'/cases/{cid}?tab=tasks', internal=True))
 
 
 @app.post('/cases/<int:cid>/tasks/<int:tid>/edit')
@@ -952,7 +955,7 @@ def edit_task(cid, tid):
     name, description, priority, state = task_fields()
     from task_collections import mutate_task
     mutate_task(db(),g.user,cid,tid,dict(title=name,body=description,priority=priority,state=state))
-    return redirect(f'/cases/{cid}?tab=tasks')
+    return redirect(app_url(f'/cases/{cid}?tab=tasks', internal=True))
 
 
 @app.post('/cases/<int:cid>/tasks/<int:tid>')
@@ -962,7 +965,7 @@ def toggle(cid, tid):
     task=db().execute('SELECT done FROM tasks WHERE id=? AND case_id=?',(tid,cid)).fetchone()
     if task is None:abort(404)
     mutate_task(db(),g.user,cid,tid,{'state':'Not Started' if task['done'] else 'Completed'})
-    return redirect(f'/cases/{cid}?tab=tasks')
+    return redirect(app_url(f'/cases/{cid}?tab=tasks', internal=True))
 
 
 @app.post('/cases/<int:cid>/markdown-preview')
@@ -979,7 +982,7 @@ def markdown_preview(cid):
         token = tokens[index]
         source = token.attrGet('src') or ''
         if re.fullmatch(r'assets/report-image-[a-f0-9]{32}\.png', source):
-            return '<img src="/cases/'+str(cid)+'/report-images/'+source.split('/')[-1]+'" alt="'+html.escape(token.content, quote=True)+'">'
+            return '<img src="' + app_url('/cases/', internal=True)+str(cid)+'/report-images/'+source.split('/')[-1]+'" alt="'+html.escape(token.content, quote=True)+'">'
         return '<span>'+html.escape(token.content)+'</span>'
     renderer.renderer.rules['image'] = image
     return {'html': renderer.render(text)}
@@ -989,7 +992,7 @@ def markdown_preview(cid):
 def scaffold(cid):
     case(cid)
     ensure_package(cid)
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.route('/cases/<int:cid>/file', methods=['GET', 'POST'])
@@ -1039,14 +1042,14 @@ def file(cid):
             except ValueError:
                 if request.form.get('ajax')=='1':return {'error':'Invalid JSON; file was not saved.'},400
                 flash('Invalid JSON; file was not saved.')
-                return redirect(request.url)
+                return redirect(app_url(request.url))
         if p.read_text(encoding='utf-8') != content:
             p.write_text(content, encoding='utf-8')
             mark_pending(cid, rel)
         audit(f'Edited case {cid}: {rel}')
         if request.form.get('ajax')=='1':return {'saved':True,'revision':hashlib.sha256(p.read_bytes()).hexdigest()}
         flash('Saved.')
-        return redirect(f'/cases/{cid}')
+        return redirect(app_url(f'/cases/{cid}', internal=True))
     if request.args.get('download') or not editable:
         return send_file(p, as_attachment=True)
     return render_template('file.html', c=case(cid), cid=cid, path=rel, content=p.read_text(encoding='utf-8', errors='replace'))
@@ -1074,12 +1077,12 @@ def upload(cid):
         except (ValueError,OSError,sqlite3.Error) as error:
             audit(f'Signature upload failed case {cid}: {name}: {error}')
             if request.form.get('ajax') == '1': return {'error': str(error)}, 409 if isinstance(error,Conflict) else 400
-            flash(str(error)); return redirect(f'/cases/{cid}')
+            flash(str(error)); return redirect(app_url(f'/cases/{cid}', internal=True))
         audit(f'Uploaded signatures case {cid}: {name} -> {result["paths"]}')
         db().commit()
         message = 'Created '+', '.join(result['paths'])+('. Splitting skipped: '+result['notice'] if result['notice'] else '')
         if request.form.get('ajax') == '1': return {'saved':True,'path':result['paths'][0],'paths':result['paths'],'message':message}
-        flash(message); return redirect(f'/cases/{cid}')
+        flash(message); return redirect(app_url(f'/cases/{cid}', internal=True))
     if folder == 'samples':
         raw = f.read(100*1024*1024+1)
         if len(raw) > 100*1024*1024:
@@ -1089,7 +1092,7 @@ def upload(cid):
         if target.exists():
             if request.form.get('ajax')=='1':return {'error':'A sample with that name already exists. Rename the queued file explicitly.'},409
             flash('A sample with that name already exists. Rename it before uploading.')
-            return redirect(f'/cases/{cid}')
+            return redirect(app_url(f'/cases/{cid}', internal=True))
         import pyzipper
         out = tempfile.SpooledTemporaryFile(max_size=8*1024*1024)
         try:
@@ -1106,7 +1109,7 @@ def upload(cid):
         if target.exists():
             if request.form.get('ajax')=='1':return {'error':'A file with that name already exists. Rename the queued file explicitly.'},409
             flash('A file with that name already exists. Rename it before uploading.')
-            return redirect(f'/cases/{cid}')
+            return redirect(app_url(f'/cases/{cid}', internal=True))
         with target.open('xb') as out:
             f.save(out)
     from content_metrics import classify_uploaded_asset
@@ -1118,7 +1121,7 @@ def upload(cid):
     if request.form.get('ajax') == '1':
         return {'saved': True, 'path': folder+'/'+relative_name}
     flash('Asset added to '+folder+'/')
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 def mark_pending(cid, rel):
@@ -1135,7 +1138,7 @@ def artifact_description(cid):
         abort(404)
     run('INSERT OR REPLACE INTO artifacts VALUES(?,?,?,?)',
         (cid, rel, request.form.get('description', ''), ''))
-    return redirect(f'/cases/{cid}')
+    return redirect(app_url(f'/cases/{cid}', internal=True))
 
 
 @app.post('/cases/<int:cid>/archive')
@@ -1148,15 +1151,15 @@ def archive(cid):
         abort(400)
     if issues and request.form.get('acknowledge') != '1':
         flash('Resolve pending items or acknowledge them before export.')
-        return redirect(f'/cases/{cid}')
+        return redirect(app_url(f'/cases/{cid}', internal=True))
     report = root/'reports/malware-analysis-report.md'
     word = root/current_report(c, root)
     if not (word.is_file() and word.stat().st_size > 0) and (not report.exists() or not report.read_text(errors='replace').strip() or report.read_text(errors='replace').strip() == REPORT_TEMPLATE.strip()):
         flash('A completed analysis report is required.')
-        return redirect(f'/cases/{cid}')
+        return redirect(app_url(f'/cases/{cid}', internal=True))
     if archive_type == 'standard' and not (word.is_file() and word.stat().st_size > 0):
         flash('Generate or upload the Word report before downloading the Standard archive.')
-        return redirect(f'/cases/{cid}?tab=report')
+        return redirect(app_url(f'/cases/{cid}?tab=report', internal=True))
     include_samples = request.form.get('include_samples') == '1'
     out, name = backup_helpers['case_backup'](cid, include_samples=include_samples) if archive_type == 'raw' else build_archive(
         cid, archive_type, include_samples=include_samples)
@@ -1258,10 +1261,10 @@ def users():
                 (username, generate_password_hash(pw), role))
             audit('Created user '+username)
             flash(f'Temporary password for {username}: {pw}')
-            return redirect(saved_destination(url_for('users')))
+            return redirect(app_url(saved_destination(url_for('users'))))
         except sqlite3.IntegrityError:
             flash('Username already exists.')
-        return redirect(url_for('users'))
+        return redirect(app_url(url_for('users')))
     return render_template('users.html', users=db().execute('SELECT * FROM users ORDER BY username').fetchall())
 
 
@@ -1277,7 +1280,7 @@ def user_action(uid, action):
         abort(404)
     if uid == g.user['id']:
         flash('Use Settings for your own account.')
-        return redirect(url_for('users'))
+        return redirect(app_url(url_for('users')))
     if u['role'] == 'Administrator' and u['active'] and action in ('toggle', 'delete') and db().execute("SELECT count(*) FROM users WHERE role='Administrator' AND active=1").fetchone()[0] <= 1:
         abort(400)
     if action == 'toggle':
@@ -1295,7 +1298,7 @@ def user_action(uid, action):
     else:
         abort(404)
     audit(f'{action} user {u["username"]}')
-    return redirect(url_for('users'))
+    return redirect(app_url(url_for('users')))
 
 
 @app.get('/audit')
@@ -1468,6 +1471,8 @@ register_developer_pages(app, db)
 register_shell(app, db)
 
 
+
+configure_base_path(app)
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=8000)

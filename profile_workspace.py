@@ -1,4 +1,5 @@
 """Shared authenticated research profile workspace and optimistic edit guards."""
+from base_path import app_url
 import sqlite3
 import uuid
 from flask import abort, flash, g, redirect, render_template, request, url_for
@@ -66,8 +67,8 @@ def register_profiles(app, db, ROOT, spec):
     def finish(fid, tab='overview'):
         target = request.form.get('next', '')
         if target.startswith('/') and (not target.startswith('//')) and ('\\' not in target) and (not any((ord(c) < 32 for c in target))):
-            return redirect(target)
-        return redirect(url_for(f'{spec.key}_workspace', fid=fid, tab=tab))
+            return redirect(app_url(target))
+        return redirect(app_url(url_for(f'{spec.key}_workspace', fid=fid, tab=tab)))
 
     def page_number(key):
         try:
@@ -143,7 +144,7 @@ def register_profiles(app, db, ROOT, spec):
                     existing_profile = db().execute(f'SELECT id FROM {spec.table} WHERE tag_id=?', (origin['id'],)).fetchone()
                     if existing_profile:
                         flash(f'This tag already has a {spec.lower} profile.')
-                        return redirect(url_for(f'{spec.key}_workspace', fid=existing_profile['id'], tab='overview'))
+                        return redirect(app_url(url_for(f'{spec.key}_workspace', fid=existing_profile['id'], tab='overview')))
                     origin_name = origin['name']
                     origin_identity = origin['identity']
                     values = {'tag': origin_name}
@@ -199,7 +200,7 @@ def register_profiles(app, db, ROOT, spec):
                         event(f'Tag created: id={tid}, name={tag}')
                 flash(f'{spec.singular} saved. You can now attach research reports in OSINT & Reports.')
                 if request.form.get('upload_after') == '1':
-                    return redirect(url_for(f'{spec.key}_workspace', fid=fid, tab='osint') + '#attached-reports')
+                    return redirect(app_url(url_for(f'{spec.key}_workspace', fid=fid, tab='osint') + '#attached-reports'))
                 return finish(fid)
             except (ValueError, sqlite3.IntegrityError, sqlite3.OperationalError) as exc:
                 error = str(exc) if not isinstance(exc, sqlite3.IntegrityError) else 'This tag is already linked to a profile. Choose a different tag.'
@@ -228,7 +229,7 @@ def register_profiles(app, db, ROOT, spec):
                         event(f'Threat actor association removed: actor={row[0]}, deleted Malware Family={fid}')
                     event(f"{spec.singular} deleted: {fid} ({family['name']}); shared tag and case assignments preserved")
                 flash('Profile deleted. Its shared tag, case assignments, cases and assets were preserved.')
-                return redirect(url_for(f'{spec.key}_workspace'))
+                return redirect(app_url(url_for(f'{spec.key}_workspace')))
             except (ValueError, OSError, sqlite3.Error) as exc:
                 error, status = (str(exc), 409 if isinstance(exc, Conflict) else 400)
         return (render_profile('malware_family_delete.html', family=family, error=error), status)
@@ -293,7 +294,7 @@ def register_profiles(app, db, ROOT, spec):
             flash('OSINT link removed.')
         except ValueError as exc:
             flash(str(exc))
-        return redirect(url_for(f'{spec.key}_workspace', fid=fid, tab='osint'))
+        return redirect(app_url(url_for(f'{spec.key}_workspace', fid=fid, tab='osint')))
     from family_reports import register_reports
     with app.app_context():
         if not prototype(db()):

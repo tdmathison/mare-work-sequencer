@@ -1,4 +1,5 @@
 """Account-bound staged imports, per-case decisions, and recoverable replacement."""
+from base_path import app_url
 
 import copy
 import json
@@ -350,11 +351,11 @@ class ImportSync:
                         operation=operation,
                         cases=[item["preview"] for item in items],
                         shared=shared,
-                        apply_url="/api/v1/backups/apply/" + operation,
+                        apply_url=app_url("/api/v1/backups/apply/" + operation, internal=True),
                     ),
                     202,
                 )
-            return redirect(url_for("sync_import_review", operation=operation))
+            return redirect(app_url(url_for("sync_import_review", operation=operation)))
         except (
             ValueError,
             KeyError,
@@ -404,7 +405,7 @@ class ImportSync:
             if self.api():
                 return jsonify(operation=operation, error=message), 400
             flash("Import failed; no cases were added. " + message)
-            return redirect("/settings/import-export")
+            return redirect(app_url("/settings/import-export", internal=True))
         except Exception:
             shutil.rmtree(directory, ignore_errors=True)
             raise
@@ -934,7 +935,7 @@ class ImportSync:
                 self.db().rollback()
                 if self.api():return jsonify(error=str(error)),409
                 flash('Shared family import failed safely: '+str(error))
-                return redirect(url_for('sync_import_review',operation=operation))
+                return redirect(app_url(url_for('sync_import_review',operation=operation)))
         restore_tags(self.db(), plan["catalog"])
         choices = request.get_json(silent=True) or {}
         for index, item in enumerate(plan["items"]):
@@ -995,4 +996,4 @@ class ImportSync:
                 outcomes=outcomes,
                 status="preview" if unresolved else "complete",
             )
-        return redirect(url_for("sync_import_review", operation=operation))
+        return redirect(app_url(url_for("sync_import_review", operation=operation)))

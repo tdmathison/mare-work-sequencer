@@ -1,7 +1,7 @@
 {% macro task_editor(task=None) %}{% set tid=task.id if task else 'new' %}
 <dialog id="{{'edit-task-dialog-' ~ tid if task else 'add-task-dialog'}}" class="task-workspace-dialog" aria-labelledby="task-title-{{tid}}">
     <h2 id="task-title-{{tid}}">{{'Edit task' if task else 'Add Task'}}</h2>
-    <form method="post" action="/cases/{{c.id}}/tasks{{'/' ~ tid ~ '/edit' if task else ''}}">
+    <form method="post" action="{{request.script_root}}/cases/{{c.id}}/tasks{{'/' ~ tid ~ '/edit' if task else ''}}">
         <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
             <div class="task-editor-fields">
                 <label>Name<input name="name" required maxlength="200" value="{{task.title if task else ''}}"></label>

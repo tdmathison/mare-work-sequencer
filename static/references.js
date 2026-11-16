@@ -125,7 +125,7 @@
   }
   async function request(path, data) {
     const response = await fetch(
-      `/cases/${cid}/references${path}`,
+      window.MWS.path(`/cases/${cid}/references${path}`),
       data ? { method: "POST", body: data } : { cache: "no-store" },
     );
     const result = await response.json();

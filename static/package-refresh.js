@@ -99,7 +99,7 @@
   async function savedPage() {
     const current = ++sequence;
     controller?.abort(); controller = new AbortController();
-    const response = await fetch(`/cases/${cid}`, {cache:'no-store', credentials:'same-origin', signal:controller.signal});
+    const response = await fetch(window.MWS.path(`/cases/${cid}`), {cache:'no-store', credentials:'same-origin', signal:controller.signal});
     if (!response.ok || response.redirected) throw Error('Unable to refresh saved Case data. Check your session and retry; drafts are retained.');
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
     const identity = page.querySelector('.case-tabs');

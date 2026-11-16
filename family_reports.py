@@ -1,4 +1,5 @@
 """Durable family reports, bounded document validation and recoverable file writes."""
+from base_path import app_url
 from contextlib import contextmanager
 from profile_types import FAMILY
 import hashlib
@@ -367,7 +368,7 @@ def register_reports(app, db, root, require, get_family, touch, event, finish, v
             flash(f'{len(uploads)} research report(s) uploaded.')
         except (ValueError, OSError, sqlite3.Error) as exc:
             flash(f'Upload failed; existing reports were preserved. {exc}')
-        return redirect(url_for(f'{spec.key}_workspace', fid=fid, tab='osint'))
+        return redirect(app_url(url_for(f'{spec.key}_workspace', fid=fid, tab='osint')))
 
     @app.get(f'{spec.path}/<fid>/reports/<aid>/download', endpoint=f'{spec.key}_reports_download')
     def families_reports_download(fid, aid):
@@ -427,7 +428,7 @@ def register_reports(app, db, root, require, get_family, touch, event, finish, v
             flash('Attached report removed.')
         except (ValueError, OSError, sqlite3.Error) as exc:
             flash(f'Report removal failed: {exc}')
-        return redirect(url_for(f'{spec.key}_workspace', fid=fid, tab='osint'))
+        return redirect(app_url(url_for(f'{spec.key}_workspace', fid=fid, tab='osint')))
 
 
 @contextmanager

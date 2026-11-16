@@ -1,3 +1,4 @@
+from base_path import app_url
 import hashlib
 import io
 import json
@@ -887,7 +888,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         editable_case(case_id)
         result = asset_helpers['upload'](case_id)
         if isinstance(result, dict):
-            return {**result, 'url': f'/api/v1/cases/{case_id}/report/images/{result["name"]}'}, 201
+            return {**result, 'url': app_url(f'/api/v1/cases/{case_id}/report/images/{result["name"]}', internal=True)}, 201
         return result
 
     @api.route('/cases/<int:case_id>/report/images/<name>', methods=['GET', 'DELETE'])
@@ -991,7 +992,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         secret, _ = new_token(g.user['id'], name, expires)
         session['new_api_token'] = secret
         audit('Created API token '+name)
-        return redirect(url_for('api_page', _anchor='api-tokens'))
+        return redirect(app_url(url_for('api_page', _anchor='api-tokens')))
 
     @app.post('/account/api-tokens/<int:token_id>/revoke')
     def revoke_account_api_token(token_id):
@@ -1003,7 +1004,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
             abort(404)
         run('UPDATE api_tokens SET revoked=? WHERE id=?', (now(), token_id))
         audit('Revoked API token '+row['name'])
-        return redirect(url_for('api_page', _anchor='api-tokens'))
+        return redirect(app_url(url_for('api_page', _anchor='api-tokens')))
 
     @app.get('/api')
     @app.get('/developer/api', endpoint='developer_api')

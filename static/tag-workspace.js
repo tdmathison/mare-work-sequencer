@@ -14,7 +14,7 @@
     root.setAttribute('aria-busy','true');root.querySelector('[data-tag-status]').textContent='Loading tags…';
     try{
       const response=await fetch(url,{credentials:'same-origin',cache:'no-store',headers:{Accept:'text/html'}});
-      if(response.status===404){const fallback=new URL('/tags',location.origin);fallback.search=new URL(url,location.origin).search;await navigate(fallback,push,focus);return;}
+      if(response.status===404){const fallback=new URL(window.MWS.path('/tags'),location.origin);fallback.search=new URL(url,location.origin).search;await navigate(fallback,push,focus);return;}
       if(!response.ok)throw Error('Unable to load tags ('+response.status+'). Try again.');
       const document=new DOMParser().parseFromString(await response.text(),'text/html');
       const next=document.querySelector('[data-tag-workspace]');

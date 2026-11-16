@@ -87,8 +87,8 @@ function mountSnortTool({ theme, highlighting }) {
     if (!response.ok) throw Object.assign(Error(data.error || `HTTP ${response.status}: request refused.`), data);
     return data;
   }
-  const tool = (path, fields) => call("/tools/snort-rule-builder/" + path, fields);
-  const caseCall = (cid, path, fields) => call(`/cases/${cid}/${path}`, fields);
+  const tool = (path, fields) => call(window.MWS.path("/tools/snort-rule-builder/") + path, fields);
+  const caseCall = (cid, path, fields) => call(window.MWS.path(`/cases/${cid}/${path}`), fields);
   function button(label, fn) {
     const b = document.createElement("button");
     b.type = "button";
@@ -687,7 +687,7 @@ function mountSnortTool({ theme, highlighting }) {
     const data = new FormData();
     data.set("csrf", root.dataset.csrf);
     data.set("source_json", JSON.stringify(body.source));
-    const response = await fetch("/tools/snort-rule-builder/download", { method: "POST", body: data });
+    const response = await fetch(window.MWS.path("/tools/snort-rule-builder/download"), { method: "POST", body: data });
     if (!response.ok) throw Error("Download failed.");
     const url = URL.createObjectURL(await response.blob()), a = document.createElement("a");
     a.href = url;

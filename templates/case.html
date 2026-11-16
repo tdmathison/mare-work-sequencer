@@ -1,6 +1,6 @@
 {% from 'components/tabs.html' import bar, item %}
 {% extends 'base.html' %}{% from 'base.html' import token %}{% macro upload(cid,csrf,categories) %}
-<form class="asset-form" data-case-id="{{cid}}" method="post" enctype="multipart/form-data" action="/cases/{{cid}}/upload">
+<form class="asset-form" data-case-id="{{cid}}" method="post" enctype="multipart/form-data" action="{{request.script_root}}/cases/{{cid}}/upload">
     <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
         <label>Asset category<select name="category">
             {% for key,label in categories.items() %}
@@ -20,7 +20,7 @@
 {% endmacro %}
 
 {% block content %}
-    <a href="/">MIP board</a>
+    <a href="{{request.script_root}}/">MIP board</a>
     <div class="heading" id="case-heading">
         <div>
             <span class="eyebrow">{{c.number}}</span>
@@ -34,7 +34,7 @@
         <p class="workflow-notice">Start analysis to unlock notes, tasks, uploads, and reports.</p>
     {% elif c.stage==3 %}
         <p class="workflow-notice">Completed cases are read-only. You can regenerate the MIP ZIP or reopen the case to edit it.</p>
-        <form method="post" action="/cases/{{c.id}}/reopen">{{token(csrf)}}
+        <form method="post" action="{{request.script_root}}/cases/{{c.id}}/reopen">{{token(csrf)}}
             <button {% if c.owner_required and not c.owner_active %}disabled{% endif %}>Reopen case</button>
         </form>
     {% endif %}
@@ -70,7 +70,7 @@
                 </ol>
                 
                 {% if c.stage<stages|length-1 %}
-                    <form method="post" action="/cases/{{c.id}}/stage">{{token(csrf)}}
+                    <form method="post" action="{{request.script_root}}/cases/{{c.id}}/stage">{{token(csrf)}}
                         <input type="hidden" name="expected" value="{{c.stage}}">
                             {% if c.stage!=0 %}
                                 <div class="columns">
@@ -97,7 +97,7 @@
                         <p><strong>{{stages[h.stage]}}</strong> · {{h.outcome}} · {{h.author}} · {{h.created}}<br>{{h.reason}}</p>
                     {% endfor %}
                     {% for d in deferred %}
-                        <form method="post" action="/cases/{{c.id}}/deferred/{{d.stage}}">
+                        <form method="post" action="{{request.script_root}}/cases/{{c.id}}/deferred/{{d.stage}}">
                             <fieldset class="workflow-controls" {% if c.workspace_locked %}disabled{% endif %}>{{token(csrf)}}
                                 <p>{{stages[d.stage]}}: {{d.reason}}</p>
                                 <button>Mark deferred work resolved</button>
@@ -120,7 +120,7 @@
                 </section>
                 <section class="panel"><details id="case-details" open>
                     <summary>Case details</summary><p>Creator: <strong>{{c.creator_name}}</strong></p>
-                    <form method="post" action="/cases/{{c.id}}/owner">{{token(csrf)}}{% set selected_owner=c.owner or '' %}
+                    <form method="post" action="{{request.script_root}}/cases/{{c.id}}/owner">{{token(csrf)}}{% set selected_owner=c.owner or '' %}
                         <label>Assigned owner
                             <select id="case-owner" name="owner_id" aria-describedby="case-owner-help">
                                 <option value="">Unassigned</option>
@@ -154,7 +154,7 @@
     </div>
     <section class="panel destructive-panel" id="destructive-commands">
         <h2>Destructive commands</h2><p>Permanently delete this case and all its files, reports, notes, tasks, indicators, and references. This cannot be undone. The system case number will never be reused.</p>
-        <form method="post" action="/cases/{{c.id}}/delete">{{token(csrf)}}
+        <form method="post" action="{{request.script_root}}/cases/{{c.id}}/delete">{{token(csrf)}}
             <label>Type {{c.number}} to confirm deletion<input name="confirm_number" required autocomplete="off" placeholder="{{c.number}}"></label>
             <button class="danger-button">Delete case permanently</button>
         </form>
@@ -172,7 +172,7 @@
 <section id="panel-review" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-review" hidden><div class="columns">
     <section class="panel">{% set checklist_id='completion-review' %}{% include 'completion_checklist.html' %}
         <div class="review-export-actions">
-            <form method="post" action="/cases/{{c.id}}/archive">
+            <form method="post" action="{{request.script_root}}/cases/{{c.id}}/archive">
                 <fieldset class="workflow-controls" {% if c.stage not in [2,3] %}disabled{% endif %}>{{token(csrf)}}
                     {% if issues %}
                         <label class="check-label"><input type="checkbox" name="acknowledge" value="1" required>I acknowledge the outstanding items listed above. Include them in the package manifest.</label>
@@ -184,7 +184,7 @@
                     <button name="archive_type" value="raw">Download RAW MIP Archive</button>
                 </fieldset>
             </form>
-            <form method="post" action="/cases/{{c.id}}/backup">
+            <form method="post" action="{{request.script_root}}/cases/{{c.id}}/backup">
                 {{token(csrf)}}<button type="submit">Backup</button>
             </form>
         </div>

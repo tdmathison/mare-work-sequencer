@@ -7,6 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {% include 'url_config.html' %}
     <title>{% block title %}MARE // Work Sequencer{% endblock %}</title>
     <link rel="stylesheet" href="{{url_for('static',filename='mare.css')}}" />
     <link rel="stylesheet" href="{{url_for('static',filename='mws-tabs.css')}}" />
@@ -23,7 +24,7 @@
     {% if user %}{% include 'sidebar.html' %}{% endif %}
     <header class="topbar">
       {% if user %}<button type="button" id="sidebar-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="application-sidebar">☰</button><div class="shell-breadcrumb"><a href="{{url_for('dashboard')}}">MWS</a><span aria-hidden="true"> / </span><span>{{shell_current}}</span></div>{% endif %}
-      <a class="brand brand-link" href="/"
+      <a class="brand brand-link" href="{{request.script_root}}/"
         ><div class="brand-mark">M</div>
         <div>
           <div class="brand-name">MARE // WORK SEQUENCER</div>
@@ -35,7 +36,7 @@
       <div class="top-actions">
         <span>{{user.username}}</span
         ><span class="role-badge">{{user.role}}</span>
-        <form action="/logout" method="post">
+        <form action="{{request.script_root}}/logout" method="post">
           <input type="hidden" name="csrf" value="{{csrf}}" /><button>
             Logout
           </button>

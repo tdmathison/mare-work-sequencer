@@ -1,4 +1,5 @@
 """Settings categories share existing handlers and their existing authorization."""
+from base_path import app_url
 
 from urllib.parse import urlsplit
 from flask import g, redirect, request, url_for
@@ -26,7 +27,7 @@ def category(endpoint):
 
 def legacy_redirect(endpoint):
     query = request.query_string.decode("latin1")
-    return redirect(url_for(endpoint) + ("?" + query if query else ""))
+    return redirect(app_url(url_for(endpoint) + ("?" + query if query else "")))
 
 
 def saved_destination(default):
@@ -39,7 +40,7 @@ def saved_destination(default):
     if (
         not parsed.scheme
         and not parsed.netloc
-        and parsed.path in {"/settings/" + key for key, _, _ in CATEGORIES}
+        and parsed.path in {app_url("/settings/" + key, internal=True) for key, _, _ in CATEGORIES}
     ):
         return value
     return default

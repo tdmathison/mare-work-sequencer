@@ -1,4 +1,5 @@
 """Simple shared tags, case assignments, and portable backup metadata."""
+from base_path import app_url
 import re
 import secrets
 import sqlite3
@@ -229,7 +230,7 @@ def register_tags(app, db, case):
 
     def workspace_redirect(tid=None):
         values={key:request.form.get(key,'') for key in ('q','namespace','sort','tab') if request.form.get(key)}
-        return redirect(url_for('tag_detail',tid=tid,**values) if tid is not None else url_for('tags_manager',**values))
+        return redirect(app_url(url_for('tag_detail',tid=tid,**values) if tid is not None else url_for('tags_manager',**values)))
 
     @app.post('/tags/create')
     @app.post('/cases/<int:cid>/tags/create')
@@ -253,7 +254,7 @@ def register_tags(app, db, case):
                 return {'error': str(exc)}, 400
             flash(str(exc))
         if cid is None and request.form.get('workspace')=='1':return workspace_redirect(tid)
-        return redirect(f'/cases/{cid}#case-tags' if cid is not None else '/tags')
+        return redirect(app_url(f'/cases/{cid}#case-tags' if cid is not None else '/tags', internal=True))
 
     @app.post('/cases/<int:cid>/tags/<int:tid>/<operation>')
     def case_tag_change(cid, tid, operation):
@@ -265,7 +266,7 @@ def register_tags(app, db, case):
         if request.accept_mimetypes.best == 'application/json':
             return {'tags': assignments(db(), cid)}
         flash('Case tags updated.')
-        return redirect(f'/cases/{cid}#case-tags')
+        return redirect(app_url(f'/cases/{cid}#case-tags', internal=True))
 
     @app.post('/tags/<int:tid>/<operation>')
     def tag_manage(tid, operation):
@@ -300,7 +301,7 @@ def register_tags(app, db, case):
         if request.form.get('workspace')=='1':
             remaining=db().execute('SELECT id FROM tags WHERE id=?',(tid,)).fetchone()
             return workspace_redirect(tid if remaining else int(request.form['destination']) if operation=='merge' else None)
-        return redirect(f'/tags/{tid}' if operation == 'rename' else '/tags')
+        return redirect(app_url(f'/tags/{tid}' if operation == 'rename' else '/tags', internal=True))
 
 
 def migrate_prototype(path):

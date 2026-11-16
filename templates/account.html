@@ -19,7 +19,7 @@
 <section class="panel">
     <h2>Autosave</h2>
     <p class="muted">Automatically save changed report sections, indicators, and references while a case page is open. Manual save remains available.</p>
-    <form method="post" action="/account/autosave">{{token(csrf)}}
+    <form method="post" action="{{request.script_root}}/account/autosave">{{token(csrf)}}
         <label>Autosave interval (minutes)
             <input type="number" name="autosave_minutes" min="1" step="1" required value="{{user.autosave_minutes}}">
         </label>
@@ -30,7 +30,7 @@
 <section class="panel">
     <h2>MIP board view</h2>
     <p class="muted">Choose the default layout for the MIP board.</p>
-    <form method="post" action="/account/board-view">{{token(csrf)}}
+    <form method="post" action="{{request.script_root}}/account/board-view">{{token(csrf)}}
         <label>Default view
             <select name="board_view">
                 <option value="cards" {{'selected' if user.board_view!='table'}}>Cards</option>
@@ -45,15 +45,15 @@
     <h2>Word templates</h2>
     <div class="columns">
         <div>
-            <form method="post" enctype="multipart/form-data" action="/account/templates">{{token(csrf)}}
+            <form method="post" enctype="multipart/form-data" action="{{request.script_root}}/account/templates">{{token(csrf)}}
                 <label>Upload your report template (.docx)<input name="template" type="file" accept=".docx" required></label>
                 <button>Upload & select template</button>
             </form>
             <p class="muted">Templates are private to your account. Uploading a new template selects it for future report generation. Headers, footers, styles, and branding are retained.</p>
             
             {% for t in word_templates %}
-                <div class="template-row"><a href="/account/templates/{{t.id}}">{{t.name}}</a>
-                <form method="post" action="/account/templates/{{t.id}}/delete">{{token(csrf)}}
+                <div class="template-row"><a href="{{request.script_root}}/account/templates/{{t.id}}">{{t.name}}</a>
+                <form method="post" action="{{request.script_root}}/account/templates/{{t.id}}/delete">{{token(csrf)}}
                     <button onclick="return confirm('Remove this template? Existing reports will remain.')">Remove</button>
                 </form>
             </div>

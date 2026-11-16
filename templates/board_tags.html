@@ -1,6 +1,6 @@
 <aside id="tag-filter-drawer" class="tag-filter-drawer" hidden>
 <div class="tag-drawer-heading"><strong>Filters</strong><button type="button" data-filter-toggle aria-label="Collapse filters">×</button></div>
-<form action="/" method="get" data-tag-filter data-selected='{{selected_tags|tojson}}' data-labels='{{selected_tag_labels|tojson}}'>
+<form action="{{request.script_root}}/" method="get" data-tag-filter data-selected='{{selected_tags|tojson}}' data-labels='{{selected_tag_labels|tojson}}'>
 <input type="hidden" name="view" value="{{view}}">
 <label>Case search<input name="q" value="{{board_query}}" placeholder="Name or case number"></label>
 <fieldset class="board-stage-filters">
