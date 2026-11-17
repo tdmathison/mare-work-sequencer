@@ -52,7 +52,7 @@ if not secret.exists():
 from base_path import configure_base_path
 
 app = Flask(__name__)
-app.config.update(SECRET_KEY=os.environ.get('MARE_SECRET_KEY') or secret.read_text(), MAX_CONTENT_LENGTH=100*1024*1024, SESSION_COOKIE_HTTPONLY=True,
+app.config.update(SECRET_KEY=os.environ.get('MARE_SECRET_KEY') or secret.read_text(), MAX_CONTENT_LENGTH=500*1024*1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE='Lax', SESSION_COOKIE_SECURE=os.environ.get('MARE_SECURE_COOKIES') == '1', PERMANENT_SESSION_LIFETIME=28800)
 
 
