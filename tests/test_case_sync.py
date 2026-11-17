@@ -297,7 +297,7 @@ def test_import_username_matching_preserves_unmatched_fallbacks():
     with app.app_context():
         restored=db().execute('SELECT * FROM cases ORDER BY id DESC LIMIT 1').fetchone()
         assert restored['owner'] is None
-        assert restored['creator']==uid and restored['creator_username']=='BACKUP-USER'
+        assert restored['creator'] is None and restored['creator_username']=='backup-user'
         service=app.extensions['case_import_sync']
         assert service.owner({'assigned_user':{'username':'backup-user','user_uuid':db().execute('SELECT user_uuid FROM users WHERE id=?',(uid,)).fetchone()[0]}}) is None
         assert service.owner({'assigned_user':{'username':'BACKUP-USER'}})==uid

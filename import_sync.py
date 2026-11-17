@@ -713,6 +713,7 @@ class ImportSync:
             or (source or {}).get("source_creator")
             or {"username": c.get("creator_username")}
         )
+        source_creator_name = (item["meta"].get("source_creator") or (source or {}).get("source_creator") or {}).get("username") or c.get("creator_username") or ""
         revision = source["revision_uuid"] if source else None
         recovery = None
         committed = False
@@ -776,12 +777,12 @@ class ImportSync:
                         c["name"],
                         c.get("description", ""),
                         c["stage"],
-                        self.now(),
+                        c.get("created") or "",
                         owner,
                         c.get("external_system", ""),
                         c.get("external_number", ""),
-                        creator["id"] if creator is not None else g.user["id"],
-                        creator["username"] if creator is not None else g.user["username"],
+                        creator["id"] if creator is not None else None,
+                        creator["username"] if creator is not None else source_creator_name,
                         c.get("report_path", ""),
                     ),
                 ).lastrowid
@@ -804,6 +805,7 @@ class ImportSync:
                                     if source
                                     else item["meta"].get("source_creator")
                                 ),
+                                "source_assignee": item["meta"].get("source_assignee") or c.get("assigned_user"),
                                 "source_case_number": c.get("number"),
                                 "legacy": not bool(source),
                             }

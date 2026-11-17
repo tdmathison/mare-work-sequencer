@@ -2,8 +2,8 @@
 const assert=require('node:assert/strict'), fs=require('node:fs'), os=require('node:os'), path=require('node:path');
 const {spawn,spawnSync}=require('node:child_process'), {chromium}=require('playwright');
 const root=path.resolve(__dirname,'../..'), temporary=fs.mkdtempSync(path.join(os.tmpdir(),'mare-metrics-browser-'));
-const python=path.join(root,'.venv/bin/python'), port=8784, base=`http://127.0.0.1:${port}`;
-const env={...process.env,MARE_EDITOR_BROWSER_TEST:'1',MARE_DATA_DIR:temporary,MARE_EDITOR_TEST_PORT:String(port)};
+const python=path.join(root,'.venv/bin/python'), port=8784, prefix=process.env.MWS_BASE_PATH||'', base=`http://127.0.0.1:${port}${prefix}`;
+const env={...process.env,MARE_EDITOR_BROWSER_TEST:'1',MARE_DATA_DIR:temporary,MARE_EDITOR_TEST_PORT:String(port),MARE_EDITOR_TEST_SCRIPT_PREFIX:prefix};
 const server=spawn(python,['tests/browser/server.py'],{cwd:root,env,stdio:['ignore','ignore','pipe']});
 let browser,log='';server.stderr.on('data',data=>log+=data);
 function seed(code){const result=spawnSync(python,['-c',code],{cwd:root,env});assert.equal(result.status,0,result.stderr.toString());}
@@ -28,16 +28,16 @@ with app.app_context():
  await page.goto(base+'/metrics');
  assert.equal(await page.locator('h1').textContent(),'Case Metrics');
  assert.equal(await page.locator('#metrics-total').textContent(),'5');assert.equal(await page.locator('#metrics-completed').textContent(),'1');assert.match(await page.locator('.performance-period-activity').innerText(),/Created during period: 5/);
- assert.equal(await page.locator('.application-sidebar a[aria-current="page"]').getAttribute('href'),'/metrics');
+ assert.equal(await page.locator('.application-sidebar a[aria-current="page"]').getAttribute('href'),prefix+'/metrics');
  assert.equal(await page.locator('.performance-scorecards').innerText().then(t=>t.includes('2.0')),true);
- assert.equal(await page.locator('#reporting-weeks').inputValue(),'12');
- assert.equal(await page.locator('.performance-point').count(),12);
+ assert.equal(await page.locator('#reporting-weeks').inputValue(),'all');
+ assert.equal(await page.locator('.performance-point').count(),3);
  const points=page.locator('.performance-point');await points.first().focus();
  assert.match(await page.locator('#performance-week-detail').textContent(),/created · .*completed/);
  assert.equal(await points.first().evaluate(e=>getComputedStyle(e.querySelector('.performance-point-target')).stroke),'rgb(217, 174, 88)');
  await points.last().hover();assert.equal(await page.locator('#performance-week-detail').textContent(),await points.last().getAttribute('data-week-detail'));
  await points.last().press('Enter');
- await page.getByText('Weekly activity table',{exact:true}).click();assert.equal(await page.locator('.performance-weekly tbody tr').count(),12);
+ await page.getByText('Weekly activity table',{exact:true}).click();assert.equal(await page.locator('.performance-weekly tbody tr').count(),3);
  assert.equal(await page.locator('.performance-analysts').innerText().then(t=>t.includes('Disabled')),true);
  const columns=await page.locator('.performance-columns').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length);assert.equal(columns,2);
  await page.screenshot({path:path.join(process.env.MARE_METRICS_SCREENSHOT_DIR||temporary,'metrics-desktop.png'),fullPage:true});

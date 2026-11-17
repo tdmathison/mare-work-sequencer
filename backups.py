@@ -99,6 +99,7 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
     c = meta['case']
     text(c['name'], 200)
     text(c.get('description', ''))
+    text(c.get('created') or '', 200)
     text(c.get('number', ''), 200)
     if not c['name'].strip() or c.get('stage') not in range(4):
         raise ValueError('Invalid source case.')
@@ -195,7 +196,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
             data['case'][key] = data['case'][key] or ''
         for table in ('notes', 'tasks', 'history', 'deferred', 'readiness', 'artifacts'):
             data['records'][table] = [{k: row[k] for k in row.keys() if k not in (
-                'id', 'case_id', 'usage')} for row in db().execute(f'SELECT * FROM {table} WHERE case_id=?'+(' ORDER BY id' if table=='notes' else ''), (cid,))]
+                'id', 'case_id', 'usage')} for row in db().execute(f'SELECT * FROM {table} WHERE case_id=?'+(' ORDER BY id' if table in ('notes','history') else ''), (cid,))]
         data['records']['task_groups']=[dict(r) for r in db().execute('SELECT id,name,source_collection_id,source_revision,added,position FROM task_groups WHERE case_id=? ORDER BY position,id',(cid,))]
         applications=[dict(r) for r in db().execute('SELECT * FROM task_collection_applications WHERE case_id=?',(cid,))]
         data['records']['task_application_history']=[]
@@ -220,9 +221,11 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         data['tagging'] = portable_tags(db(), cid)
         creator = db().execute('SELECT username,user_uuid FROM users WHERE id=?', (c['creator'],)).fetchone()
         from content_metrics import export_events
-        state=db().execute('SELECT case_uuid FROM sync_cases WHERE case_id=?',(cid,)).fetchone()
+        state=db().execute('SELECT case_uuid,provenance FROM sync_cases WHERE case_id=?',(cid,)).fetchone()
+        provenance=json.loads(state['provenance']) if state else {}
         if state:data['content_metrics']=export_events(db(),'case',state[0])
-        data['source_creator'] = dict(creator) if creator else {'username': c['creator_username'] or 'Unknown', 'user_uuid': None}
+        data['source_creator'] = provenance.get('source_creator') or (dict(creator) if creator else {'username': c['creator_username'] or 'Unknown', 'user_uuid': None})
+        if provenance.get('source_assignee'):data['source_assignee']=provenance['source_assignee']
         return data
 
     def case_backup(cid, email_safe=False, include_samples=False):

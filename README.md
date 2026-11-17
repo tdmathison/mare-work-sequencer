@@ -2222,3 +2222,8 @@ headers are ignored unless the immediate proxy is listed in `MWS_TRUSTED_PROXIES
 See [the production subpath deployment guide](docs/PRODUCTION_SUBPATH_DEPLOYMENT.md)
 for the Ubuntu service, Nginx additions and verification steps. SDK clients already
 accept a deployment subpath in `base_url`, e.g. `https://server/mws`.
+
+Historical case reporting defaults to All time. Imports preserve original creation
+and workflow timestamps; missing dates are not replaced with import time. See
+[historical metrics and recovery](docs/HISTORICAL_METRICS.md) for the cause of older
+import-date loss and the dry-run `flask --app app recover-case-dates` command.

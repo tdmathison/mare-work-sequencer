@@ -1,5 +1,6 @@
 /* Native SVG points provide mouse, touch, and keyboard details without a CDN. */
 (() => {
+  window.addEventListener('pageshow', event => { if (event.persisted) window.location.reload(); });
   const detail = document.getElementById('performance-week-detail');
   if (!detail) return;
   document.querySelectorAll('.performance-dashboard [data-week-detail]').forEach(point => {

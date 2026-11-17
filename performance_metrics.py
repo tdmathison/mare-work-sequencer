@@ -41,17 +41,20 @@ def scorecard(connection, weeks=12, current_time=None, timezone_name="UTC"):
 
 
 def _scorecard(connection, weeks, current_time, timezone_name):
-    if weeks not in PERIODS:
+    if weeks not in (*PERIODS, "all"):
         raise ValueError("Unsupported reporting period")
     now = (current_time or datetime.now(timezone.utc)).astimezone(timezone.utc)
     local = now.astimezone(ZoneInfo(timezone_name))
     end = (local - timedelta(days=local.weekday())).replace(
         hour=0, minute=0, second=0, microsecond=0
     )
-    start, previous_start = end - timedelta(weeks=weeks), end - timedelta(
-        weeks=2 * weeks
+    start, previous_start = (
+        (end - timedelta(weeks=weeks), end - timedelta(weeks=2 * weeks))
+        if weeks != "all"
+        else (end, end)
     )
     cases = inventory(connection)
+    all_time = weeks == "all"
     users = [
         dict(row)
         for row in connection.execute(
@@ -87,13 +90,33 @@ def _scorecard(connection, weeks, current_time, timezone_name):
         if event["current_completion"]:
             current_completions[event["case_id"]] = date
 
+    if all_time:
+        valid = [
+            date
+            for case in cases
+            if (date := timestamp(case["created"])) and date <= now
+        ]
+        # A dated completion still belongs in history when creation is unknown.
+        for case in cases:
+            creation = timestamp(case["created"])
+            if creation is None or creation > now:
+                valid.extend(
+                    date for date in completions[case["id"]] if date and date <= now
+                )
+        earliest = min(valid, default=now).astimezone(local.tzinfo)
+        start = (earliest - timedelta(days=earliest.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        end = local + timedelta(microseconds=1)
+        weeks = (local.date() - start.date()).days // 7 + 1
+        previous_start = start
     weekly = []
     for index in range(weeks):
         week_start = start + timedelta(weeks=index)
         weekly.append(
             {
                 "start": week_start.date().isoformat(),
-                "end": (week_start + timedelta(days=6)).date().isoformat(),
+                "end": min(week_start + timedelta(days=6), local).date().isoformat(),
                 "created": 0,
                 "completed": 0,
             }
@@ -200,20 +223,36 @@ def _scorecard(connection, weeks, current_time, timezone_name):
             if abs(difference) < 0.05
             else f"{difference:+.1f} days vs prior period"
         )
+    from workflow_metrics import summarize
+
+    workflow = summarize(connection, cases, start, end, now)
     return {
+        "workflow": workflow,
         "weeks": weeks,
+        "period": "all" if all_time else weeks,
+        "all_time": all_time,
+        "chart_intervals": max(1, weeks - 1),
         "start": start.date().isoformat(),
-        "end": (end - timedelta(days=1)).date().isoformat(),
+        "end": (
+            local.date().isoformat()
+            if all_time
+            else (end - timedelta(days=1)).date().isoformat()
+        ),
         "previous_start": previous_start.date().isoformat(),
         "previous_end": (start - timedelta(days=1)).date().isoformat(),
         "timezone": timezone_name,
         "as_of": now.isoformat(timespec="seconds"),
         "created": created_counts[0],
-        "created_comparison": comparison(*created_counts),
+        "created_comparison": (
+            "All recorded history" if all_time else comparison(*created_counts)
+        ),
         "completed": completed_counts[0],
-        "completed_comparison": comparison(*completed_counts),
+        "completed_comparison": (
+            "All recorded history" if all_time else comparison(*completed_counts)
+        ),
         "median": medians[0],
-        "median_comparison": delta,
+        "mean": sum(durations[0]) / len(durations[0]) if durations[0] else None,
+        "median_comparison": "All recorded history" if all_time else delta,
         "timed_cases": len(durations[0]),
         "stages": stage_counts,
         "total": len(cases),

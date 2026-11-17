@@ -680,10 +680,10 @@ def metrics_data():
 def metrics():
     if not has_permission(g.user, 'metrics:read', db()):
         abort(403)
-    period = request.args.get('weeks', '12')
-    if period not in {str(value) for value in PERIODS}:
+    period = request.args.get('weeks', 'all')
+    if period not in {"all", *(str(value) for value in PERIODS)}:
         abort(400)
-    response=make_response(render_template('metrics.html', performance=scorecard(db(), int(period), timezone_name=app.config.get('DISPLAY_TIMEZONE','UTC'))))
+    response=make_response(render_template('metrics.html', performance=scorecard(db(), "all" if period == "all" else int(period), timezone_name=app.config.get('DISPLAY_TIMEZONE','UTC'))))
     response.headers['Cache-Control']='private, no-store'
     return response
 
@@ -1471,6 +1471,9 @@ register_developer_pages(app, db)
 register_shell(app, db)
 
 
+
+from historical_recovery import register as register_historical_recovery
+register_historical_recovery(app, db, backup_helpers)
 
 configure_base_path(app)
 
