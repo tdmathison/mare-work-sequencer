@@ -1,0 +1,59 @@
+.impact-badge {
+  display:inline-flex;align-items:center;gap:.25rem;color:#e5bc67;
+  background:rgba(217,174,88,.12);border:1px solid rgba(217,174,88,.4);
+  border-radius:999px;padding:.15rem .5rem;font-size:.75rem;font-weight:650;white-space:nowrap;
+}
+.impact-preview {position:relative;display:inline-block;margin:.35rem 0}
+.impact-preview>summary {cursor:pointer;list-style:none}
+.impact-preview>summary::-webkit-details-marker {display:none}
+.impact-preview>summary:focus-visible {outline:2px solid var(--accent);outline-offset:3px}
+.impact-preview-content {
+  position:absolute;z-index:20;top:100%;left:0;width:min(21rem,75vw);
+  padding:.8rem;border:1px solid var(--line);border-radius:.4rem;
+  background:var(--panel);box-shadow:0 6px 24px #0006;white-space:normal;overflow-wrap:anywhere;
+}
+.impact-preview-content p {white-space:pre-wrap;margin-bottom:0}
+.impact-preview:not([open])>.impact-preview-content {display:none}
+/* Touch uses native disclosure activation, without hover-driven layout changes. */
+@media (hover:hover) and (pointer:fine) {
+  .impact-preview:is(:hover,:focus-within)::details-content {content-visibility:visible}
+  .impact-preview:is(:hover,:focus-within)>.impact-preview-content {display:block}
+}
+.impact-toggle {display:flex;align-items:center;gap:.5rem}
+.impact-toggle input {width:auto}
+.case-impact-panel summary .impact-badge {margin-left:.5rem}
+.case-impact-panel textarea {min-height:6rem}
+.case-impact-panel fieldset {border:0;margin:0;padding:0;min-width:0}
+.case-impact-panel label[for] {margin-bottom:.25rem}
+.impact-summary-full {white-space:pre-wrap;overflow-wrap:anywhere}
+.impact-card-heading {position:relative;align-items:flex-start;flex-wrap:wrap;gap:.5rem}
+.impact-card-status {display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.impact-card-status .impact-preview {margin:0;position:static}
+.case-card .impact-preview-content {left:0;right:0;top:100%;width:auto}
+.impact-metrics-table td {vertical-align:top}
+.impact-metrics-table td:last-child {min-width:8rem}
+.impact-breakdown {display:flex;gap:.75rem;flex-wrap:wrap}
+.impact-breakdown>div {flex:1;min-width:10rem}
+.impact-breakdown meter {width:100%}
+.impact-breakdown meter::-webkit-meter-bar {background:var(--line);border:0}
+.impact-breakdown meter::-webkit-meter-optimum-value {background:var(--accent)}
+.impact-breakdown meter::-moz-meter-bar {background:var(--accent)}
+.impact-rate-scope {max-width:65rem}
+/* Board table only: one compact indicator and an out-of-flow preview per row. */
+.mip-table-panel .mip-table-scroll {overflow-x:auto}
+.mip-table-panel .mip-table {min-width:1040px}
+.mip-table-panel .mip-table th.mip-table-number {width:17%}
+.mip-table-panel .mip-table th.mip-table-title {width:22%}
+.mip-table-panel .mip-table th.mip-table-impact {width:14%}
+.mip-table-panel .mip-table th.mip-table-person {width:11%}
+.mip-table-panel .mip-table th.mip-table-stage {width:14%}
+.mip-table-panel .mip-table th.mip-table-reviewed {width:11%}
+.mip-table-panel .mip-table-title a {min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.mip-table-impact .impact-badge {margin:0;padding:2px 6px;line-height:1.4;font-size:11px;vertical-align:middle;justify-self:start}
+.mip-table-impact .impact-badge.is-neutral {color:var(--muted);background:var(--panel-2);border-color:var(--line)}
+.impact-table-tooltip {color:var(--text);font-size:13px;position:fixed;inset:auto;margin:0;box-sizing:border-box;width:min(24rem,calc(100vw - 24px));max-height:min(24rem,calc(100dvh - 24px));overflow:auto;white-space:normal}
+.impact-table-tooltip[hidden] {display:none}
+@container (max-width:700px) {
+  .mip-table-panel .mip-table {min-width:0}
+  .mip-table-panel .mip-table th[class] {width:auto}
+}

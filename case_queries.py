@@ -23,7 +23,7 @@ def inventory(connection):
     return [
         dict(row)
         for row in connection.execute(
-            "SELECT DISTINCT c.id,c.stage,c.created,c.creator,c.creator_username,c.owner "
+            "SELECT DISTINCT c.id,c.stage,c.created,c.creator,c.creator_username,c.owner,c.impact_confirmed,c.impact_type,c.impact_summary,c.impact_confirmed_at "
             + CASE_RELATIONS
             + " WHERE "
             + CASE_ELIGIBILITY

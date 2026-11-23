@@ -4104,6 +4104,26 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "impact_confirmed": {
+                    "type": "boolean",
+                    "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
+                  },
+                  "impact_type": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "detection",
+                      "discovery",
+                      "both",
+                      null
+                    ],
+                    "description": "Stable outcome value; both contributes to detection and discovery counters but counts once as an impactful case."
+                  },
+                  "impact_summary": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "description": "Plain text; trimmed on save. Required and nonempty for confirmed impact. Disabling without sending details preserves them."
+                  },
                   "name": {
                     "type": "string",
                     "maxLength": 200,
@@ -4407,7 +4427,7 @@
       },
       "patch": {
         "summary": "Update case metadata or ownership",
-        "description": "External system/number must be paired. Stage changes use the dedicated workflow endpoint.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.",
+        "description": "External system/number must be paired. Stage changes use the dedicated workflow endpoint. Impact is independent of workflow stage; confirmed impact requires a supported type and nonempty summary. First confirmation time is server managed and retained across disabling/re-enabling. Omitted impact fields remain unchanged.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.",
         "responses": {
           "200": {
             "description": "Successful response.",
@@ -4533,6 +4553,26 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "impact_confirmed": {
+                    "type": "boolean",
+                    "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
+                  },
+                  "impact_type": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "detection",
+                      "discovery",
+                      "both",
+                      null
+                    ],
+                    "description": "Stable outcome value; both contributes to detection and discovery counters but counts once as an impactful case."
+                  },
+                  "impact_summary": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "description": "Plain text; trimmed on save. Required and nonempty for confirmed impact. Disabling without sending details preserves them."
+                  },
                   "name": {
                     "type": "string",
                     "maxLength": 200,
@@ -24384,6 +24424,26 @@
       "Case": {
         "type": "object",
         "properties": {
+          "impact_confirmed": {
+            "type": "boolean",
+            "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
+          },
+          "impact_type": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "detection",
+              "discovery",
+              "both",
+              null
+            ],
+            "description": "Stable outcome value; both contributes to detection and discovery counters but counts once as an impactful case."
+          },
+          "impact_summary": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "Plain text; trimmed on save. Required and nonempty for confirmed impact. Disabling without sending details preserves them."
+          },
           "name": {
             "type": "string",
             "maxLength": 200,
@@ -24410,6 +24470,12 @@
           "external_number": {
             "type": "string",
             "maxLength": 200
+          },
+          "impact_confirmed_at": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "description": "First confirmation timestamp, retained across edits and disable/re-enable. Missing imported timestamps remain unknown until a genuine new confirmation."
           },
           "id": {
             "type": "integer"

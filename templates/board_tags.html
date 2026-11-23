@@ -3,6 +3,7 @@
 <form action="{{request.script_root}}/" method="get" data-tag-filter data-selected='{{selected_tags|tojson}}' data-labels='{{selected_tag_labels|tojson}}'>
 <input type="hidden" name="view" value="{{view}}">
 <label>Case search<input name="q" value="{{board_query}}" placeholder="Name or case number"></label>
+<label for="board-impact-filter">Case impact</label><select id="board-impact-filter" name="impact"><option value="all" {% if impact_filter=='all' %}selected{% endif %}>All Cases</option><option value="yes" {% if impact_filter=='yes' %}selected{% endif %}>Impactful Cases</option><option value="no" {% if impact_filter=='no' %}selected{% endif %}>Non-Impactful Cases</option></select>
 <fieldset class="board-stage-filters">
 <legend>Stage</legend>
 {% for label in stages %}<label><input type="checkbox" name="stage" value="{{loop.index0}}"{% if loop.index0 in selected_stages %} checked{% endif %}>{{label}}</label>{% endfor %}

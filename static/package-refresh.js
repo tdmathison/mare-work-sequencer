@@ -21,7 +21,7 @@
     if (current && updated && current.innerHTML !== updated.innerHTML)
       current.innerHTML = updated.innerHTML;
   }
-  function apply(page) {
+  function apply(page, impactGeneration) {
     const oldStage = document.querySelector('#case-heading .badge')?.textContent;
     const newStage = page.querySelector('#case-heading .badge')?.textContent;
     if (oldStage !== newStage) {
@@ -53,7 +53,7 @@
     if (history && nextHistory && !history.contains(document.activeElement)) replaceSaved(page, '#stage-history');
     // Update pristine metadata fields in place. A dirty form keeps its draft and
     // selection, rather than acquiring a new server baseline behind the analyst.
-    let conflict = false;
+    let conflict = window.MareCaseImpact?.apply(page, impactGeneration) || false;
     for (const form of document.querySelectorAll('#case-details form')) {
       const updated = [...page.querySelectorAll('#case-details form')].find(f => f.getAttribute('action') === form.getAttribute('action'));
       if (!updated) continue;
@@ -99,6 +99,7 @@
   async function savedPage() {
     const current = ++sequence;
     controller?.abort(); controller = new AbortController();
+    const impactGeneration = window.MareCaseImpact?.generation();
     const response = await fetch(window.MWS.path(`/cases/${cid}`), {cache:'no-store', credentials:'same-origin', signal:controller.signal});
     if (!response.ok || response.redirected) throw Error('Unable to refresh saved Case data. Check your session and retry; drafts are retained.');
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
@@ -106,7 +107,7 @@
     if (identity?.dataset.caseId !== cid || identity?.dataset.userId !== user)
       throw Error('Case or signed-in user changed. Your drafts are retained; reopen the Case in the correct session.');
     if (current !== sequence) return null;
-    return {conflict:apply(page)};
+    return {conflict:apply(page, impactGeneration)};
   }
   async function refreshTab(tab) {
     const loaders = {tasks:window.MareTaskCase, notes:window.MareCaseNotes,

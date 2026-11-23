@@ -1,4 +1,5 @@
 """Account-bound staged imports, per-case decisions, and recoverable replacement."""
+import case_impact
 from base_path import app_url
 
 import copy
@@ -705,7 +706,11 @@ class ImportSync:
             raise ValueError(
                 "Active report generation blocks replacement; retry after it finishes."
             )
-        canonical_hash = fingerprint(canonical_tag_snapshot(incoming))
+        canonical = canonical_tag_snapshot(incoming)
+        if cid and not any(key in validated[0] for key in case_impact.FIELDS):
+            local = self.db().execute('SELECT * FROM cases WHERE id=?', (cid,)).fetchone()
+            canonical['case'].update(case_impact.snapshot_fields(local))
+        canonical_hash = fingerprint(canonical)
         c = validated[0]
         owner = self.owner(c)
         creator = self.matching_user(
@@ -839,6 +844,8 @@ class ImportSync:
                     (key, cid, None, revision, key, "prepared"),
                 )
                 outcome["recovery"] = key
+            if new or any(key in c for key in case_impact.FIELDS):
+                case_impact.write(con, cid, case_impact.archived(c))
             from content_metrics import restore_events, collect_case, restoring
             with restoring(con):
                 restore_events(con,item['meta'].get('content_metrics'),'case',case_uuid)

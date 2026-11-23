@@ -34,6 +34,7 @@ from werkzeug.utils import secure_filename
 from reporting import is_backup, OUTPUT, current_report
 from mip import title_date, create_mip, slugify, CATEGORIES, REPORT_TEMPLATE, GUIDANCE, OPTIONAL_TEMPLATES
 from authorization import has_permission, initialize_roles
+import case_impact
 
 STAGES = ['Not started', 'Malware Analysis',
           'Packaging & Delivery', 'Completed']
@@ -237,6 +238,7 @@ with app.app_context():
     migrate_analysis_stages(db())
     migrate_five_stages(db())
     migrate_four_stages(db())
+    case_impact.initialize(db())
     initialize_roles(db())
     if not db().execute("SELECT 1 FROM schema_migrations WHERE name='one-minute-autosave'").fetchone():
         db().execute('UPDATE users SET autosave_minutes=1 WHERE autosave_minutes=5')
@@ -415,6 +417,8 @@ def enforce_case_stage():
     c = case(cid)
     message = None
     # Copying definitions to the global library does not mutate the source Case.
+    if request.endpoint == 'detail' and request.form.get('operation') == 'impact':
+        return
     if request.endpoint in ('assign_case_owner', 'package_bulk_download', 'backup_single_export', 'delete_case', 'markdown_preview', 'case_notebook_preview', 'web_task_collection_from_tasks'):
         return
     if c['owner_required'] and not c['owner_active'] and request.endpoint != 'detail' and not (request.endpoint == 'progress' and c['stage'] == 0):
@@ -434,7 +438,7 @@ def enforce_case_stage():
 @app.context_processor
 def context():
     session.setdefault('csrf', secrets.token_urlsafe(32))
-    return dict(user=g.user, csrf=session['csrf'], stages=STAGES, categories=CATEGORIES, guidance=GUIDANCE, active_users=db().execute("SELECT id,username FROM users WHERE active=1 ORDER BY username").fetchall())
+    return dict(user=g.user, csrf=session['csrf'], stages=STAGES, impact_types=case_impact.TYPES, categories=CATEGORIES, guidance=GUIDANCE, active_users=db().execute("SELECT id,username FROM users WHERE active=1 ORDER BY username").fetchall())
 
 
 def admin(f):
@@ -578,7 +582,7 @@ def save_sample_archive_password():
     return redirect(app_url(saved_destination(url_for('account'))))
 
 
-BOARD_SORT_COLUMNS = ('number', 'title', 'owner', 'creator', 'stage', 'reviewed')
+BOARD_SORT_COLUMNS = ('number', 'title', 'impact', 'owner', 'creator', 'stage', 'reviewed')
 
 
 @app.post('/account/board-sort')
@@ -591,7 +595,7 @@ def save_board_sort():
         (column, direction, g.user['id']))
     return redirect(app_url(url_for('dashboard', view='table', q=request.form.get('q', ''),
                             match=request.form.get('match', 'any'), tag=request.form.getlist('tag'),
-                            stage=request.form.getlist('stage'))))
+                            stage=request.form.getlist('stage'), impact=request.form.get('impact') if request.form.get('impact') in ('yes','no') else None)))
 
 
 @app.get('/')
@@ -608,18 +612,22 @@ def dashboard():
     can_read_tags = has_permission(g.user, 'tags:read', db())
     if selected and not can_read_tags: abort(403)
     if selected and tag_prototype(db()): abort(503, 'Prototype tag migration required.')
+    impact_filter = request.args.get('impact', 'all')
+    if impact_filter not in ('all','yes','no'): abort(400)
     query = request.args.get('q', '').strip()
     sql, args = case_filter(selected, match)
     cases = [dict(c) for c in db().execute(CASE_QUERY+" WHERE "+CASE_ELIGIBILITY+" AND (instr(lower(c.name),?)>0 OR instr(lower(c.number),?)>0 OR instr(lower(coalesce(c.description,'')),?)>0)"+sql+' ORDER BY c.id DESC', [query.lower()]*3+args)]
+    if impact_filter != 'all':
+        cases = [c for c in cases if bool(c['impact_confirmed']) == (impact_filter == 'yes')]
     stage_counts = {stage: sum(c['stage'] == stage for c in cases) for stage in range(len(STAGES))}
     metrics = [
         {'label': 'All MIPs', 'count': inventory_total(db()),
          'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view']),
-         'active': not selected_stages and not selected and not query},
+         'active': not selected_stages and not selected and not query and impact_filter == 'all'},
     ]
     for label, values in [('Not started', [0]), ('In progress', [1, 2]), ('Completed', [3])]:
         metrics.append({'label': label, 'count': sum(stage_counts[value] for value in values),
-                        'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view'], q=query, match=match, tag=selected, stage=values),
+                        'url': url_for('dashboard', view=request.args.get('view') if request.args.get('view') in ('cards', 'table') else g.user['board_view'], q=query, match=match, tag=selected, stage=values, impact=impact_filter if impact_filter!='all' else None),
                         'active': selected_stages == values})
     if selected_stages:
         cases = [c for c in cases if c['stage'] in selected_stages]
@@ -638,19 +646,24 @@ def dashboard():
         'newest': lambda c: c['id'],
         'number': lambda c: c['number'].casefold(),
         'title': lambda c: c['name'].casefold(),
+        'impact': lambda c: bool(c.get('impact_confirmed')),
         'owner': lambda c: (c['owner_name'] or 'Unassigned').casefold(),
         'creator': lambda c: c['creator_name'].casefold(),
         'stage': lambda c: c['stage'],
         'reviewed': lambda c: sum(r['status'] not in ('Empty','Pending') for r in c['readiness']) / (len(c['readiness']) or 1),
     }
-    cases.sort(key=lambda c: (sort_keys[board_sort](c), c['id']), reverse=sort_direction == 'desc')
+    if board_sort == 'impact':
+        # Stable boolean groups retain the existing newest-first order on ties.
+        cases.sort(key=sort_keys['impact'], reverse=sort_direction == 'desc')
+    else:
+        cases.sort(key=lambda c: (sort_keys[board_sort](c), c['id']), reverse=sort_direction == 'desc')
     view = request.args.get('view')
     if view not in ('cards', 'table'):
         view = g.user['board_view']
     selected_labels = {t['id']: t['name'] for rows in tag_map.values() for t in rows if t['id'] in selected}
     if selected and not tag_prototype(db()):
         selected_labels.update({r['id']:r['name'] for r in db().execute('SELECT id,name FROM tags WHERE id IN ('+','.join('?' for _ in selected)+')', selected)})
-    return render_template('dashboard.html', board_metrics=metrics, selected_stages=selected_stages, board_sort=board_sort, sort_direction=sort_direction, selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
+    return render_template('dashboard.html', impact_filter=impact_filter, board_metrics=metrics, selected_stages=selected_stages, board_sort=board_sort, sort_direction=sort_direction, selected_tag_labels=selected_labels, cases=cases, view=view, board_query=query, selected_tags=selected, tag_match=match, board_tags=tag_map)
 
 
 def metrics_data():
@@ -683,7 +696,14 @@ def metrics():
     period = request.args.get('weeks', 'all')
     if period not in {"all", *(str(value) for value in PERIODS)}:
         abort(400)
-    response=make_response(render_template('metrics.html', performance=scorecard(db(), "all" if period == "all" else int(period), timezone_name=app.config.get('DISPLAY_TIMEZONE','UTC'))))
+    performance = scorecard(db(), "all" if period == "all" else int(period), timezone_name=app.config.get('DISPLAY_TIMEZONE','UTC'))
+    query = request.args.get('impact_q','').strip().casefold()
+    rows = [row for row in performance['impact']['rows'] if query in ' '.join(str(row.get(key) or '') for key in ('number','name','owner_name','impact_summary','impact_type')).casefold() or query in case_impact.TYPES.get(row['impact_type'],'').casefold()]
+    sort = request.args.get('impact_sort','date')
+    columns = {'number':'number','name':'name','owner':'owner_name','type':'impact_type','stage':'stage'}
+    if sort not in ('date', *columns): abort(400)
+    if sort in columns: rows.sort(key=lambda row: (str(row[columns[sort]] or '').casefold(),row['id']))
+    response=make_response(render_template('metrics.html', performance=performance, impact_rows=rows))
     response.headers['Cache-Control']='private, no-store'
     return response
 
@@ -753,6 +773,20 @@ def assign_case_owner(cid):
 def detail(cid):
     c = case(cid)
     if request.method == 'POST':
+        if request.form.get('operation') == 'impact':
+            if not has_permission(g.user, 'cases:update', db()): abort(403)
+            incoming = {'impact_confirmed': request.form.get('impact_confirmed') == '1'}
+            if incoming['impact_confirmed']:
+                incoming.update(impact_type=request.form.get('impact_type'), impact_summary=request.form.get('impact_summary', ''))
+            try:
+                value = case_impact.patch(c, incoming, now())
+            except ValueError as error:
+                return {'error': str(error)}, 400
+            case_impact.write(db(), cid, value)
+            db().commit()
+            audit('Updated Case Impact '+c['number'])
+            if request.form.get('ajax') == '1': return {'saved': True, **value}
+            return redirect(url_for('detail', cid=cid, tab='workbench')+'#case-impact')
         title = request.form.get('name', '').strip()
         reference = external_reference(request.form)
         if not title or len(title) > 200 or reference is None:

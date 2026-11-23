@@ -172,3 +172,14 @@ Apply any selected Core templates with the existing `task_collections.apply` met
 Application never happens automatically, starts Case tasks at Not Started, and
 retains normal Case permissions and closed-Case restrictions. Later Core updates
 never change previously copied tasks or their recorded source revisions.
+
+### Case Impact
+
+The existing case create/get/list/update models expose optional impact fields.
+Enable with `impact_confirmed=True`, `impact_type="detection"`, `"discovery"`, or
+`"both"`, and a nonempty `impact_summary` (maximum 4,000 characters). The server
+trims the summary and manages read-only `impact_confirmed_at`. Disabling with
+`client.cases.update(case_id, data={"impact_confirmed": False})` retains saved
+details and first confirmation time. Omitted fields remain unchanged. Impact-only
+updates use `cases:update` and work at every workflow stage. See the application
+Case Impact guide for historical reporting and backup behavior.

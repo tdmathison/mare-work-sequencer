@@ -1,3 +1,4 @@
+import case_impact
 from base_path import app_url
 from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
 """Portable case backups: nested RAW packages plus validated workbench metadata."""
@@ -97,6 +98,7 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
     from content_metrics import validate_events
     validate_events(meta.get('content_metrics'))
     c = meta['case']
+    case_impact.archived(c)
     text(c['name'], 200)
     text(c.get('description', ''))
     text(c.get('created') or '', 200)
@@ -189,6 +191,7 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
         c = case(cid)
         data = {'schema': 'mare-case-state/2', 'case': {key: c[key] for key in ('number', 'name', 'description', 'stage', 'external_system', 'external_number', 'created', 'report_path')}, 'records': {
         }, 'indicators': load_table(db, cid), 'references': load_references(db, cid)}
+        data['case'].update(case_impact.fields(c))
         owner = db().execute('SELECT username,user_uuid FROM users WHERE id=?',
                              (c['owner'],)).fetchone()
         data['case']['assigned_user'] = dict(owner) if owner else None

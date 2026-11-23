@@ -1,0 +1,5 @@
+{% set confirmed = c.impact_confirmed|default(false, true) %}
+<button type="button" class="impact-badge{% if not confirmed %} is-neutral{% endif %}" data-board-impact aria-expanded="false" aria-controls="board-impact-{{c.id}}" aria-describedby="board-impact-{{c.id}}">{{'★ Impact' if confirmed else 'No known impact'}}</button>
+<div id="board-impact-{{c.id}}" class="impact-preview-content impact-table-tooltip" role="tooltip" popover="manual" hidden>
+{% if confirmed %}<strong>Enterprise Impact Confirmed</strong><p>Outcome: {{impact_types.get(c.impact_type,'Unknown')}}</p><p>Summary:</p><p>{{c.impact_summary}}</p>{% else %}<strong>No known enterprise impact</strong><p>This case has not been marked as producing a confirmed enterprise detection or discovery.</p>{% endif %}
+</div>

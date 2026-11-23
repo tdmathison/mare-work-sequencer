@@ -39,7 +39,12 @@ CELL = {**TEXT, 'maxLength': 4000}
 SECTIONS_SCHEMA = obj({key: MARKDOWN for key in TOKENS}, additionalProperties=False)
 MAPPINGS = obj({'attack': MARKDOWN, 'mbc': MARKDOWN}, additionalProperties=False)
 ROWS = array(array(CELL), maxItems=10000)
-CASE_FIELDS = {'name': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLength': 20000},
+IMPACT_FIELDS = {
+    'impact_confirmed': {'type':'boolean', 'description':'Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary.'},
+    'impact_type': {'type':'string','nullable':True,'enum':['detection','discovery','both',None], 'description':'Stable outcome value; both contributes to detection and discovery counters but counts once as an impactful case.'},
+    'impact_summary': {'type':'string','maxLength':4000, 'description':'Plain text; trimmed on save. Required and nonempty for confirmed impact. Disabling without sending details preserves them.'}
+}
+CASE_FIELDS = {**IMPACT_FIELDS, 'name': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLength': 20000},
                'owner_id': {**NULL_INT, 'description': 'Active user ID, or null to leave unassigned.'},
                'external_system': {**TEXT, 'enum': ['', 'Vortex', 'XSIAM', 'JIRA']}, 'external_number': {**TEXT, 'maxLength': 200}}
 TASK_FIELDS = {'title': {**TITLE, 'minLength': 1}, 'body': {**TEXT, 'maxLength': 20000},
@@ -53,7 +58,7 @@ SCHEMAS = {
     'Token': obj({**dict.fromkeys(('name', 'token_prefix', 'created'), TEXT), 'id': INT,
                   **dict.fromkeys(('last_used', 'revoked', 'expires'), NULL_TEXT)}),
     'Role': obj({'name': TEXT, 'description': TEXT, 'builtin': BOOL, 'permissions': array(TEXT)}),
-    'Case': obj({**CASE_FIELDS, 'id': INT, 'number': TEXT, 'stage': {**INT, 'minimum': 0, 'maximum': 3},
+    'Case': obj({**CASE_FIELDS, 'impact_confirmed_at': {'type':'string','nullable':True,'readOnly':True,'description':'First confirmation timestamp, retained across edits and disable/re-enable. Missing imported timestamps remain unknown until a genuine new confirmation.'}, 'id': INT, 'number': TEXT, 'stage': {**INT, 'minimum': 0, 'maximum': 3},
                  **dict.fromkeys(('stage_name', 'created', 'report_path'), TEXT),
                  **dict.fromkeys(('owner_name', 'creator_name'), NULL_TEXT), 'creator_id': NULL_INT, 'owner_active': BOOL}),
     'Task': obj({**{key: value for key, value in TASK_FIELDS.items() if key != 'description'}, 'id': INT,
@@ -157,7 +162,7 @@ contract('case_collection', 'GET', 'List cases newest first', paged('cases', ref
 contract('case_collection', 'POST', 'Create a case', result(case=ref('Case')), body=obj(CASE_FIELDS, ('name',)), status=201,
          description='The supplied name is stored unchanged (1–200 characters and not whitespace-only). The web Create Case form supplies its default date prefix only when first opened. External system and number must be supplied together. Owner must be active.', example={'name': 'Example investigation'})
 contract('case_item', 'GET', 'Read case details and workflow history', result(case={'allOf': [ref('Case'), obj({'readiness': ref('Readiness'), 'history': array(obj({'stage': INT, 'author': TEXT, 'created': TEXT, 'outcome': TEXT, 'reason': TEXT})), 'deferred': array(obj({'stage': INT, 'reason': TEXT, 'resolved': INT}))})]}))
-contract('case_item', 'PATCH', 'Update case metadata or ownership', result(case=ref('Case')), body=obj(CASE_FIELDS), description='External system/number must be paired. Stage changes use the dedicated workflow endpoint.')
+contract('case_item', 'PATCH', 'Update case metadata or ownership', result(case=ref('Case')), body=obj(CASE_FIELDS), description='External system/number must be paired. Stage changes use the dedicated workflow endpoint. Impact is independent of workflow stage; confirmed impact requires a supported type and nonempty summary. First confirmation time is server managed and retained across disabling/re-enabling. Omitted impact fields remain unchanged.')
 contract('case_item', 'DELETE', 'Permanently delete a case and its files', status=204, description='Real destructive operation. Active report generation blocks deletion; there is no additional API confirmation field.', errors=(409,))
 contract('advance_case', 'POST', 'Advance one workflow stage', result(case=ref('Case')), body=obj({'expected': {**INT, 'minimum': 0, 'maximum': 3}, 'outcome': {**TEXT, 'enum': ['Done', 'No applicable work', 'Deferred'], 'default': 'Done'}, 'reason': TEXT}, ('expected',)),
          description='expected must equal the current stage. Active owner required to start; skipped/deferred outcomes require a reason. Completion checks readiness and review blockers. Stage 0 always records Started.', errors=(409,))

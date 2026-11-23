@@ -1,0 +1,21 @@
+<section class="panel case-impact-panel">
+<details id="case-impact" {% if c.impact_confirmed %}open{% endif %} data-impact-panel data-case-id="{{c.id}}">
+  <summary>Case Impact {% if c.impact_confirmed %}<span class="impact-badge" data-impact-state>★ Impact</span>{% else %}<span class="muted" data-impact-state>Not recorded</span>{% endif %}</summary>
+  <p>Track confirmed enterprise detections and discoveries resulting from this case.</p>
+  <form method="post" action="{{url_for('detail',cid=c.id)}}" data-impact-form>
+    {{token(csrf)}}<input type="hidden" name="operation" value="impact">
+    <fieldset {% if not can_edit_notes %}disabled{% endif %}>
+      <label class="impact-toggle"><input type="checkbox" name="impact_confirmed" value="1" {% if c.impact_confirmed %}checked{% endif %}>Enterprise Impact Confirmed</label>
+      <p class="muted">Enable when this case resulted in a confirmed enterprise detection, discovery, or actionable security improvement.</p>
+      <div data-impact-fields {% if not c.impact_confirmed %}hidden{% endif %}>
+        <label for="impact-type">Outcome Type</label><select id="impact-type" name="impact_type"><option value="">Select an outcome</option>{% for key,label in impact_types.items() %}<option value="{{key}}" {% if c.impact_type==key %}selected{% endif %}>{{label}}</option>{% endfor %}</select>
+        <label for="impact-summary">Impact Summary</label><textarea id="impact-summary" name="impact_summary" maxlength="4000" rows="4" placeholder="Describe what was detected or discovered, how the case contributed, and why the outcome mattered to the enterprise.">{{c.impact_summary}}</textarea>
+      </div>
+      <button>Save impact</button>
+    </fieldset>
+    <p class="muted" data-impact-confirmed-at {% if not c.impact_confirmed_at %}hidden{% endif %}>First confirmed <time datetime="{{c.impact_confirmed_at or ''}}">{{c.impact_confirmed_at or ''}}</time></p>
+    <p role="status" data-impact-status></p>
+  </form>
+</details>
+</section>
+<script defer src="{{url_for('static',filename='case-impact.js')}}"></script>

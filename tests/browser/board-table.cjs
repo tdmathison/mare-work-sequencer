@@ -38,8 +38,8 @@ with app.app_context():
   const cardBefore = await page.locator('.mip-board').innerHTML();
   assert.equal(await page.getByRole('button',{name:'Backup',exact:true}).count(),0);
   await page.goto(base+'/?view=table');
-  assert.deepEqual(await page.locator('.mip-sort-label').allTextContents(), ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']);
-  assert.equal(await page.locator('.mip-table th').count(),6);
+  assert.deepEqual(await page.locator('.mip-sort-label').allTextContents(), ['Case number','Case title','Impact','Assigned owner','Creator','Stage','Section disposition']);
+  assert.equal(await page.locator('.mip-table th').count(),7);
   assert.equal(await page.getByRole('button',{name:'Backup',exact:true}).count(),0);
   assert.equal(await page.locator('h1').textContent(),'MIP Dashboard');
   assert.equal(await page.locator('.mip-table tbody tr').count(), 5);
@@ -55,12 +55,12 @@ with app.app_context():
   }
   const title = page.locator('.mip-table-title a').filter({hasText:'Long case title'});
   assert.equal(await title.getAttribute('title'), await title.textContent());
-  assert.ok(await title.evaluate(e => e.scrollWidth <= e.clientWidth+1 && getComputedStyle(e).whiteSpace === 'normal' && getComputedStyle(e).overflow === 'visible'));
+  assert.ok(await title.evaluate(e => e.scrollWidth > e.clientWidth && getComputedStyle(e).whiteSpace === 'nowrap' && getComputedStyle(e).textOverflow === 'ellipsis'));
   await title.focus(); assert.equal(await title.evaluate(e => getComputedStyle(e).outlineStyle), 'solid');
   const caseHref = await title.getAttribute('href');
   await title.focus();
   await Promise.all([page.waitForURL(base+caseHref), title.press('Enter')]);
-  assert.equal(await page.locator('.admin-nav a[aria-current="page"]').getAttribute('href'), '/');
+  assert.equal(await page.locator('.application-sidebar a[aria-current="page"]').getAttribute('href'), caseHref);
   await page.goto(base+'/cases/1');
   await page.getByRole('tab',{name:'Review & Export',exact:true}).click();
   const backup = page.locator('#panel-review form[action="/cases/1/backup"] button');
@@ -90,10 +90,16 @@ with app.app_context():
   await page.goto(base+'/?view=table');
   await page.setViewportSize({width:390,height:844});
   async function assertFits() {
-    const overflow=await page.evaluate(()=>[document.documentElement,...document.querySelectorAll('.mip-table-panel,.mip-table-scroll,.mip-table,.mip-table th,.mip-table td')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({node:e.className||e.tagName,width:e.clientWidth,scroll:e.scrollWidth})));
+    const overflow=await page.evaluate(()=>[document.documentElement,...document.querySelectorAll('.mip-table-panel,.mip-table,.mip-table th,.mip-table td')].filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>({node:e.className||e.tagName,width:e.clientWidth,scroll:e.scrollWidth})));
+    if(overflow.length)console.error('Overflow without the table',await page.evaluate(()=>{
+      const panel=document.querySelector('.mip-table-panel'),previous=panel.style.display;
+      panel.style.display='none';
+      const result={viewport:innerWidth,page:document.documentElement.scrollWidth,metricsRight:Math.max(...[...document.querySelectorAll('.board-metric-filter')].map(el=>el.getBoundingClientRect().right))};
+      panel.style.display=previous;return result;
+    }));
     assert.deepEqual(overflow,[],`Overflow at ${page.viewportSize().width}px`);
-    assert.equal(await page.locator('.mip-table tbody tr').first().locator('td').count(),6);
-    assert.equal(await page.locator('.mip-sort-button').count(),6);
+    assert.equal(await page.locator('.mip-table tbody tr').first().locator('td').count(),7);
+    assert.equal(await page.locator('.mip-sort-button').count(),7);
   }
   for(const width of [1920,1440,1280,1024,768,720,390,360,320]){
     await page.setViewportSize({width,height:900});await assertFits();
@@ -113,7 +119,7 @@ with app.app_context():
   await cdp.send('Emulation.clearDeviceMetricsOverride');await cdp.detach();
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.locator('.mip-table tbody tr').first().evaluate(e=>getComputedStyle(e).display),'block');
-  assert.deepEqual(await page.locator('.mip-table tbody tr').first().locator('td').evaluateAll(cells=>cells.map(e=>getComputedStyle(e,'::before').content.replaceAll('"',''))),['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']);
+  assert.deepEqual(await page.locator('.mip-table tbody tr').first().locator('td').evaluateAll(cells=>cells.map(e=>getComputedStyle(e,'::before').content.replaceAll('"',''))),['Case number','Case title','Impact','Assigned owner','Creator','Stage','Reviewed']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   const touch = await browser.newContext({viewport:{width:390,height:844}, hasTouch:true, storageState:await page.context().storageState()});
   const touchPage = await touch.newPage(); await touchPage.goto(base+'/?view=table');
@@ -156,9 +162,9 @@ with app.app_context():
   assert.equal(new URL(page.url()).searchParams.get('q'),'');
   assert.equal(new URL(page.url()).searchParams.has('stage'),false);
   // Reset sort for the ascending/descending checks below.
-  await page.getByRole('button',{name:'Sort by Reviewed, ascending',exact:true}).click();
+  await page.getByRole('button',{name:'Sort by Section disposition, ascending',exact:true}).click();
   // Every data header toggles, persists on reload and orders card view identically.
-  for(const label of ['Case number','Case title','Assigned owner','Creator','Stage','Reviewed']){
+  for(const label of ['Case number','Case title','Impact','Assigned owner','Creator','Stage','Section disposition']){
     await page.goto(base+'/?view=table');
     await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Sort by '+label+', ascending',exact:true}).click()]);
     assert.equal(await page.locator('th[aria-sort="ascending"] .mip-sort-label').textContent(),label);
@@ -172,7 +178,7 @@ with app.app_context():
     assert.deepEqual(await page.locator('.mip-board .case-card .eyebrow').allTextContents(),tableOrder);
   }
   await page.goto(base+'/?view=table&q=not-a-matching-case');
-  assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '6');
+  assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '7');
   assert.match(await page.locator('.mip-table tbody').innerText(), /No cases found/);
   // The stage-only drawer works for an account without tag-read permission.
   const revoke=spawnSync(python,['-c',"from app import app,run\nwith app.app_context():run(\"DELETE FROM role_permissions WHERE role_name='User' AND permission='tags:read'\");run(\"UPDATE users SET role='User' WHERE username='editor-test'\")"],{cwd:root,env});
@@ -184,7 +190,7 @@ with app.app_context():
   await page.locator('#tag-filter-drawer').getByRole('button',{name:'Apply',exact:true}).click();
   assert.equal(await page.locator('.mip-table tbody tr').count(),1);
   assert.deepEqual(errors, []);
-  console.log('PASS: fitting desktop/tablet/mobile/200% zoom layouts, wrapped long fields, multiple tags, stacked rows and visible sorting, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, relocated Review & Export backup/current case/Python renaming, no board Backup buttons, narrow and touch layouts, empty board.');
+  console.log('PASS: fitting desktop/tablet/mobile/200% zoom layouts, truncated titles and horizontally scrollable desktop columns, multiple tags, stacked rows and visible sorting, all stages, long titles/numbers/owners, unassigned and disabled owners, keyboard focus, relocated Review & Export backup/current case/Python renaming, no board Backup buttons, narrow and touch layouts, empty board.');
 })().catch(error => {console.error(error); console.error(log); process.exitCode=1;}).finally(async () => {
   if (browser) await browser.close(); server.kill('SIGTERM');
   await new Promise(r => server.once('exit',r)); fs.rmSync(temporary,{recursive:true,force:true});

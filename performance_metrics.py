@@ -103,6 +103,11 @@ def _scorecard(connection, weeks, current_time, timezone_name):
                 valid.extend(
                     date for date in completions[case["id"]] if date and date <= now
                 )
+        for case in cases:
+            if case['impact_confirmed']:
+                date = timestamp(case['impact_confirmed_at'])
+                if date and date <= now: valid.append(date)
+                valid.extend(date for date in completions[case['id']] if date and date <= now)
         earliest = min(valid, default=now).astimezone(local.tzinfo)
         start = (earliest - timedelta(days=earliest.weekday())).replace(
             hour=0, minute=0, second=0, microsecond=0
@@ -223,11 +228,14 @@ def _scorecard(connection, weeks, current_time, timezone_name):
             if abs(difference) < 0.05
             else f"{difference:+.1f} days vs prior period"
         )
+    from case_impact import report as impact_report
+    impact = impact_report(connection, cases, weekly, None if all_time else start, end, now)
     from workflow_metrics import summarize
 
     workflow = summarize(connection, cases, start, end, now)
     return {
         "workflow": workflow,
+        "impact": impact,
         "weeks": weeks,
         "period": "all" if all_time else weeks,
         "all_time": all_time,

@@ -50,7 +50,7 @@ def test_every_column_orders_both_views_and_persists(board,column,order):
             assert [case['id'] for case in contexts[-1]['cases']]==[ids[index] for index in indices]
             if view=='table':
                 html=response.get_data(as_text=True)
-                assert html.count('class="mip-sort-button"')==6
+                assert html.count('class="mip-sort-button"')==7
                 assert html.count('aria-sort="'+('ascending' if direction=='asc' else 'descending')+'"')==1
                 assert 'MIP Dashboard' in html and 'Dashbaord' not in html
     # A fresh login/session still reads the account's persisted sorting.
@@ -74,3 +74,52 @@ def test_sort_validation_csrf_filters_and_default(board):
     with rendered() as contexts:
         response=client.get('/?view=table&q=does-not-exist')
     assert contexts[-1]['cases']==[] and response.status_code==200
+
+
+def test_impact_sort_stable_boolean_groups_and_saved_preference(board):
+    client,uid,_,ids=board
+    with app.app_context():
+        run("UPDATE cases SET impact_confirmed=1,impact_type='detection',impact_summary='Confirmed enterprise outcome' WHERE id IN (?,?)",(ids[0],ids[2]))
+    for direction,expected in [('asc',[ids[1],ids[2],ids[0]]),('desc',[ids[2],ids[0],ids[1]])]:
+        response=client.post('/account/board-sort',data={'csrf':'sort-token','column':'impact','direction':direction})
+        assert response.status_code==302
+        for view in ('table','cards'):
+            with rendered() as contexts:response=client.get('/?view='+view)
+            assert [row['id'] for row in contexts[-1]['cases']]==expected
+            if view=='table':
+                assert response.text.index('>Impact</span>') < response.text.index('>Assigned owner</span>')
+                assert 'class="mip-table-impact" aria-sort="'+('ascending' if direction=='asc' else 'descending')+'"' in response.text
+        with app.app_context():assert tuple(db().execute('SELECT board_sort,board_sort_direction FROM users WHERE id=?',(uid,)).fetchone())==('impact',direction)
+
+
+def test_impact_sort_keeps_existing_filters(board):
+    from tagging import create
+    client,_,_,ids=board
+    with app.app_context():
+        run("UPDATE cases SET impact_confirmed=1,impact_type='detection',impact_summary='Confirmed enterprise outcome' WHERE id=?",(ids[0],))
+        tag=create(db(),'IMPACT_SORT')[0]
+        run('INSERT INTO case_tags(case_id,tag_id,assigned_at) VALUES(?,?,?)',(ids[0],tag,'2026'))
+    response=client.post('/account/board-sort',data={'csrf':'sort-token','column':'impact','direction':'desc','impact':'yes','q':'zulu','stage':'2','tag':str(tag),'match':'all'})
+    params=parse_qs(urlsplit(response.location).query)
+    assert params=={'view':['table'],'q':['zulu'],'stage':['2'],'tag':[str(tag)],'match':['all'],'impact':['yes']}
+    with rendered() as contexts:page=client.get(response.location)
+    assert page.status_code==200
+    assert [row['id'] for row in contexts[-1]['cases']]==[ids[0]]
+
+
+@pytest.mark.parametrize('value',['missing',None,False,True])
+def test_table_impact_status_legacy_values_and_context(value):
+    c={'id':99,'impact_type':'detection','impact_summary':'Stored <summary>\nwith details'}
+    if value!='missing':c['impact_confirmed']=value
+    original=dict(c)
+    html=app.jinja_env.get_template('board_impact_status.html').render(c=c,impact_types={'detection':'New or Improved Detection'})
+    assert c==original
+    assert html.count('data-board-impact')==1
+    if value is True:
+        assert '★ Impact' in html and 'Outcome: New or Improved Detection' in html
+        assert 'Stored &lt;summary&gt;' in html
+        assert 'No known impact</button>' not in html
+    else:
+        assert 'No known impact</button>' in html
+        assert 'No known enterprise impact' in html
+        assert 'is-neutral' in html

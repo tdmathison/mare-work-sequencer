@@ -172,7 +172,7 @@ class AsyncCasesResource(AsyncResource):
         return await self._transport.request('GET', 'cases/{case_id}'.replace('{case_id}', path_value(case_id, nested=False)), response_model=CasesGetResponse)
 
     async def update(self, case_id: int, *, data: CasesUpdateRequest | Mapping[str, Any] | None = None, files: Mapping[str, Any] | list[tuple[str, Any]] | None = None) -> CasesUpdateResponse:
-        'Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.'
+        'Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint. Impact is independent of workflow stage; confirmed impact requires a supported type and nonempty summary. First confirmation time is server managed and retained across disabling/re-enabling. Omitted impact fields remain unchanged.\n\nRequired role permission: cases:update.\n\nExecute affects real application data. Nothing executes automatically.'
         return await self._transport.request('PATCH', 'cases/{case_id}'.replace('{case_id}', path_value(case_id, nested=False)), data=data, files=files, request_model=CasesUpdateRequest, media='application/json', response_model=CasesUpdateResponse)
 
     async def reopen(self, case_id: int) -> CasesReopenResponse:

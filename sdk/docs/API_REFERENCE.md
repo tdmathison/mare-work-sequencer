@@ -415,7 +415,7 @@ Required role permission: cases:read.
 def update(self, case_id: int, *, data: CasesUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> CasesUpdateResponse
 ```
 
-Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint.
+Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint. Impact is independent of workflow stage; confirmed impact requires a supported type and nonempty summary. First confirmation time is server managed and retained across disabling/re-enabling. Omitted impact fields remain unchanged.
 
 Required role permission: cases:update.
 
@@ -2085,7 +2085,7 @@ Required role permission: cases:read.
 async def update(self, case_id: int, *, data: CasesUpdateRequest | Mapping[str, Any] | None=None, files: Mapping[str, Any] | list[tuple[str, Any]] | None=None) -> CasesUpdateResponse
 ```
 
-Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint.
+Update case metadata or ownership. PATCH /api/v1/cases/{case_id}. External system/number must be paired. Stage changes use the dedicated workflow endpoint. Impact is independent of workflow stage; confirmed impact requires a supported type and nonempty summary. First confirmation time is server managed and retained across disabling/re-enabling. Omitted impact fields remain unchanged.
 
 Required role permission: cases:update.
 

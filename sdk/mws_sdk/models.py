@@ -42,11 +42,15 @@ class Role(APIModel):
 
 class Case(APIModel):
     """Case version-1 API fields."""
+    impact_confirmed: bool | None = None
+    impact_type: Literal['detection', 'discovery', 'both', None] | None = None
+    impact_summary: str | None = Field(None, max_length=4000)
     name: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=20000)
     owner_id: int | None = None
     external_system: Literal['', 'Vortex', 'XSIAM', 'JIRA'] | None = None
     external_number: str | None = Field(None, max_length=200)
+    impact_confirmed_at: str | None = None
     id: int | None = None
     number: str | None = None
     stage: int | None = Field(None, ge=0, le=3)
@@ -490,6 +494,9 @@ class CasesListResponse(APIModel):
 class CasesCreateRequest(APIModel):
     """CasesCreateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    impact_confirmed: bool | None = None
+    impact_type: Literal['detection', 'discovery', 'both', None] | None = None
+    impact_summary: str | None = Field(None, max_length=4000)
     name: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(None, max_length=20000)
     owner_id: int | None = None
@@ -507,6 +514,9 @@ class CasesGetResponse(APIModel):
 class CasesUpdateRequest(APIModel):
     """CasesUpdateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    impact_confirmed: bool | None = None
+    impact_type: Literal['detection', 'discovery', 'both', None] | None = None
+    impact_summary: str | None = Field(None, max_length=4000)
     name: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=20000)
     owner_id: int | None = None
@@ -1861,11 +1871,15 @@ class ActorsGetResponseProfile(APIModel):
 
 class CasesGetResponseCase(APIModel):
     """CasesGetResponseCase version-1 API fields."""
+    impact_confirmed: bool | None = None
+    impact_type: Literal['detection', 'discovery', 'both', None] | None = None
+    impact_summary: str | None = Field(None, max_length=4000)
     name: str | None = Field(None, min_length=1, max_length=200)
     description: str | None = Field(None, max_length=20000)
     owner_id: int | None = None
     external_system: Literal['', 'Vortex', 'XSIAM', 'JIRA'] | None = None
     external_number: str | None = Field(None, max_length=200)
+    impact_confirmed_at: str | None = None
     id: int | None = None
     number: str | None = None
     stage: int | None = Field(None, ge=0, le=3)

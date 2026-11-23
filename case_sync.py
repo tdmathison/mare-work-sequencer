@@ -1,4 +1,5 @@
 """Case snapshot identities and validated revision DAGs; no automatic merging."""
+import case_impact
 
 import contextlib
 import copy
@@ -122,7 +123,7 @@ def logical_snapshot(validated, folder):
     for key in ("artifacts", "readiness", "deferred"):
         records[key].sort(key=lambda row: encoded(row))
     records["artifacts"] = [row for row in records["artifacts"] if row["path"] in files]
-    return {
+    result = {
         "case": {
             key: c.get(key, "") if c.get(key) is not None else ""
             for key in (
@@ -142,6 +143,9 @@ def logical_snapshot(validated, folder):
         "tags": sorted((tags or {}).get("tags", [])),
         "files": files,
     }
+
+    result["case"].update(case_impact.snapshot_fields(c))
+    return result
 
 
 def canonical_tag_snapshot(snapshot):
@@ -390,6 +394,7 @@ class CaseSync:
         CREATE TRIGGER IF NOT EXISTS sync_dirty_tag_name AFTER UPDATE OF name ON tags BEGIN INSERT OR IGNORE INTO sync_dirty SELECT case_id FROM case_tags WHERE tag_id=NEW.id; END;
         """
         )
+        case_impact.track_sync(con)
         self.installation()
         for row in con.execute("SELECT id FROM cases").fetchall():
             state = self.ensure(row["id"])

@@ -12,5 +12,8 @@ pypdf>=6,<7
 
 stix2==3.0.2
 stix2-patterns==2.1.2
+# pycountry prefers this backport when importable, including on Python 3.11.
+# Install a real package so stale setuptools vendor namespaces cannot shadow it.
+importlib-resources>=5.13
 misp-stix==2026.10.12
 pymisp==2.5.34.4

@@ -3,6 +3,8 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
+    "test:board-impact": "node tests/browser/board-impact-column.cjs",
+    "test:case-impact": "node tests/browser/case-impact.cjs",
     "test:base-path": "node tests/browser/base-path.cjs",
     "build:editors": "esbuild frontend/markdown-editor.js --bundle --minify --format=iife --target=es2020 --supported:template-literal=false --outfile=static/vendor/codemirror/markdown-editor.js --legal-comments=external && esbuild frontend/text-worker.js --bundle --minify --format=iife --target=es2020 --outfile=static/text-worker.js && node frontend/build-notices.cjs",
     "test:indicator-bulk": "node tests/browser/indicator-bulk.cjs",

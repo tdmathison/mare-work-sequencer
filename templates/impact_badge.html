@@ -1,0 +1,1 @@
+{% if c.impact_confirmed %}<details class="impact-preview"><summary class="impact-badge">★ Impact</summary><div class="impact-preview-content"><strong>{{impact_types.get(c.impact_type,'Confirmed impact')}}</strong><p>{{c.impact_summary|truncate(360)}}</p></div></details>{% endif %}

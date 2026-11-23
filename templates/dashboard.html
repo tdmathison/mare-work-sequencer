@@ -5,10 +5,10 @@
     <h1>MIP Dashboard</h1>
   </div>
   <div>
-    <button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags or selected_stages %} ({{selected_tags|length + selected_stages|length}}){% endif %}</button>
+    <button type="button" class="board-create" data-filter-toggle aria-controls="tag-filter-drawer" aria-expanded="false">Filters{% if selected_tags or selected_stages or impact_filter!='all' %} ({{selected_tags|length + selected_stages|length + (1 if impact_filter!='all' else 0)}}){% endif %}</button>
     <a
       class="board-create"
-      href="{{request.script_root}}/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}{% for stage in selected_stages %}&amp;stage={{stage}}{% endfor %}"
+      href="{{request.script_root}}/?view={{'cards' if view=='table' else 'table'}}&amp;q={{board_query|urlencode}}{% if impact_filter!='all' %}&amp;impact={{impact_filter}}{% endif %}&amp;match={{tag_match}}{% for tid in selected_tags %}&amp;tag={{tid}}{% endfor %}{% for stage in selected_stages %}&amp;stage={{stage}}{% endfor %}"
       >{{'Card view' if view=='table' else 'Table view'}}</a
     >
     <a class="board-create" href="{{request.script_root}}/cases/new">Create case</a>
@@ -30,7 +30,7 @@
   <table class="mip-table" role="table">
     <thead role="rowgroup">
       <tr role="row">
-        {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Section disposition','reviewed')] %}
+        {% for key, label, column_class in [('number','Case number','number'), ('title','Case title','title'), ('impact','Impact','impact'), ('owner','Assigned owner','person'), ('creator','Creator','person'), ('stage','Stage','stage'), ('reviewed','Section disposition','reviewed')] %}
         {% set active = board_sort == key %}
         {% set next_direction = 'desc' if active and sort_direction == 'asc' else 'asc' %}
         <th role="columnheader" scope="col" class="mip-table-{{column_class}}" aria-sort="{{('ascending' if sort_direction == 'asc' else 'descending') if active else 'none'}}">
@@ -39,7 +39,7 @@
             <input type="hidden" name="column" value="{{key}}">
             <input type="hidden" name="direction" value="{{next_direction}}">
             <input type="hidden" name="q" value="{{board_query}}">
-            <input type="hidden" name="match" value="{{tag_match}}">
+            <input type="hidden" name="match" value="{{tag_match}}"><input type="hidden" name="impact" value="{{impact_filter}}">
             {% for tid in selected_tags %}<input type="hidden" name="tag" value="{{tid}}">{% endfor %}
             {% for stage in selected_stages %}<input type="hidden" name="stage" value="{{stage}}">{% endfor %}
             <button type="submit" class="mip-sort-button" aria-label="Sort by {{label}}, {{'ascending' if next_direction == 'asc' else 'descending'}}">
@@ -55,6 +55,7 @@
       <tr role="row">
         <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% else %} <span class="mip-table-reference muted">None</span>{% endif %}</td>
         <td role="cell" data-label="Case title" class="mip-table-title"><a href="{{request.script_root}}/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
+        <td role="cell" data-label="Impact" class="mip-table-impact">{% include 'board_impact_status.html' %}</td>
         {% set owner_label = (c.owner_name or 'Unassigned') ~ (' (disabled)' if c.owner_name and not c.owner_active else '') %}
         <td role="cell" data-label="Assigned owner" class="mip-table-person"><span title="{{owner_label}}">{{owner_label}}</span></td>
         <td role="cell" data-label="Creator" class="mip-table-person"><span title="{{c.creator_name}}">{{c.creator_name}}</span></td>
@@ -66,26 +67,23 @@
       </tr>
       {% else %}
       <tr role="row">
-        <td role="cell" colspan="6">No cases found. Clear filters or create a case.</td>
+        <td role="cell" colspan="7">No cases found. Clear filters or create a case.</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
 </div>
+<script defer src="{{url_for('static',filename='board-impact.js')}}"></script>
 {% else %}
 <div class="case-grid mip-board">
   {% for c in cases %}
   <article class="panel case-card mip-card">
-    <a class="case-card-link" href="{{request.script_root}}/cases/{{c.id}}"
-      ><div class="heading">
-        <span class="eyebrow">{{c.number}}</span
-        ><span
-          class="state {{'state-populated' if c.stage==stages|length-1 else 'state-pending'}}"
-          >{{'Completed' if c.stage==stages|length-1 else 'In progress' if
-          c.stage else 'New'}}</span
-        >
-      </div>
+    <div class="heading impact-card-heading">
+      <a class="eyebrow" href="{{url_for('detail',cid=c.id)}}">{{c.number}}</a>
+      <div class="impact-card-status">{% include 'impact_badge.html' %}<span class="state {{'state-populated' if c.stage==stages|length-1 else 'state-pending'}}">{{'Completed' if c.stage==stages|length-1 else 'In progress' if c.stage else 'New'}}</span></div>
+    </div>
+    <a class="case-card-link" href="{{url_for('detail',cid=c.id)}}">
       <h2>{{c.name}}</h2>
       <p class="card-description">{{(c.description or '')|truncate(110)}}</p>
       <p class="case-assignment">

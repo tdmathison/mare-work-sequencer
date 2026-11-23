@@ -1,0 +1,26 @@
+<section class="panel impact-metrics" aria-label="Enterprise impact metrics">
+  <h2>Enterprise Impact</h2>
+  <p class="performance-context impact-rate-scope">{% if performance.all_time %}All-time inventory includes cases with unavailable dates.{% else %}Selected reporting period: cases dated by completion, then first confirmation for impactful cases, then creation. Undated cases are excluded.{% endif %} Both outcomes contribute once to impactful totals and once to each detection/discovery counter. These are current confirmed impacts, not an immutable event ledger.</p>
+  <div class="performance-scorecards">
+    <div><h3>Impactful MIPs</h3><strong class="performance-number" id="metrics-impactful">{{performance.impact.total}}</strong></div>
+    <div><h3>Impact Rate</h3><strong class="performance-number" id="metrics-impact-rate">{{performance.impact.rate}}%</strong><p>{{performance.impact.total}} of {{performance.impact.denominator}} cases in scope</p></div>
+    <div><h3>Detection Outcomes</h3><strong class="performance-number">{{performance.impact.detection}}</strong></div>
+    <div><h3>Discovery Outcomes</h3><strong class="performance-number">{{performance.impact.discovery}}</strong></div>
+  </div>
+  <h3>Weekly impact activity</h3>
+  <p class="performance-context">Historical date: latest recorded completion, otherwise first confirmation, otherwise original case creation (labelled fallback). {{performance.impact.undated}} confirmed cases have unavailable dates and cannot appear in the trend.</p>
+  <div class="performance-chart-scroll"><svg class="performance-chart" viewBox="0 0 1000 270" role="img" aria-label="Weekly impactful case counts; values in the activity table below">
+    <line class="performance-gridline" x1="50" x2="980" y1="210" y2="210"/><text x="50" y="25">Impactful cases</text>
+    <polyline class="performance-line" points="{% for w in performance.impact.weekly %}{{50+loop.index0*930/performance.chart_intervals}},{{210-w.impact*160/performance.impact.max}} {% endfor %}"/>
+    {% for w in performance.impact.weekly %}<circle class="performance-point-dot" cx="{{50+loop.index0*930/performance.chart_intervals}}" cy="{{210-w.impact*160/performance.impact.max}}" r="3"><title>{{w.start}}: {{w.impact}} impactful cases</title></circle>{% if loop.first or loop.last %}<text x="{{50+loop.index0*930/performance.chart_intervals}}" y="242" text-anchor="{{'start' if loop.first else 'end'}}">{{w.start}}</text>{% endif %}{% endfor %}
+    <text x="515" y="265" text-anchor="middle">Week beginning ({{performance.timezone}})</text>
+  </svg></div>
+  <details><summary>Weekly impact activity table</summary><div class="performance-table-scroll"><table><thead><tr><th>Week</th><th>Impactful cases</th></tr></thead><tbody>{% for w in performance.impact.weekly %}<tr><th>{{w.start}} – {{w.end}}</th><td>{{w.impact}}</td></tr>{% endfor %}</tbody></table></div></details>
+  <h3>Outcome breakdown</h3>
+  <div class="impact-breakdown" role="list" aria-label="Mutually exclusive outcome types">{% for key,label in impact_types.items() %}<div role="listitem"><span>{{label}}</span><strong> {{performance.impact.breakdown[key]}}</strong><meter min="0" max="{{[1,performance.impact.total]|max}}" value="{{performance.impact.breakdown[key]}}" aria-label="{{label}}: {{performance.impact.breakdown[key]}}"></meter></div>{% endfor %}</div>
+  <h3>Impactful Cases</h3>
+  <form method="get" action="{{url_for('metrics')}}" class="performance-period"><input type="hidden" name="weeks" value="{{performance.period}}"><label>Search impactful cases<input name="impact_q" value="{{request.args.get('impact_q','')}}" placeholder="Case, analyst, outcome or summary"></label><label>Sort by<select name="impact_sort">{% for key,label in [('date','Date'),('number','Case Number'),('name','Case Name'),('owner','Assigned Analyst'),('type','Outcome Type'),('stage','Case Status')] %}<option value="{{key}}" {% if request.args.get('impact_sort','date')==key %}selected{% endif %}>{{label}}</option>{% endfor %}</select></label><button>Apply table filters</button></form>
+  <div class="performance-table-scroll"><table class="impact-metrics-table"><thead><tr><th>Case Number</th><th>Case Name</th><th>Assigned Analyst</th><th>Outcome Type</th><th>Impact Summary</th><th>Case Status</th><th>Date</th></tr></thead><tbody>
+  {% for c in impact_rows %}<tr><td><a href="{{url_for('detail',cid=c.id,tab='workbench')}}#case-impact">{{c.number}}</a></td><td>{{c.name}}</td><td>{{c.owner_name or 'Unassigned'}}</td><td>{{impact_types.get(c.impact_type,'Unknown')}}</td><td><details><summary>{{c.impact_summary|truncate(100)}}</summary><p class="impact-summary-full">{{c.impact_summary}}</p></details></td><td>{{stages[c.stage]}}</td><td>{{c.display_date}}<br><small>{{c.date_source}}</small></td></tr>{% else %}<tr><td colspan="7">No impactful cases match this reporting period and search.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>

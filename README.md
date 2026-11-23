@@ -2,18 +2,35 @@
 
 A self-hosted Python workbench for building a Malware Intelligence Package while the analyst works. The app collects deliverable content and coordinates progress; it does not execute samples or teach malware analysis.
 
-## Install (Ubuntu, Python 3.10+)
+## Install (Ubuntu or macOS, Python 3.10+)
 
 ```bash
 cd mare-work-sequencer
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 python -m flask --app app create-admin
 python -m flask --app app run --host 127.0.0.1 --port 8000
 ```
 
 Open http://127.0.0.1:8000. No default credentials are provided.
+
+Use the same virtual-environment interpreter for installation and startup. This
+repository exposes a Flask **WSGI** application as `app:app` in `app.py`; it does
+not contain an `app.main` package. The Flask command above is the normal local
+entry point. For optional Uvicorn usage, install and invoke it in that same venv
+and select its WSGI interface:
+
+```bash
+.venv/bin/python -m pip install 'uvicorn==0.38.0'
+.venv/bin/python -m uvicorn app:app --interface wsgi --host 127.0.0.1 --port 8000
+```
+
+Uvicorn's native WSGI interface is deprecated; Flask locally and the existing
+Gunicorn production command remain the recommended runners. See
+[startup and importlib_resources troubleshooting](docs/STARTUP_TROUBLESHOOTING.md)
+for interpreter checks, dependency repair and clean-environment instructions.
+
 
 For production, run Gunicorn behind nginx with TLS:
 
@@ -2227,3 +2244,14 @@ Historical case reporting defaults to All time. Imports preserve original creati
 and workflow timestamps; missing dates are not replaced with import time. See
 [historical metrics and recovery](docs/HISTORICAL_METRICS.md) for the cause of older
 import-date loss and the dry-run `flask --app app recover-case-dates` command.
+
+### Case Impact
+
+Use the Workbench's inline Case Impact panel to record a confirmed enterprise
+detection, discovery, or both, with a short plain-text summary. Confirmed cases
+receive an amber ★ Impact badge on the Board and can be filtered separately.
+Case Metrics includes impact totals, rate, outcome breakdown, historical trends
+and an expandable cases table. Impact is independent of workflow stage; disabling
+it retains saved details while removing the case from active impact reporting.
+See [Case Impact](docs/CASE_IMPACT.md) for date rules, permissions, backups, API/SDK
+examples and deployment steps.
