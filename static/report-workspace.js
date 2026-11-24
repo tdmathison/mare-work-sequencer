@@ -188,13 +188,13 @@
     saveReport();
   });
   const autosaveTimer = window.MareAutosave.register({
-    onCountdown: (seconds, running, paused) => {
+    onCountdown: (seconds, running, paused, pauseLabel) => {
       const label = document.getElementById("save-sections-countdown");
       if (label)
         label.textContent = running
           ? "Autosaving…"
           : paused
-            ? "Autosave paused"
+            ? pauseLabel
             : "Autosave in " +
               Math.floor(seconds / 60) +
               ":" +
@@ -369,11 +369,11 @@
     }
   }
   const mitreAutosaveTimer = window.MareAutosave.register({
-    onCountdown: (seconds, running, paused) => {
+    onCountdown: (seconds, running, paused, pauseLabel) => {
       mappingCountdown.textContent = running
         ? "Autosaving…"
         : paused
-          ? "Autosave paused"
+          ? pauseLabel
           : "Autosave in " +
             Math.floor(seconds / 60) +
             ":" +

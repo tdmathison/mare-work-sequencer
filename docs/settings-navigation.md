@@ -118,3 +118,30 @@ label typography, absence of pseudo-element indicators, unchanged form-button
 margins, overlay stability, enlarged-text containment, zoom-sized viewport reflow,
 and 44px touch targets, alongside the original interaction checks. Native browser
 zoom and Firefox/Safari still require manual verification.
+
+## Personal Autosave preference
+
+General exposes **Autosave for my account** beside the existing personal interval.
+`users.autosave_enabled` defaults to `1` for existing and new accounts; the normal
+startup schema migration adds the column. Ordinary authenticated users save only
+their own preference through the existing CSRF-protected `/account/autosave` form.
+Its authenticated, non-cached GET returns the signed-in account identity and toggle.
+The interval still takes effect when a Case page is opened or refreshed.
+
+The shared scheduler checks the toggle on focus, visibility restoration, and
+`pageshow`. It pauses automatic work while verifying the account, stops its timer
+when disabled, and starts one schedule on re-enabling without saving immediately.
+An already submitted save may finish. Report sections, MITRE mappings, Indicators,
+References, Case Impact, and private Notes drafts honor the toggle, including
+pending debounces and queued draft saves. Manual saves/submissions, unsaved buffers,
+caret positions, leave warnings, and permission checks remain independent.
+
+This preference does not provide concurrency control. Existing Indicators and
+References revision checks and Report/MITRE conflict detection remain intact.
+Report sections, MITRE mappings, and Case Impact do not currently require an atomic
+revision precondition at their save endpoints, so simultaneous writes can still
+race. That gap requires separate work.
+
+Focused validation: `python -m pytest tests/test_autosave.py` and
+`node tests/browser/autosave.cjs` (requires the project's browser-test dependencies
+and Chrome). The browser test uses disposable fixture data and a controlled clock.

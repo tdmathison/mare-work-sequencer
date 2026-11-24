@@ -18,8 +18,10 @@
 
 <section class="panel">
     <h2>Autosave</h2>
-    <p class="muted">Automatically save changed report sections, indicators, and references while a case page is open. Manual save remains available.</p>
+    <p class="muted" id="autosave-description">Automatically save supported Case editors at the configured interval. When disabled, use Save to persist your changes.</p>
     <form method="post" action="{{request.script_root}}/account/autosave">{{token(csrf)}}
+        <input type="hidden" name="autosave_enabled" value="0">
+        <label><input type="checkbox" name="autosave_enabled" value="1" aria-describedby="autosave-description" {% if user.autosave_enabled %}checked{% endif %}> Autosave for my account</label>
         <label>Autosave interval (minutes)
             <input type="number" name="autosave_minutes" min="1" step="1" required value="{{user.autosave_minutes}}">
         </label>

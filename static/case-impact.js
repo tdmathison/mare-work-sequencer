@@ -78,10 +78,11 @@
   const valid = () => !toggle.checked || (type.value && /\S/.test(summary.value) && summary.value.length <= 4000);
   function queueAfterPause() {
     clearTimeout(timer);
-    timer = setTimeout(save, Math.max(0, dueAt - Date.now()));
+    if (!window.MareAutosave.enabled) return;
+    timer = setTimeout(() => { if (window.MareAutosave.enabled) save(); }, Math.max(0, dueAt - Date.now()));
   }
   async function save() {
-    if (saving || !dirty()) return;
+    if (saving || !dirty() || form.querySelector('fieldset').disabled) return;
     if (!valid()) {
       status.textContent = 'Confirmed impact requires an outcome type and a nonempty Impact Summary.';
       return;
@@ -128,7 +129,8 @@
     save();
   });
   window.MareAutosave?.register({
-    canSave: () => dirty() && valid() && !saving && Date.now() >= dueAt,
+    onEnabledChange: () => { clearTimeout(timer); },
+    canSave: () => !form.querySelector('fieldset').disabled && dirty() && valid() && !saving && Date.now() >= dueAt,
     save,
     onError: error => { status.textContent = error.message; },
   });

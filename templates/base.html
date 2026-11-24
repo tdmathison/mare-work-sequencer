@@ -21,7 +21,7 @@
     <script defer src="{{url_for('static',filename='application-shell.js')}}"></script>
     <script defer src="{{url_for('static',filename='settings-navigation.js')}}"></script>
   </head>
-  <body class="{{'application-shell' if user else ''}}" data-user-layout="{{user.user_uuid if user else 'anonymous'}}" data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
+  <body class="{{'application-shell' if user else ''}}" data-user-layout="{{user.user_uuid if user else 'anonymous'}}" data-autosave-enabled="{{1 if user and user.autosave_enabled else 0}}" data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
     {% if user %}{% include 'sidebar.html' %}{% endif %}
     <header class="topbar">
       {% if user %}<button type="button" id="sidebar-menu" aria-label="Open navigation" aria-expanded="false" aria-controls="application-sidebar">☰</button><div class="shell-breadcrumb"><a href="{{url_for('dashboard')}}">MWS</a><span aria-hidden="true"> / </span><span>{{shell_current}}</span></div>{% endif %}

@@ -16,6 +16,7 @@
     }
   } catch (_) {}
   async function save() {
+    if (!window.MareAutosave.enabled) return;
     if (saving) {
       pending = true;
       return;
@@ -57,9 +58,10 @@
       } catch (_) {}
       status.textContent = "Unsaved draft";
       clearTimeout(timer);
-      timer = setTimeout(save, 800);
+      if (window.MareAutosave.enabled) timer = setTimeout(save, 800);
     }),
   );
+  window.MareAutosave.register({canSave:()=>!saving&&(status.textContent === "Unsaved draft" || status.textContent.startsWith("Draft not saved")),save,onEnabledChange:()=>{clearTimeout(timer);pending=false;}});
   // Finish draft saving before adding the note so a late autosave cannot recreate a submitted draft.
   let submitting = false;
   form.addEventListener("submit", async (event) => {

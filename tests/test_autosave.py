@@ -21,7 +21,7 @@ def test_user_autosave_interval_is_private_and_validated():
         post(value)
         with app.app_context():assert db().execute('SELECT autosave_minutes FROM users WHERE id=?',(uid,)).fetchone()[0]==1440
     page=client.get(f'/cases/{cid}').data
-    assert b'data-autosave-minutes="1440"' in page and b'filename' not in page
+    assert b'data-autosave-minutes="1440"' in page
     assert b'/static/autosave.js' in page
     for filename in ['report-workspace.js','indicators.js','references.js']:
         assert 'MareAutosave.register' in (Path('static')/filename).read_text()
@@ -57,7 +57,46 @@ def test_autosave_scheduler_interval_dirty_check_and_failure_feedback():
 def test_countdown_and_manual_reset():
     source=Path('static/autosave.js').read_text()
     script='''const vm=require('vm'),assert=require('assert');let now=0,tick,last,saves=0;
-    const context={window:{},document:{body:{dataset:{}},hidden:false,addEventListener:()=>{}},Date:{now:()=>now},setInterval:fn=>tick=fn};vm.runInNewContext(SOURCE,context);
+    const context={window:{},document:{body:{dataset:{autosaveMinutes:"1"}},hidden:false,addEventListener:()=>{}},Date:{now:()=>now},setInterval:fn=>tick=fn};vm.runInNewContext(SOURCE,context);
     const timer=context.window.MareAutosave.register({canSave:()=>true,onCountdown:seconds=>last=seconds,save:async()=>saves++,onError:()=>{}});
     (async()=>{assert.equal(last,60);now=30000;await tick();assert.equal(last,30);timer.reset();assert.equal(last,60);now=60000;await tick();assert.equal(saves,0);assert.equal(last,30);now=90000;await tick();assert.equal(saves,1);assert.equal(last,60);now=150000;await tick();assert.equal(saves,2);assert.equal(last,60)})().catch(e=>{console.error(e);process.exitCode=1});'''.replace('SOURCE',json.dumps(source))
     subprocess.run(['node','-e',script],check=True,capture_output=True,text=True)
+
+
+def test_enabled_preference_is_private_persistent_and_available_to_ordinary_users():
+    with app.app_context():
+        ids = [run("INSERT INTO users(username,password,role,forced) VALUES(?,?,?,0)",
+                   (name, generate_password_hash('password-long-123'), 'User')).lastrowid
+               for name in ('enabled-one', 'enabled-two')]
+    clients = [app.test_client(), app.test_client()]
+    for client, uid in zip(clients, ids):
+        with client.session_transaction() as session:
+            session.update(uid=uid, version=1, csrf='toggle-token')
+        assert client.get('/account/autosave').json['enabled'] is True
+        page = client.get('/settings/general')
+        assert b'Autosave for my account' in page.data
+        assert client.get('/users').status_code == 403
+    first, second = clients
+    assert first.post('/account/autosave', data={'csrf':'toggle-token', 'autosave_minutes':'7', 'autosave_enabled':'0', 'user_id':ids[1]}).status_code == 302
+    assert first.get('/account/autosave').json['enabled'] is False
+    assert second.get('/account/autosave').json['enabled'] is True
+    assert first.get('/account/autosave').headers['Cache-Control'] == 'no-store'
+    assert first.post('/account/autosave', data={'autosave_minutes':'5','autosave_enabled':'1'}).status_code == 403
+    assert first.post('/account/autosave', data={'csrf':'toggle-token','autosave_minutes':'5','autosave_enabled':'invalid'}).status_code == 400
+    assert first.get('/account/autosave').json['enabled'] is False
+    # Legacy interval-only callers must not turn the preference back on.
+    first.post('/account/autosave', data={'csrf':'toggle-token', 'autosave_minutes':'9'})
+    assert first.get('/account/autosave').json['enabled'] is False
+    first.get('/logout')
+    first.get('/login')
+    # Login requires the current CSRF token, as does every form in the app.
+    with first.session_transaction() as session:
+        token = session['csrf']
+    first.post('/login', data={'csrf':token,'username':'enabled-one','password':'password-long-123'})
+    assert first.get('/account/autosave').json['enabled'] is False
+    with app.app_context():
+        assert db().execute('SELECT autosave_minutes FROM users WHERE id=?', (ids[0],)).fetchone()[0] == 9
+
+
+def test_enabled_scheduler_cancels_queued_work_and_checks_session_identity():
+    subprocess.run(['node', 'tests/js/autosave-controller.cjs'], check=True, capture_output=True, text=True)

@@ -665,13 +665,13 @@
   // Current failures are announced inside revalidate; stale failures are ignored.
   revalidate().catch(() => {});
   const autosaveTimer = window.MareAutosave.register({
-    onCountdown: (seconds, running, paused) => {
+    onCountdown: (seconds, running, paused, pauseLabel) => {
       const label = document.getElementById("save-indicators-countdown");
       if (label)
         label.textContent = running
           ? "Autosaving…"
           : paused
-            ? "Autosave paused"
+            ? pauseLabel
             : "Autosave in " +
               Math.floor(seconds / 60) +
               ":" +

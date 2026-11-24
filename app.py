@@ -128,6 +128,8 @@ with app.app_context():
         db().execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'Normal'")
     if 'autosave_minutes' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
         db().execute('ALTER TABLE users ADD COLUMN autosave_minutes INTEGER NOT NULL DEFAULT 5')
+    if 'autosave_enabled' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
+        db().execute('ALTER TABLE users ADD COLUMN autosave_enabled INTEGER NOT NULL DEFAULT 1')
     if 'board_view' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
         db().execute("ALTER TABLE users ADD COLUMN board_view TEXT NOT NULL DEFAULT 'cards'")
     if 'board_sort' not in {row[1] for row in db().execute('PRAGMA table_info(users)')}:
@@ -542,8 +544,12 @@ def account():
     return render_template('account.html', sample_archive_password=password)
 
 
-@app.post('/account/autosave')
+@app.route('/account/autosave', methods=['GET', 'POST'])
 def save_autosave_settings():
+    if request.method == 'GET':
+        response = app.json.response(user_uuid=g.user['user_uuid'], enabled=bool(g.user['autosave_enabled']))
+        response.headers['Cache-Control'] = 'no-store'
+        return response
     raw = request.form.get('autosave_minutes', '').strip()
     try:
         minutes = int(raw)
@@ -552,9 +558,14 @@ def save_autosave_settings():
     except ValueError:
         flash('Enter a positive whole number of minutes.')
         return redirect(app_url(url_for('account')))
+    enabled = request.form.getlist('autosave_enabled')
+    if enabled:
+        if enabled[-1] not in ('0', '1'):
+            abort(400)
+        run('UPDATE users SET autosave_enabled=? WHERE id=?', (int(enabled[-1]), g.user['id']))
     run('UPDATE users SET autosave_minutes=? WHERE id=?',
         (minutes, g.user['id']))
-    flash('Autosave interval saved. It applies when case pages are opened or refreshed.')
+    flash('Autosave settings saved. The interval applies when case pages are opened or refreshed.')
     return redirect(app_url(saved_destination(url_for('account'))))
 
 
