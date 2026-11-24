@@ -11,7 +11,7 @@
 {% call workspace.filters() %}<label>Type<select name="namespace">{% for key,label in namespaces.items() %}<option value="{{key}}" {{'selected' if namespace==key else ''}}>{{label}}</option>{% endfor %}</select></label><label>Sort tags<select name="sort">{% for key,label in [('name','Name'),('most','Most used'),('least','Least used')] %}<option value="{{key}}" {{'selected' if sort==key else ''}}>{{label}}</option>{% endfor %}</select></label>{% endcall %}
 {% endcall %}
 {% if invalid_tags %}<div class="notice" role="status"><strong>Invalid legacy tags retained.</strong> Rename these tags to a valid name, or explicitly merge/delete them. No assignments were removed.<ul>{% for entry in invalid_tags %}<li><a href="{{tag_url(entry.id)}}" data-tag-nav>{{entry.name}}</a>: {{entry.error}}</li>{% endfor %}</ul></div>{% endif %}
-<p data-tag-status role="status" aria-live="polite"></p>
+<p data-tag-status data-workspace-feedback aria-atomic="true" role="status" aria-live="polite"></p>
 <div class="family-layout">
 {% call workspace.directory(total, 'Tag directory', 'tag-directory') %}
 {% for entry in tags %}{{workspace.choice(entry.name, tag_url(entry.id,tab='overview'), entry.uses ~ ' accessible Cases', entry.type_label ~ ' · ' ~ entry.profile.status ~ (' · Case access restricted' if not can_cases else ''), selected=tag and tag.id==entry.id,tag=true,attributes={'data-tag-nav':'','data-tag-id':entry.id})}}{% else %}<p class="family-empty">{{'No tags match these filters.' if query or namespace!='all' else 'No tags yet. Create a tag to organize your intelligence.'}}</p>{% endfor %}

@@ -631,14 +631,21 @@
     const response=await fetch(window.MWS.path(`/cases/${cid}/indicators/stix`));if(!response.ok){const error=await response.json();throw Error(error.error);}
     const url=URL.createObjectURL(await response.blob()),link=document.createElement("a");link.href=url;link.download="indicators.stix.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }));
-  let revalidation = 0;
+  let revalidation = 0, refreshError = null;
   async function revalidate() {
     const current = ++revalidation;
-    if (!state) status.textContent = "Loading saved indicators…";
-    const result = await request("");
+    let result;
+    try { result = await request(""); } catch (error) {
+      if (current !== revalidation) return;
+      refreshError = error.message;
+      status.textContent = refreshError;
+      throw error;
+    }
     locked = root.dataset.locked === "true";
     if (current !== revalidation || busy) return;
     editable();
+    if (refreshError && status.textContent === refreshError) status.textContent = "";
+    refreshError = null;
     if (dirty) {
       status.textContent = result.revision !== state.revision
         ? "Saved indicators changed in another client. Your unsaved changes are retained; resolve the revision conflict before replacing them."
@@ -652,10 +659,11 @@
     for(const item of [...state.types].sort((a,b)=>a.category.localeCompare(b.category)||a.name.localeCompare(b.name))){const option=document.createElement("option");option.value=item.name;option.label=item.category+" — "+item.label+([...item.aliases,...item.search_aliases].length?" — "+[...item.aliases,...item.search_aliases].join(", "):"");options.append(option);}
     render();
 
-    status.textContent = "Saved indicators are current.";
+    // Routine navigation needs no announcement; retain save/validation feedback.
   }
   window.MareIndicators = { refresh: revalidate };
-  revalidate().catch(error => { status.textContent = error.message; });
+  // Current failures are announced inside revalidate; stale failures are ignored.
+  revalidate().catch(() => {});
   const autosaveTimer = window.MareAutosave.register({
     onCountdown: (seconds, running, paused) => {
       const label = document.getElementById("save-indicators-countdown");

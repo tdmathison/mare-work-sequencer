@@ -117,7 +117,8 @@
   }
   async function revalidate(tab = active(), source) {
     const current = ++activation;
-    status.textContent = 'Refreshing saved Case data…';
+    status.textContent = '';
+    status.setAttribute('aria-busy', 'true');
     try {
       const result = await savedPage();
       if (!result || current !== activation) return;
@@ -130,6 +131,8 @@
         const retry = document.createElement('button'); retry.type = 'button'; retry.textContent = 'Retry';
         retry.onclick = () => revalidate(); status.append(retry);
       }
+    } finally {
+      if (current === activation) status.removeAttribute('aria-busy');
     }
   }
   function invalidate(source) {

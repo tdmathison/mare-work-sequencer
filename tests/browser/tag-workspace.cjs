@@ -25,7 +25,32 @@ c=sqlite3.connect(sys.argv[1]);c.execute("INSERT OR IGNORE INTO case_tags VALUES
  await select('TA_MISSING');assert.match(await page.getByRole('link',{name:'Create threat actor profile',exact:true}).getAttribute('href'),new RegExp('tag_id='+ids.TA_MISSING));
  await select('MAL_MISSING');const createProfile=page.getByRole('link',{name:'Create malware family profile',exact:true});await createProfile.click();assert.equal(await page.locator('[name=tag]').inputValue(),'MAL_MISSING');await page.goBack();await chip.filter({hasText:'MAL_MISSING'}).waitFor();
  await page.evaluate(()=>window.tagDocumentMarker='retained');await select('GENERAL');assert.equal(await root.locator('.tag-profile-association a').count(),0);
- await select('MAL_LINKED');await page.locator('#tag-tab-history').click();await page.waitForURL(url=>url.searchParams.get('tab')==='history');assert.equal(await root.locator('tbody tr').count(),2);assert.ok(await root.getByText('Completed intelligence review',{exact:true}).isVisible());assert.equal(await root.locator('.mip-table-stage-badge.is-completed').count(),1);
+ await select('MAL_LINKED');
+ // Slow navigation and useful errors leave the workspace and tabs in place.
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:900});
+  const target=await page.locator('#tag-tab-history').getAttribute('href');
+  let release,started;const gate=new Promise(r=>release=r),ready=new Promise(r=>started=r);
+  await page.route(base+target,async route=>{started();await gate;await route.fulfill({status:503,body:'Unavailable'});});
+  const position=()=>page.locator('.tag-detail-tabs').evaluate(e=>e.getBoundingClientRect().top+scrollY);
+  const before=await position();await page.locator('#tag-tab-history').click();await ready;
+  assert.equal(await position(),before);assert.equal(await page.locator('[data-tag-status]').textContent(),'');
+  release();await page.locator('[data-tag-status]').filter({hasText:'Unable to load tags'}).waitFor();
+  assert.equal(await position(),before);await page.unroute(base+target);
+  await page.locator('#tag-tab-overview').click();await page.waitForFunction(()=>!document.querySelector('[data-tag-workspace]').hasAttribute('aria-busy'));
+ }
+ // An old missing-record response cannot send a newer selection to /tags.
+ const oldTarget=await page.locator('#tag-tab-history').getAttribute('href');
+ let releaseOld,oldStarted;const oldGate=new Promise(r=>releaseOld=r),oldReady=new Promise(r=>oldStarted=r);
+ await page.route(base+oldTarget,async route=>{oldStarted();await oldGate;await route.fulfill({status:404,body:'Missing'});});
+ await page.locator('#tag-tab-history').click();await oldReady;
+ await page.locator('#tag-tab-overview').click();await page.waitForFunction(()=>!document.querySelector('[data-tag-workspace]').hasAttribute('aria-busy'));
+ const oldResponse=page.waitForResponse(r=>r.url()===base+oldTarget&&r.status()===404);releaseOld();await oldResponse;
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ assert.equal(new URL(page.url()).pathname,'/tags/'+ids.MAL_LINKED);assert.equal(new URL(page.url()).searchParams.get('tab'),'overview');
+ await page.unroute(base+oldTarget);
+ await page.setViewportSize({width:1440,height:1000});
+ await page.locator('#tag-tab-history').click();await page.waitForURL(url=>url.searchParams.get('tab')==='history');assert.equal(await root.locator('tbody tr').count(),2);assert.ok(await root.getByText('Completed intelligence review',{exact:true}).isVisible());assert.equal(await root.locator('.mip-table-stage-badge.is-completed').count(),1);
  await page.locator('#tag-tab-overview').click();await page.waitForURL(url=>url.searchParams.get('tab')==='overview');await page.locator('#tag-tab-overview').focus();await page.keyboard.press('ArrowRight');await page.locator('#tag-tab-history[aria-current=page]').waitFor();
  for(const [width,height] of [[1440,1000],[1024,900],[901,900],[768,1000],[390,844]]){
   await page.setViewportSize({width,height});await page.goto(base+'/tags/'+ids['X'.repeat(120)]);await chip.waitFor();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));const panel=await root.locator('.tag-detail').boundingBox();for(const action of await root.locator('.family-profile-header .family-actions > *').all()){const bounds=await action.boundingBox();assert.ok(bounds.x+bounds.width<=panel.x+panel.width,'Tag actions remain within their panel');}

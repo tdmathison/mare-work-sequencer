@@ -38,9 +38,7 @@
     <div id="indicator-sections"></div>
   </fieldset>
   {% if indicators_readonly %}<a class="button-secondary" href="{{request.script_root}}/cases/{{c.id}}/indicators/stix">Download saved STIX (read-only)</a>{% endif %}
-  <p id="indicator-status" role="status" aria-live="polite">
-    Loading indicators…
-  </p>
+  <p id="indicator-status" data-workspace-feedback aria-atomic="true" role="status" aria-live="polite"></p>
   <p class="muted">
     CSV files require type, value, and description headers in any order (case
     insensitive); other columns are ignored. Pasted CSV may include headers, or

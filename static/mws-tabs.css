@@ -7,3 +7,7 @@
 .mws-tabs>.mws-tab:is(:disabled,[aria-disabled=true]){opacity:.45;cursor:not-allowed}
 .mws-tab-count{font-size:.85em}.mws-tab-icon{font:inherit;line-height:1}
 @media(max-width:550px){.mws-tabs{--mws-tabs-padding-block:12px;--mws-tabs-padding-inline:12px}}
+/* Opt-in workspace feedback stays mounted for live announcements, outside flow.
+   Only actionable feedback uses this area; navigation itself is silent. */
+[data-workspace-feedback]{position:fixed;inset:auto 16px var(--feedback-bottom,16px) auto;z-index:1000;box-sizing:border-box;width:max-content;max-width:min(36rem,calc(100vw - 32px));max-height:35vh;overflow:auto;margin:0!important;color:var(--text);background:var(--panel);border:1px solid var(--accent-dim);border-radius:8px;padding:10px 14px;box-shadow:0 4px 18px #0003}
+[data-workspace-feedback]:empty{padding:0;border:0;box-shadow:none;pointer-events:none}

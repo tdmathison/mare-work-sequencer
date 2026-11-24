@@ -62,3 +62,23 @@
     if(active&&requested?.url===location.href&&Date.now()-requested.at<30000){active.focus({preventScroll:true});reveal(active);}
   });
 })();
+
+/* Stack opted-in feedback without moving live regions or their retry controls.
+   Hidden tab panels keep their feedback hidden through their normal ancestors. */
+(() => {
+  let scheduled=false;
+  function layout(){
+    scheduled=false;
+    let bottom=16;
+    for(const notice of document.querySelectorAll('[data-workspace-feedback]')){
+      if(!notice.textContent.trim()||notice.closest('[hidden]'))continue;
+      notice.style.setProperty('--feedback-bottom',`${bottom}px`);
+      bottom+=notice.getBoundingClientRect().height+8;
+    }
+  }
+  function schedule(){if(!scheduled){scheduled=true;requestAnimationFrame(layout);}}
+  const observer=new MutationObserver(schedule);
+  observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['hidden']});
+  window.addEventListener('resize',schedule);
+  schedule();
+})();

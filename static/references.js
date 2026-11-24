@@ -173,14 +173,21 @@
       await save();
     }),
   );
-  let revalidation = 0;
+  let revalidation = 0, refreshError = null;
   async function revalidate() {
     const current = ++revalidation;
-    if (!state) status.textContent = "Loading saved references…";
-    const result = await request("");
+    let result;
+    try { result = await request(""); } catch (error) {
+      if (current !== revalidation) return;
+      refreshError = error.message;
+      status.textContent = refreshError;
+      throw error;
+    }
     locked = root.dataset.locked === "true";
     if (current !== revalidation || busy) return;
     editable();
+    if (refreshError && status.textContent === refreshError) status.textContent = "";
+    refreshError = null;
     if (dirty) {
       status.textContent = result.revision !== state.revision
         ? "Saved references changed in another client. Your unsaved changes are retained; resolve the revision conflict before replacing them."
@@ -192,10 +199,11 @@
     state = result;
     render();
 
-    status.textContent = "Saved references are current.";
+    // Routine navigation needs no announcement; retain save/validation feedback.
   }
   window.MareReferences = { refresh: revalidate };
-  revalidate().catch(error => { status.textContent = error.message; });
+  // Current failures are announced inside revalidate; stale failures are ignored.
+  revalidate().catch(() => {});
   const autosaveTimer = window.MareAutosave.register({
     onCountdown: (seconds, running, paused) => {
       const label = document.getElementById("save-references-countdown");

@@ -51,7 +51,7 @@
                 title=('Assign an active owner to resume' if c.owner_required and not c.owner_active else 'Start analysis to unlock this tab') if (c.stage==0 or (c.owner_required and not c.owner_active)) and key not in ['workbench','review'] else '')}}
         {% endfor %}
     {% endcall %}
-    <p id="case-data-status" class="muted" role="status" aria-live="polite"></p>
+    <p id="case-data-status" data-workspace-feedback aria-atomic="true" class="muted" role="status" aria-live="polite"></p>
     <section id="panel-workbench" class="case-tab-panel" role="tabpanel" aria-labelledby="tab-workbench">
         {% include 'case_tags.html' %}
         <div class="columns workbench-columns"><div>

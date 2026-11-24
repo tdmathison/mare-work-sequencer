@@ -12,7 +12,7 @@
                 <label>Search notes<input type="search" data-note-search placeholder="Search notes…"></label>
                 <label>Order<select data-note-order><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select></label>
             </div>
-            <p data-note-status role="status"></p><div data-note-feed aria-live="polite"></div>
+            <p data-note-status data-workspace-feedback aria-atomic="true" role="status"></p><div data-note-feed aria-live="polite"></div>
             <div class="notebook-pages"><button type="button" class="button-secondary" data-note-previous>Previous</button><span data-note-page></span><button type="button" class="button-secondary" data-note-next>Next</button><button type="button" class="button-secondary" data-note-refresh>Refresh</button></div>
         </section>
         <aside class="panel notebook-composer">

@@ -14,11 +14,34 @@ let browser,log='';server.stderr.on('data',d=>log+=d);const delay=ms=>new Promis
  await page.goto(base+'/cases/1?tab=review');
  const root=page.locator('[data-task-collections]'), review=page.locator('#completion-review');
  const csrf=await root.getAttribute('data-csrf'), taskURL=base+'/task-workspace/cases/1';
- const tab=async name=>{await page.locator('#tab-'+name).click();await page.waitForFunction(()=>!document.querySelector('#case-data-status').textContent.startsWith('Refreshing'));};
+ const tab=async name=>{await page.locator('#tab-'+name).click();await page.waitForFunction(()=>!document.querySelector('#case-data-status').hasAttribute('aria-busy'));};
  const post=async (url,payload)=>{const r=await page.request.post(url,{form:{csrf,payload:JSON.stringify(payload)}});assert.ok(r.ok(),await r.text());return r.json();};
  const create=async name=>{const r=await page.request.post(base+'/cases/1/tasks',{form:{csrf,name,priority:'Normal'}});assert.ok(r.ok());};
  const contains=async text=>{await review.locator('li').filter({hasText:text}).waitFor({state:'attached'});};
  const absent=async text=>{await page.waitForFunction(text=>!document.querySelector('#completion-review').textContent.includes(text),text);};
+
+ // Pending, immediate (cached-equivalent), and failed revalidation never move
+ // the tab bar or mounted content. Release requests explicitly, without sleeps.
+ for(const width of [1366,390]){
+  await page.setViewportSize({width,height:900});
+  await page.evaluate(()=>window.MareCaseData.revalidate());
+  const positions=()=>page.evaluate(()=>['.case-tabs','#panel-review'].map(s=>{const r=document.querySelector(s).getBoundingClientRect();return {top:r.top+scrollY,left:r.left+scrollX};}));
+  const before=await positions();
+  let releaseRequest,requestSeen;
+  const gate=new Promise(resolve=>releaseRequest=resolve),seen=new Promise(resolve=>requestSeen=resolve);
+  await page.route(base+'/cases/1',async route=>{requestSeen();await gate;await route.fulfill({status:503,body:'Unavailable'});});
+  await page.evaluate(()=>{window.feedbackRequest=window.MareCaseData.revalidate();});await seen;
+  assert.deepEqual(await positions(),before);
+  assert.equal(await page.locator('#case-data-status').textContent(),'');
+  releaseRequest();await page.evaluate(()=>window.feedbackRequest);
+  await page.locator('#case-data-status button').waitFor();
+  assert.deepEqual(await positions(),before);
+  const notice=await page.locator('#case-data-status').boundingBox();assert.ok(notice.x>=0&&notice.x+notice.width<=width+1);
+  await page.unroute(base+'/cases/1');await page.evaluate(()=>window.MareCaseData.revalidate());
+  assert.deepEqual(await positions(),before);
+  assert.equal(await page.locator('#case-data-status').textContent(),'');
+ }
+ await page.setViewportSize({width:1366,height:900});
  await contains('Existing task');
  const required=await review.locator('.badge').innerText();
  await page.evaluate(()=>window.caseDocumentIdentity=crypto.randomUUID());const identity=await page.evaluate(()=>window.caseDocumentIdentity);
@@ -80,7 +103,7 @@ let browser,log='';server.stderr.on('data',d=>log+=d);const delay=ms=>new Promis
  await page.locator('#tab-review').click();await ready;await create('Newest task after old response');await tab('tasks');await tab('review');await contains('Newest task after old response');release();await page.unroute(base+'/cases/1');
  await contains('Newest task after old response');assert.equal(await page.evaluate(()=>window.caseDocumentIdentity),identity);
  // Useful error state and explicit retry; drafts remain intact throughout.
- await page.route(base+'/cases/1',route=>route.fulfill({status:503,body:'Unavailable'}));await page.locator('#tab-notes').click();await page.locator('#case-data-status').filter({hasText:'out of date'}).waitFor();assert.equal(await page.evaluate(()=>window.notebookEditor.getValue()),'Unsaved notebook draft');await page.unroute(base+'/cases/1');await page.locator('#case-data-status button').click();await page.waitForFunction(()=>!document.querySelector('#case-data-status').textContent.startsWith('Refreshing')&&!document.querySelector('#case-data-status').textContent.includes('out of date'));
+ await page.route(base+'/cases/1',route=>route.fulfill({status:503,body:'Unavailable'}));await page.locator('#tab-notes').click();await page.locator('#case-data-status').filter({hasText:'out of date'}).waitFor();assert.equal(await page.evaluate(()=>window.notebookEditor.getValue()),'Unsaved notebook draft');await page.unroute(base+'/cases/1');await page.locator('#case-data-status button').click();await page.waitForFunction(()=>!document.querySelector('#case-data-status').hasAttribute('aria-busy')&&!document.querySelector('#case-data-status').textContent.includes('out of date'));
  assert.deepEqual(errors,[]);
  console.log('PASS: last/partial/group deletion, status and creation, immediate dependent checklists, mounted tabs, other-client changes, links/history/direct URLs, retained notebook/report/reference drafts and editor DOM, out-of-order responses, and retry feedback.');
 })().catch(e=>{console.error(log.slice(-3500));console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.kill();fs.rmSync(temporary,{recursive:true,force:true});fs.rmSync(workspace,{recursive:true,force:true});});

@@ -5,7 +5,7 @@
 {{item('Case tasks','tasks-case-view',true,controls='task-case-view')}}
 {{item('Collection library','tasks-library-view',controls='task-library-view')}}
 {% endcall %}{% endif %}
-<p role="status" data-collection-notice>Loading tasks and collections…</p>
+<p role="status" data-collection-notice data-workspace-feedback aria-atomic="true"></p>
 {% if c %}<section id="task-case-view" role="tabpanel" aria-labelledby="tasks-case-view">
 <p class="muted" data-case-task-readonly {% if not c.workspace_locked %}hidden{% endif %}>Start analysis or reopen the case to edit content.</p>
 <div class="heading task-actions"><h2>Case tasks <small data-task-total></small></h2><fieldset class="workflow-controls report-actions" data-case-task-actions {% if c.workspace_locked %}disabled{% endif %}><button type="button" data-add-collection disabled>Add task collection</button><button type="button" id="add-task-button" data-open-task="add-task-dialog" disabled>Add Task</button></fieldset></div>
