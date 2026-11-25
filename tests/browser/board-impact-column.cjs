@@ -54,7 +54,7 @@ with app.app_context():
  const tooltipBox=await neutralTip.boundingBox();assert.ok(tooltipBox.x>=0&&tooltipBox.x+tooltipBox.width<=1920);
  assert.equal(await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.closest('[role=tooltip]')!==null,{x:tooltipBox.x+10,y:tooltipBox.y+10}),true);
  await page.keyboard.press('Escape');
- const numbers=()=>page.locator('td.mip-table-number').evaluateAll(cells=>cells.map(cell=>cell.firstChild.textContent.trim()));
+ const numbers=()=>page.locator('td.mip-table-number').evaluateAll(cells=>cells.map(cell=>[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim()).textContent.trim()));
  await Promise.all([page.waitForNavigation(),page.getByRole('button',{name:'Sort by Impact, ascending',exact:true}).click()]);
  assert.deepEqual(await numbers(),['IMPACT-002','IMPACT-003','CM-TEST']);
  assert.equal(await page.locator('th.mip-table-impact').getAttribute('aria-sort'),'ascending');

@@ -65,7 +65,7 @@ def test_pagination_filtering_and_streamed_upload_download(tmp_path):
         seen.append(r)
         if r.method=='GET' and r.url.path.endswith('/cases'):
             offset=int(r.url.params.get('offset',0));assert r.url.params['q']=='analysis'
-            return httpx.Response(200,json={'cases':[{'id':offset+1}],'limit':1,'offset':offset,'total':3})
+            return httpx.Response(200,json={'cases':[{'id':offset+1,'tlp':'TLP:AMBER'}],'limit':1,'offset':offset,'total':3})
         if r.method=='POST':
             uploaded.append(r.read());return httpx.Response(201,json={'file':{'path':'scripts/test.bin','size':3}})
         return httpx.Response(200,content=b'a'*150000)
@@ -89,7 +89,7 @@ def test_async_retries_pagination_upload_download_and_cleanup(tmp_path,monkeypat
         calls.append(r.method)
         if len(calls)==1:return httpx.Response(429,json={'error':'wait'},headers={'Retry-After':'1'})
         if r.url.path.endswith('/cases'):
-            offset=int(r.url.params.get('offset',0));return httpx.Response(200,json={'cases':[{'id':offset+1}],'total':2})
+            offset=int(r.url.params.get('offset',0));return httpx.Response(200,json={'cases':[{'id':offset+1,'tlp':'TLP:AMBER'}],'total':2})
         return httpx.Response(200,content=b'async file')
     async def run():
         c=AsyncMWSClient('https://example.test','secret',transport=httpx.MockTransport(handler))

@@ -1,7 +1,7 @@
 """Bounded, explicitly allowlisted public research projections.
 
 Profiles have no hidden/private flags and deletion is physical. Only cases in
-stages 0–3 are eligible, matching both existing public walls. No association table,
+stages 0–3 with TLP:CLEAR are eligible, matching both existing public walls. No association table,
 private research text, attachment bytes or filesystem paths are read by this projection.
 """
 from datetime import datetime, timezone
@@ -22,7 +22,7 @@ def projection_cte(spec):
  SELECT ct.tag_id,count(DISTINCT c.id) linked_cases,
  count(DISTINCT CASE WHEN c.stage IN (1,2) THEN c.id END) in_progress
  FROM case_tags ct JOIN cases c ON c.id=ct.case_id
- WHERE c.stage BETWEEN 0 AND 3 GROUP BY ct.tag_id
+ WHERE c.tlp='TLP:CLEAR' AND c.stage BETWEEN 0 AND 3 GROUP BY ct.tag_id
 ), osint AS (
  SELECT {spec.foreign_key},count(*) osint_links FROM {spec.osint_table} GROUP BY {spec.foreign_key}
 ), reports AS (
@@ -64,7 +64,7 @@ def snapshot(connection, page=0, library_page=0, current=None, timezone_name="UT
           count(CASE WHEN in_progress>0 THEN 1 END) {spec.key}_in_progress,
           coalesce(sum(reports_collected),0) reports_collected,
           (SELECT count(DISTINCT c.id) FROM cases c JOIN case_tags ct ON ct.case_id=c.id
-           JOIN eligible e ON e.tag_id=ct.tag_id WHERE c.stage BETWEEN 0 AND 3) unique_linked_cases
+           JOIN eligible e ON e.tag_id=ct.tag_id WHERE c.tlp='TLP:CLEAR' AND c.stage BETWEEN 0 AND 3) unique_linked_cases
           FROM projected"""
             ).fetchone()
         )

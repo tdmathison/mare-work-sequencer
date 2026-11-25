@@ -1,3 +1,4 @@
+import case_tlp
 import case_impact
 from base_path import app_url
 import hashlib
@@ -313,7 +314,7 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         return {'settings': {'sample_archive_password': {'configured': True}}}
 
     def case_data(row):
-        return {**{**case_impact.fields(row), 'impact_confirmed': bool(row['impact_confirmed'])}, 'id': row['id'], 'number': row['number'], 'name': row['name'], 'description': row['description'] or '', 'stage': row['stage'], 'stage_name': app.config.get('MARE_STAGES', ['Not started', 'Malware Analysis', 'Packaging & Delivery', 'Completed'])[row['stage']], 'created': row['created'], 'owner_id': row['owner'], 'owner_name': row['owner_name'], 'creator_id': row['creator'], 'creator_name': row['creator_name'], 'external_system': row['external_system'] or '', 'external_number': row['external_number'] or '', 'owner_active': bool(row['owner_active']), 'report_path': row['report_path'] or ''}
+        return {**{**case_impact.fields(row), 'impact_confirmed': bool(row['impact_confirmed'])}, 'tlp':row['tlp'], 'id': row['id'], 'number': row['number'], 'name': row['name'], 'description': row['description'] or '', 'stage': row['stage'], 'stage_name': app.config.get('MARE_STAGES', ['Not started', 'Malware Analysis', 'Packaging & Delivery', 'Completed'])[row['stage']], 'created': row['created'], 'owner_id': row['owner'], 'owner_name': row['owner_name'], 'creator_id': row['creator'], 'creator_name': row['creator_name'], 'external_system': row['external_system'] or '', 'external_number': row['external_number'] or '', 'owner_active': bool(row['owner_active']), 'report_path': row['report_path'] or ''}
 
     @api.route('/cases', methods=['GET', 'POST'])
     @require({'GET': 'cases:read', 'POST': 'cases:create'})
@@ -339,6 +340,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
             return {'cases':[case_data(case(row['id'])) for row in rows], 'limit':limit, 'offset':offset,
                     'total':db().execute('SELECT count(*) FROM cases'+where,arguments).fetchone()[0]}
         value = body()
+        try: tlp = case_tlp.validate(value['tlp']) if 'tlp' in value else case_tlp.default(db())
+        except ValueError as error: return jsonify(error=str(error)), 400
         try: impact_value = case_impact.patch({}, value, now())
         except ValueError as error: return jsonify(error=str(error)), 400
         name = value.get('name', '')
@@ -362,8 +365,8 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         with connection:
             connection.execute('BEGIN IMMEDIATE')
             number = allocate_case_number(connection)
-            cursor = connection.execute('INSERT INTO cases(number,name,description,created,owner,external_system,external_number,creator,creator_username,owner_required) VALUES(?,?,?,?,?,?,?,?,?,1)', (
-                number, name, description, now(), owner, system, external, g.user['id'], g.user['username']))
+            cursor = connection.execute('INSERT INTO cases(number,name,description,created,owner,external_system,external_number,creator,creator_username,owner_required,tlp) VALUES(?,?,?,?,?,?,?,?,?,1,?)', (
+                number, name, description, now(), owner, system, external, g.user['id'], g.user['username'], tlp))
             case_id = cursor.lastrowid
             case_impact.write(connection, case_id, impact_value)
         ensure_package(case_id)
@@ -406,6 +409,9 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
                 shutil.rmtree(staged)
             return '', 204
         value = body()
+        if current['stage'] == 3 and 'tlp' in value: return jsonify(error='Reopen this case before editing its TLP.'), 409
+        try: tlp = case_tlp.validate(value['tlp']) if 'tlp' in value else current['tlp']
+        except ValueError as error: return jsonify(error=str(error)), 400
         try: impact_value = case_impact.patch(current, value, now())
         except ValueError as error: return jsonify(error=str(error)), 400
         name = value.get('name', current['name'])
@@ -428,11 +434,11 @@ def register_api(app, db, run, case, package, ensure_package, now, audit, alloca
         if not impact_only and owner is not None and (type(owner) is not int or not db().execute('SELECT 1 FROM users WHERE id=? AND active=1', (owner,)).fetchone()):
             return jsonify(error='owner_id must identify an active user.'), 400
         system, external = reference
-        run('UPDATE cases SET name=?,description=?,external_system=?,external_number=?,owner=? WHERE id=?',
-            (name.strip(), description, system, external, owner, case_id))
+        run('UPDATE cases SET name=?,description=?,external_system=?,external_number=?,owner=?,tlp=coalesce(?,tlp) WHERE id=?',
+            (name.strip(), description, system, external, owner, tlp if 'tlp' in value else None, case_id))
         case_impact.write(db(), case_id, impact_value)
         db().commit()
-        audit('Updated case details '+current['number'])
+        audit('Updated case details '+current['number']+(f"; TLP {current['tlp']} → {tlp}" if current['tlp'] != tlp else ''))
         return {'case': case_data(case(case_id))}
 
     @api.post('/cases/<int:case_id>/stage')

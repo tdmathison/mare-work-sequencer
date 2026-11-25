@@ -1,3 +1,4 @@
+import case_tlp
 """Versioned full-installation recovery. Never merges unrelated database IDs.
 
 Offline recovery only publishes a fully validated staged data directory into an
@@ -128,6 +129,9 @@ def validate_database(path, modern):
             raise ValueError(
                 "The installation database has broken record relationships."
             )
+        if 'tlp' in {r[1] for r in connection.execute('PRAGMA table_info(cases)')}:
+            for row in connection.execute('SELECT DISTINCT tlp FROM cases'): case_tlp.validate(row[0])
+        if 'site_settings' in tables: case_tlp.default(connection)
         has_families = "malware_families" in tables
         if modern or has_families:
             if not set(FAMILY_COLUMNS) <= tables:
@@ -411,6 +415,10 @@ def restore_installation(archive_path, destination, *, help_content=None):
                     raise ValueError(
                         "Installation record counts do not match the snapshot."
                     )
+        with closing(sqlite3.connect(stage/'workflow.sqlite3')) as upgraded:
+            tlp_missing = 'tlp' not in {r[1] for r in upgraded.execute('PRAGMA table_info(cases)')}
+            case_tlp.initialize(upgraded)
+            upgraded.commit()
         if has_families:
             # Additive upgrade only after the original snapshot's hashes/counts
             # have been verified. This also permits pre-alias complete recovery.
@@ -456,6 +464,7 @@ def restore_installation(archive_path, destination, *, help_content=None):
     return {
         "counts": counts,
         "help_missing": help_missing,
+        "tlp_missing": tlp_missing,
         "plugins_skipped": plugins_skipped,
         "legacy": manifest is None,
         "message": ("Legacy plugin data was skipped. " if plugins_skipped else "") + (

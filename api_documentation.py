@@ -1,3 +1,4 @@
+import case_tlp
 """OpenAPI contracts for public API handlers; routes/permissions come from Flask.
 
 Keep CONTRACTS explicit: internal JSON UI routes are deliberately not APIs.
@@ -44,7 +45,8 @@ IMPACT_FIELDS = {
     'impact_type': {'type':'string','nullable':True,'enum':['detection','discovery','both',None], 'description':'Stable outcome value; both contributes to detection and discovery counters but counts once as an impactful case.'},
     'impact_summary': {'type':'string','maxLength':4000, 'description':'Plain text; trimmed on save. Required and nonempty for confirmed impact. Disabling without sending details preserves them.'}
 }
-CASE_FIELDS = {**IMPACT_FIELDS, 'name': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLength': 20000},
+TLP = {**TEXT, 'enum':list(case_tlp.METADATA), 'description':'FIRST TLP 2.0 sharing designation. Omission on creation uses the system default; omission on update retains the saved value. Explicit null/blank is invalid.'}
+CASE_FIELDS = {'tlp':TLP, **IMPACT_FIELDS, 'name': {**TITLE, 'minLength': 1}, 'description': {**TEXT, 'maxLength': 20000},
                'owner_id': {**NULL_INT, 'description': 'Active user ID, or null to leave unassigned.'},
                'external_system': {**TEXT, 'enum': ['', 'Vortex', 'XSIAM', 'JIRA']}, 'external_number': {**TEXT, 'maxLength': 200}}
 TASK_FIELDS = {'title': {**TITLE, 'minLength': 1}, 'body': {**TEXT, 'maxLength': 20000},
@@ -60,7 +62,7 @@ SCHEMAS = {
     'Role': obj({'name': TEXT, 'description': TEXT, 'builtin': BOOL, 'permissions': array(TEXT)}),
     'Case': obj({**CASE_FIELDS, 'impact_confirmed_at': {'type':'string','nullable':True,'readOnly':True,'description':'First confirmation timestamp, retained across edits and disable/re-enable. Missing imported timestamps remain unknown until a genuine new confirmation.'}, 'id': INT, 'number': TEXT, 'stage': {**INT, 'minimum': 0, 'maximum': 3},
                  **dict.fromkeys(('stage_name', 'created', 'report_path'), TEXT),
-                 **dict.fromkeys(('owner_name', 'creator_name'), NULL_TEXT), 'creator_id': NULL_INT, 'owner_active': BOOL}),
+                 **dict.fromkeys(('owner_name', 'creator_name'), NULL_TEXT), 'creator_id': NULL_INT, 'owner_active': BOOL}, ('tlp',)),
     'Task': obj({**{key: value for key, value in TASK_FIELDS.items() if key != 'description'}, 'id': INT,
                  'state': {**TEXT, 'enum': ['Not Started', 'In Progress', 'Completed']}, 'done': INT, 'created': TEXT,'group_id':NULL_TEXT,'source_collection_id':NULL_TEXT,'source_template_id':NULL_TEXT,'source_revision':NULL_INT,'position':INT}),
     'Note': obj({'case_id':INT, **NOTE_FIELDS, 'include_export': INT, 'id': INT, 'author': TEXT, 'created': TEXT, **dict.fromkeys(('note_uuid','author_uuid','edited','event_type','source_id','migrated_at','html'),TEXT), 'note_type':{**TEXT,'enum':['user','system']}, 'event_metadata':obj({},additionalProperties=True), 'activity_link':obj({'href':TEXT,'label':TEXT},nullable=True), 'can_manage':BOOL}),

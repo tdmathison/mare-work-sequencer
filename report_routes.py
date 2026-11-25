@@ -227,7 +227,7 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                 report_case = case(cid)
                 temp = snapshot/'report.docx'
                 fill_template(template, temp, {**sections, **generated}, report_case['number'], report_case['name'], indicators=indicator_snapshot, references=reference_snapshot, assets_root=package(
-                    cid)/'reports/sections', external_system=report_case['external_system'], external_number=report_case['external_number'])
+                    cid)/'reports/sections', external_system=report_case['external_system'], external_number=report_case['external_number'], tlp=report_case['tlp'])
                 progress('Populating the Word template and saving the report.')
                 pdf_temp = snapshot/'report.pdf'
                 if generate_pdf:
@@ -241,6 +241,8 @@ def register_reporting(app, ROOT, db, run, case, package, ensure_package, mark_p
                 if digest != expected_digest:
                     raise ValueError(
                         'The existing report changed during generation. It was preserved; retry after review.')
+                if case(cid)['tlp'] != report_case['tlp']:
+                    raise ValueError('Case TLP changed during generation. The existing report was preserved; regenerate with the current designation.')
                 if target.exists() and mode == 'backup':
                     folder = package(cid)/'reports/backups'
                     folder.mkdir(exist_ok=True)

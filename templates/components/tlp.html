@@ -1,0 +1,11 @@
+{# Metadata comes from case_tlp.METADATA through the shared template context. #}
+{% macro selector(value, identifier='case-tlp', label='TLP', name='tlp') -%}
+<label class="tlp-selector" for="{{identifier}}">{{label}}
+<span class="tlp-select-control"><span class="tlp-swatch" data-tlp-selected aria-hidden="true" style="--tlp-color:{{tlp_metadata.get(value,{}).get('color','#FFC000')}}"></span><select id="{{identifier}}" name="{{name}}" required aria-describedby="{{identifier}}-help" data-tlp-select>
+{% if value not in tlp_metadata %}<option value="" selected>Choose a TLP designation</option>{% endif %}
+{% for designation,meta in tlp_metadata.items() %}<option value="{{designation}}" data-color="{{meta.color}}" data-help="{{meta.help}}" {% if designation==value %}selected{% endif %}>{{designation}}</option>{% endfor %}
+</select></span></label>
+<p class="muted tlp-help" id="{{identifier}}-help" data-tlp-help>{{tlp_metadata.get(value,{}).get('help','Choose the sharing boundary for this Case.')}} TLP describes sharing boundaries, not threat severity. <a href="https://www.first.org/tlp/" target="_blank" rel="noopener">FIRST TLP 2.0</a></p>
+{%- endmacro %}
+{% macro badge(value) -%}<span class="tlp-badge" data-tlp-badge style="--tlp-color:{{tlp_metadata[value].color}}">{{value}}</span>{%- endmacro %}
+{% macro marker(value, cid=none) -%}<span class="tlp-marker" role="img" tabindex="0" aria-label="{{value}}" title="{{value}}" data-tlp="{{value}}"{% if cid is not none %} data-tlp-case="{{cid}}"{% endif %} style="--tlp-color:{{tlp_metadata[value].color}}"><span data-tlp-symbol aria-hidden="true">{{'+' if value=='TLP:AMBER+STRICT' else ''}}</span><span class="tlp-tooltip" role="tooltip" aria-hidden="true">{{value}}</span></span>{%- endmacro %}

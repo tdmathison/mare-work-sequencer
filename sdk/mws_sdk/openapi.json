@@ -4104,6 +4104,17 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "tlp": {
+                    "type": "string",
+                    "enum": [
+                      "TLP:RED",
+                      "TLP:AMBER+STRICT",
+                      "TLP:AMBER",
+                      "TLP:GREEN",
+                      "TLP:CLEAR"
+                    ],
+                    "description": "FIRST TLP 2.0 sharing designation. Omission on creation uses the system default; omission on update retains the saved value. Explicit null/blank is invalid."
+                  },
                   "impact_confirmed": {
                     "type": "boolean",
                     "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
@@ -4553,6 +4564,17 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "tlp": {
+                    "type": "string",
+                    "enum": [
+                      "TLP:RED",
+                      "TLP:AMBER+STRICT",
+                      "TLP:AMBER",
+                      "TLP:GREEN",
+                      "TLP:CLEAR"
+                    ],
+                    "description": "FIRST TLP 2.0 sharing designation. Omission on creation uses the system default; omission on update retains the saved value. Explicit null/blank is invalid."
+                  },
                   "impact_confirmed": {
                     "type": "boolean",
                     "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
@@ -24424,6 +24446,17 @@
       "Case": {
         "type": "object",
         "properties": {
+          "tlp": {
+            "type": "string",
+            "enum": [
+              "TLP:RED",
+              "TLP:AMBER+STRICT",
+              "TLP:AMBER",
+              "TLP:GREEN",
+              "TLP:CLEAR"
+            ],
+            "description": "FIRST TLP 2.0 sharing designation. Omission on creation uses the system default; omission on update retains the saved value. Explicit null/blank is invalid."
+          },
           "impact_confirmed": {
             "type": "boolean",
             "description": "Confirmed enterprise outcome, independent of workflow stage. Defaults to false. Enabling requires a supported type and nonempty summary."
@@ -24512,7 +24545,10 @@
           "owner_active": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "tlp"
+        ]
       },
       "Task": {
         "type": "object",

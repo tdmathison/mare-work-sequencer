@@ -1,0 +1,12 @@
+.tlp-badge{display:inline-block;background:#000;color:var(--tlp-color);font-weight:700;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.tlp-swatch,.tlp-marker{box-sizing:border-box;display:inline-flex;background:var(--tlp-color);border:1px solid #777;width:14px;height:14px;flex:none;vertical-align:middle;align-items:center;justify-content:center;color:#000;font:700 12px/1 sans-serif}
+.tlp-marker{position:relative;margin-right:6px}
+.tlp-marker:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.tlp-tooltip{display:none;position:absolute;z-index:50;bottom:calc(100% + 5px);left:0;background:#000;color:var(--tlp-color);padding:5px 8px;font:700 12px/1.4 sans-serif;white-space:nowrap;pointer-events:none}
+.tlp-marker:hover .tlp-tooltip,.tlp-marker:focus .tlp-tooltip{display:block}
+.case-name-tlp-row{display:grid;grid-template-columns:minmax(0,1fr) 18rem;gap:16px;align-items:start;width:100%}
+.case-name-tlp-row>label,.case-name-tlp-row>div{min-width:0}
+.tlp-select-control{display:flex;align-items:center;gap:8px}
+.tlp-select-control select{min-width:0;width:100%;flex:1}
+.tlp-help{font-size:.85em;margin:6px 0 12px}
+@media(max-width:600px){.case-name-tlp-row{grid-template-columns:minmax(0,1fr);gap:0}.tlp-selector{width:100%}}

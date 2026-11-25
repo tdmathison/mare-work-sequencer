@@ -1,3 +1,4 @@
+{% from 'components/tlp.html' import selector with context %}
 {% extends 'settings_shell.html' %}{% from 'base.html' import token %}{% block settings_page_class %}settings-page{% endblock %}{% block settings_content %}
 
 <div class="columns">
@@ -77,4 +78,7 @@
     </div>
 </section>
 {% if user.role=='Administrator' %}{% include 'sample_archive_settings.html' %}{% endif %}
+{% if user.role=='Administrator' %}
+<section class="panel"><h2>Default Case TLP</h2><p>Applied to newly created cases. Existing cases keep their saved TLP.</p><form method="post" action="{{request.script_root}}/settings/default-case-tlp">{{token(csrf)}}{{selector(default_case_tlp,'default-case-tlp','Default Case TLP')}}<button>Save Default Case TLP</button></form></section>
+{% endif %}
 {% endblock %}

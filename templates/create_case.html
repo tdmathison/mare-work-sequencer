@@ -1,3 +1,4 @@
+{% from 'components/tlp.html' import selector with context %}
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
 <div class="hero compact"><a href="{{request.script_root}}/">Back to MIP board</a></div>
 <section class="panel">
@@ -5,7 +6,7 @@
     <p class="muted">A unique MARE case number will be assigned when you create the case.</p>
     <form method="post" action="{{request.script_root}}/cases">
         {{token(csrf)}}
-        <label>Case name<input id="case-name" name="name" maxlength="200" required value="{{values.get('name','')}}"></label>
+        <div class="case-name-tlp-row"><label>Case name<input id="case-name" name="name" maxlength="200" required value="{{values.get('name','')}}"></label><div>{{selector(values.get('tlp', default_case_tlp))}}</div></div>
         <label>Description<textarea name="description" rows="4">{{values.get('description','')}}</textarea></label>
         <div class="columns">
             <label>External system (optional)

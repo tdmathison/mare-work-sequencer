@@ -1,3 +1,4 @@
+{% from 'components/tlp.html' import selector,badge with context %}
 {% from 'components/tabs.html' import bar, item %}
 {% extends 'base.html' %}{% from 'base.html' import token %}{% macro upload(cid,csrf,categories) %}
 <form class="asset-form" data-case-id="{{cid}}" method="post" enctype="multipart/form-data" action="{{request.script_root}}/cases/{{cid}}/upload">
@@ -119,7 +120,7 @@
                     <div id="asset-files" class="asset-files"></div>
                 </section>
                 <section class="panel"><details id="case-details" open>
-                    <summary>Case details</summary><p>Creator: <strong>{{c.creator_name}}</strong></p>
+                    <summary>Case details</summary>{{badge(c.tlp)}}<p>Creator: <strong>{{c.creator_name}}</strong></p>
                     <form method="post" action="{{request.script_root}}/cases/{{c.id}}/owner">{{token(csrf)}}{% set selected_owner=c.owner or '' %}
                         <label>Assigned owner
                             <select id="case-owner" name="owner_id" aria-describedby="case-owner-help">
@@ -133,13 +134,14 @@
                         <button>Save assigned owner</button>
                     </form>
                     <form method="post">
-                        <fieldset class="workflow-controls" {% if c.stage==3 %}disabled{% endif %}>{{token(csrf)}}
+                        <fieldset class="workflow-controls" {% if c.stage==3 or not can_edit_notes %}disabled{% endif %}>{{token(csrf)}}
                             <div class="system-case-number">
                                 <span>System case number</span><p><strong>{{c.number}}</strong></p><small class="muted">Automatically generated and permanent.</small>
                             </div>
                             <label>External system<select name="external_system"><option value="">None</option>{% for system in ['Vortex','XSIAM','JIRA'] %}<option {{'selected' if c.external_system==system else ''}}>{{system}}</option>{% endfor %}</select></label>
                             <label>External case number (optional)<input name="external_number" value="{{c.external_number}}" maxlength="200"></label>
                             <label>Name<input name="name" value="{{c.name}}" required></label>
+                            {{selector(c.tlp,'edit-case-tlp')}}
                             <label>Description<textarea name="description">{{c.description}}</textarea></label>
                             <button>Save details</button>
                         </fieldset>

@@ -424,7 +424,7 @@ def add_markdown(doc, text, assets_root=None):
     return elements
 
 
-def fill_template(template, destination, sections, case_number, case_name, indicators=None, references=None, assets_root=None, external_system='', external_number=''):
+def fill_template(template, destination, sections, case_number, case_name, indicators=None, references=None, assets_root=None, external_system='', external_number='', tlp='TLP:AMBER'):
     doc = Document(template)
     # Supply the prose default only when the template has no explicit Normal font.
     # Heading styles, direct formatting, and explicitly configured fonts survive.
@@ -536,4 +536,30 @@ def fill_template(template, destination, sections, case_number, case_name, indic
     for part in parts.values():
         for paragraph in part.element.iter(qn('w:p')):
             replace_word_placeholders(paragraph, replacements)
+    mark_tlp(doc, tlp)
     doc.save(destination)
+
+
+def mark_tlp(doc, value):
+    """Mark every supported header/footer story without replacing template content."""
+    from case_tlp import validate, METADATA
+    from docx.shared import RGBColor, Pt
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    validate(value)
+    seen = set()
+    for section in doc.sections:
+        for story in (section.header,section.footer,section.first_page_header,section.first_page_footer,section.even_page_header,section.even_page_footer):
+            key = str(story.part.partname)
+            if key in seen: continue
+            seen.add(key)
+            paragraph = next((p for p in story.paragraphs if p.text.strip() in METADATA),None)
+            if paragraph is None:
+                paragraph = story.paragraphs[0] if len(story.paragraphs)==1 and not story.paragraphs[0].text else story.add_paragraph()
+            paragraph.clear()
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            run = paragraph.add_run(value)
+            run.font.size = Pt(12)
+            run.bold = True
+            run.font.color.rgb = RGBColor.from_string(METADATA[value]['color'][1:])
+            shade = OxmlElement('w:shd');shade.set(qn('w:fill'),'000000')
+            run._r.get_or_add_rPr().append(shade)

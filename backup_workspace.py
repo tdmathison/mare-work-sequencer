@@ -650,6 +650,7 @@ class BackupWorkspace:
         conflicts = []
         mapping = []
         case_choices = []
+        tlp_warnings = []
         shared_actions = {}
         handoff = None
         display_records = []
@@ -659,6 +660,7 @@ class BackupWorkspace:
             restored = folder / "restored"
             from help_guide import read as read_help
             recovery = restore_installation(payload, restored, help_content=read_help(self.db()))
+            if recovery.get('tlp_missing'): tlp_warnings.append('Archive has no Case TLP field: TLP:AMBER is assigned by default, not as a historical analyst assessment. Restricted Cases are excluded from the public Case dashboard.')
             if (
                 not (restored / "session.key").is_file()
                 or not (restored / "session.key").read_bytes()
@@ -667,6 +669,13 @@ class BackupWorkspace:
             with closing(sqlite3.connect(restored / "workflow.sqlite3")) as source:
                 source.row_factory = sqlite3.Row
                 contract = schema(source)
+                if source.execute("SELECT 1 FROM sqlite_master WHERE name='sync_cases' AND type='table'").fetchone():
+                    local_tlp = {r['case_uuid']:r['tlp'] for r in self.db().execute('SELECT s.case_uuid,c.tlp FROM sync_cases s JOIN cases c ON c.id=s.case_id')}
+                    differences = [(r['number'],local_tlp[r['case_uuid']],r['tlp']) for r in source.execute('SELECT s.case_uuid,c.number,c.tlp FROM sync_cases s JOIN cases c ON c.id=s.case_id') if r['case_uuid'] in local_tlp and local_tlp[r['case_uuid']] != r['tlp']]
+                    if differences:
+                        tlp_warnings.append(f'Complete replacement changes TLP on {len(differences)} matching Case identities. The required replace-instance acknowledgement accepts these incoming designations.')
+                        tlp_warnings.extend(f'{number}: {before} → {after}' for number,before,after in differences[:20])
+
                 if contract != self.expected_schema:
                     findings.append(
                         "The database schema differs from this application version. Upgrade a copy with a compatible release before replacing this instance."
@@ -785,6 +794,8 @@ class BackupWorkspace:
                                 options=options,
                             )
                         )
+                if item.get('tlp_assumption'): tlp_warnings.append(item['tlp_assumption'])
+                if item.get('tlp_conflict'): tlp_warnings.append('Case '+str(item.get('incoming_number',''))+': TLP conflict '+item['tlp_conflict']['local']+' → '+item['tlp_conflict']['incoming']+'. Explicit replacement or keeping local is required.')
                 case_choices.append(
                     {
                         "index": index,
@@ -900,7 +911,7 @@ class BackupWorkspace:
             shared_actions=shared_actions,
             handoff=handoff,
             legacy=legacy,
-            warnings=(["Legacy plugin data was skipped; no plugin code, credentials or permissions will be restored."] if complete and recovery.get("plugins_skipped") else []) + (["Archive predates Help: existing Help content will be retained."] if complete and recovery.get("help_missing") else []) + (
+            warnings=list(dict.fromkeys(tlp_warnings)) + (["Legacy plugin data was skipped; no plugin code, credentials or permissions will be restored."] if complete and recovery.get("plugins_skipped") else []) + (["Archive predates Help: existing Help content will be retained."] if complete and recovery.get("help_missing") else []) + (
                 [
                     "Legacy archive: newer data areas may be absent; missing sections never delete destination data."
                 ]

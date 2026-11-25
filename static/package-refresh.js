@@ -94,6 +94,7 @@
     const ack = archive?.querySelector('input[name=acknowledge]');
     if (archive && nextAck && !ack) archive.prepend(nextAck.closest('label').cloneNode(true));
     else if (ack && !nextAck) ack.closest('label').remove();
+    window.MareTlp?.applySaved(page);
     return conflict;
   }
   async function savedPage() {

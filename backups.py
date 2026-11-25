@@ -1,3 +1,4 @@
+import case_tlp
 import case_impact
 from base_path import app_url
 from tagging import portable as portable_tags, validate_portable as validate_tags, restore as restore_tags, prototype as tag_prototype
@@ -99,6 +100,7 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
     validate_events(meta.get('content_metrics'))
     c = meta['case']
     case_impact.archived(c)
+    case_tlp.archived(c)
     text(c['name'], 200)
     text(c.get('description', ''))
     text(c.get('created') or '', 200)
@@ -189,7 +191,7 @@ def validate_metadata(meta, *, allow_legacy_tags=False):
 def register_backups(app, ROOT, db, case, package, ensure_package, build_archive, allocate, audit, now):
     def case_metadata(cid):
         c = case(cid)
-        data = {'schema': 'mare-case-state/2', 'case': {key: c[key] for key in ('number', 'name', 'description', 'stage', 'external_system', 'external_number', 'created', 'report_path')}, 'records': {
+        data = {'schema': 'mare-case-state/2', 'case': {key: c[key] for key in ('number', 'name', 'description', 'stage', 'external_system', 'external_number', 'created', 'report_path', 'tlp')}, 'records': {
         }, 'indicators': load_table(db, cid), 'references': load_references(db, cid)}
         data['case'].update(case_impact.fields(c))
         owner = db().execute('SELECT username,user_uuid FROM users WHERE id=?',
@@ -642,6 +644,8 @@ def register_backups(app, ROOT, db, case, package, ensure_package, build_archive
                         raise ValueError('Missing RAW package file.')
                     meta = read_json(archive, prefix+'/case-data.json')
                     validated = validate_metadata(meta)
+                    if 'tlp' in manifest and case_tlp.validate(manifest['tlp']) != case_tlp.archived(meta['case']):
+                        raise ValueError('RAW manifest and Case TLP differ.')
                     for image in validated[4]:
                         if not (folder/'reports/sections/assets'/image['name']).is_file():
                             raise ValueError(

@@ -1,3 +1,4 @@
+import case_tlp
 from base_path import app_url
 from case_queries import CASE_QUERY, CASE_ELIGIBILITY, inventory, inventory_total
 from settings_navigation import legacy_redirect, saved_destination, register_settings
@@ -241,6 +242,7 @@ with app.app_context():
     migrate_five_stages(db())
     migrate_four_stages(db())
     case_impact.initialize(db())
+    case_tlp.initialize(db())
     initialize_roles(db())
     if not db().execute("SELECT 1 FROM schema_migrations WHERE name='one-minute-autosave'").fetchone():
         db().execute('UPDATE users SET autosave_minutes=1 WHERE autosave_minutes=5')
@@ -440,7 +442,7 @@ def enforce_case_stage():
 @app.context_processor
 def context():
     session.setdefault('csrf', secrets.token_urlsafe(32))
-    return dict(user=g.user, csrf=session['csrf'], stages=STAGES, impact_types=case_impact.TYPES, categories=CATEGORIES, guidance=GUIDANCE, active_users=db().execute("SELECT id,username FROM users WHERE active=1 ORDER BY username").fetchall())
+    return dict(tlp_metadata=case_tlp.METADATA, default_case_tlp=case_tlp.default(db()), user=g.user, csrf=session['csrf'], stages=STAGES, impact_types=case_impact.TYPES, categories=CATEGORIES, guidance=GUIDANCE, active_users=db().execute("SELECT id,username FROM users WHERE active=1 ORDER BY username").fetchall())
 
 
 def admin(f):
@@ -542,6 +544,17 @@ def account():
     password = sample_archive_password(
     ) if g.user['role'] == 'Administrator' else None
     return render_template('account.html', sample_archive_password=password)
+
+
+@app.post('/settings/default-case-tlp')
+@admin
+def save_default_case_tlp():
+    try: value = case_tlp.validate(request.form.get('tlp'))
+    except ValueError as error: return {'error':str(error)}, 400
+    run("INSERT INTO site_settings(name,value) VALUES('default_case_tlp',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", (value,))
+    audit('Changed Default Case TLP to '+value)
+    flash('Default Case TLP saved. Existing cases keep their saved TLP.')
+    return redirect(app_url(saved_destination(url_for('account'))))
 
 
 @app.route('/account/autosave', methods=['GET', 'POST'])
@@ -731,7 +744,7 @@ def external_reference(form):
 
 @app.get('/cases/new')
 def create_case_page(): return render_template('create_case.html', values={
-    'name': datetime.now().strftime('%Y%m%d')+': '})
+    'name': datetime.now().strftime('%Y%m%d')+': ', 'tlp':case_tlp.default(db())})
 
 
 def allocate_case_number(connection):
@@ -749,6 +762,10 @@ def allocate_case_number(connection):
 
 @app.post('/cases')
 def new_case():
+    try: tlp = case_tlp.validate(request.form['tlp']) if 'tlp' in request.form else case_tlp.default(db())
+    except ValueError as error:
+        flash(str(error))
+        return render_template('create_case.html', values=request.form), 400
     title = request.form.get('name', '')
     reference = external_reference(request.form)
     if not title.strip() or len(title) > 200 or reference is None:
@@ -760,8 +777,8 @@ def new_case():
     connection.execute('BEGIN IMMEDIATE')
     try:
         number = allocate_case_number(connection)
-        cid = connection.execute('INSERT INTO cases(number,name,description,created,owner,external_system,external_number,creator,creator_username,owner_required) VALUES(?,?,?,?,?,?,?,?,?,1)',
-                                 (number, title, request.form.get('description', ''), now(), owner, system, external, g.user['id'], g.user['username'])).lastrowid
+        cid = connection.execute('INSERT INTO cases(number,name,description,created,owner,external_system,external_number,creator,creator_username,owner_required,tlp) VALUES(?,?,?,?,?,?,?,?,?,1,?)',
+                                 (number, title, request.form.get('description', ''), now(), owner, system, external, g.user['id'], g.user['username'], tlp)).lastrowid
         connection.commit()
     except Exception:
         connection.rollback()
@@ -798,15 +815,18 @@ def detail(cid):
             audit('Updated Case Impact '+c['number'])
             if request.form.get('ajax') == '1': return {'saved': True, **value}
             return redirect(url_for('detail', cid=cid, tab='workbench')+'#case-impact')
+        if not has_permission(g.user, 'cases:update', db()): abort(403)
+        try: tlp = case_tlp.validate(request.form['tlp']) if 'tlp' in request.form else c['tlp']
+        except ValueError as error: return {'error':str(error)}, 400
         title = request.form.get('name', '').strip()
         reference = external_reference(request.form)
         if not title or len(title) > 200 or reference is None:
             flash('Enter a case name and a complete optional external reference.')
             return redirect(app_url(request.path, internal=True))
         system, external = reference
-        run('UPDATE cases SET name=?,description=?,external_system=?,external_number=?,owner=? WHERE id=?', (title,
-            request.form.get('description', ''), system, external, assigned_owner(request.form, c['owner']), cid))
-        audit('Updated case details '+c['number'])
+        run('UPDATE cases SET name=?,description=?,external_system=?,external_number=?,owner=?,tlp=coalesce(?,tlp) WHERE id=?', (title,
+            request.form.get('description', ''), system, external, assigned_owner(request.form, c['owner']), tlp if 'tlp' in request.form else None, cid))
+        audit('Updated case details '+c['number']+(f"; TLP {c['tlp']} → {tlp}" if c['tlp'] != tlp else ''))
         return redirect(app_url(request.path, internal=True))
     draft = db().execute('SELECT * FROM drafts WHERE case_id=? AND user_id=?',
                          (cid, g.user['id'])).fetchone()
@@ -1228,7 +1248,7 @@ def build_archive(cid, archive_type, include_samples=False):
     statuses = readiness(cid)
     metadata = [{k: a[k] for k in a.keys() if k != 'usage'} for a in db().execute(
         'SELECT * FROM artifacts WHERE case_id=?', (cid,))]
-    manifest = {'archive_type': archive_type, 'include_samples': include_samples, 'schema': 'mare-mip/2.0', 'package_id': name, 'title': c['name'], 'case_number': c['number'], 'external_reference': {
+    manifest = {'archive_type': archive_type, 'include_samples': include_samples, 'schema': 'mare-mip/2.0', 'package_id': name, 'title': c['name'], 'case_number': c['number'], 'tlp': c['tlp'], 'external_reference': {
         'system': c['external_system'], 'number': c['external_number']}, 'description': c['description'], 'created_at': c['created'], 'packaged_at': now(), 'readiness': statuses, 'acknowledged_issues': issues, 'artifacts': metadata, 'files': []}
     from standard_package import selected_files
     contents = selected_files(c, root, raw=archive_type=='raw', include_samples=include_samples)
@@ -1238,10 +1258,10 @@ def build_archive(cid, archive_type, include_samples=False):
     selected = db().execute(
         "SELECT * FROM notes WHERE case_id=? AND include_export=1 AND note_type='user' ORDER BY id", (cid,)).fetchall()
     if selected and archive_type == 'raw':
-        contents['reports/reverse-engineering-notes.md'] = ('# Reverse Engineering Notes\n\n'+'\n\n'.join('## '+(
+        contents['reports/reverse-engineering-notes.md'] = ('# Reverse Engineering Notes\n\n'+c['tlp']+'\n\n'+'\n\n'.join('## '+(
             n['title'] or 'Note')+'\n'+n['author']+' · '+n['created']+'\n\n'+n['body'] for n in selected)).encode()
     text = '# Malware Intelligence Package: ' + \
-        c['name']+'\n\nCase: '+c['number']+'\n\n' + \
+        c['name']+'\n\n'+c['tlp']+'\n\nCase: '+c['number']+'\n\n' + \
         (c['description'] or '')+'\n\n## Deliverable readiness\n'
     if c['external_number']:
         text += 'External reference: ' + \

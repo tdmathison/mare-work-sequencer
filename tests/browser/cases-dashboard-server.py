@@ -9,7 +9,7 @@ from app import app, db, now
 with app.app_context():
     for i in range(23):
         stage = 3 if i < 12 else (1 if i % 2 else 2)
-        cid = db().execute('INSERT INTO cases(number,name,description,stage,created) VALUES(?,?,?,?,?)',
+        cid = db().execute('INSERT INTO cases(number,name,description,stage,created,tlp) VALUES(?,?,?,?,?,\'TLP:CLEAR\')',
             (f'MARE-2026-{i:06}', '<img src=x onerror=alert(1)> '+('Long investigation title ' * (8 if i == 11 else 1)),
              'Research description. ' * 80, stage, now())).lastrowid
         if stage == 3:

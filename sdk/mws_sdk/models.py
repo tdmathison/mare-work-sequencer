@@ -42,6 +42,7 @@ class Role(APIModel):
 
 class Case(APIModel):
     """Case version-1 API fields."""
+    tlp: Literal['TLP:RED', 'TLP:AMBER+STRICT', 'TLP:AMBER', 'TLP:GREEN', 'TLP:CLEAR'] = ...
     impact_confirmed: bool | None = None
     impact_type: Literal['detection', 'discovery', 'both', None] | None = None
     impact_summary: str | None = Field(None, max_length=4000)
@@ -494,6 +495,7 @@ class CasesListResponse(APIModel):
 class CasesCreateRequest(APIModel):
     """CasesCreateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    tlp: Literal['TLP:RED', 'TLP:AMBER+STRICT', 'TLP:AMBER', 'TLP:GREEN', 'TLP:CLEAR'] | None = None
     impact_confirmed: bool | None = None
     impact_type: Literal['detection', 'discovery', 'both', None] | None = None
     impact_summary: str | None = Field(None, max_length=4000)
@@ -514,6 +516,7 @@ class CasesGetResponse(APIModel):
 class CasesUpdateRequest(APIModel):
     """CasesUpdateRequest version-1 API fields."""
     model_config = ConfigDict(extra="forbid", populate_by_name=True, strict=True, hide_input_in_errors=True)
+    tlp: Literal['TLP:RED', 'TLP:AMBER+STRICT', 'TLP:AMBER', 'TLP:GREEN', 'TLP:CLEAR'] | None = None
     impact_confirmed: bool | None = None
     impact_type: Literal['detection', 'discovery', 'both', None] | None = None
     impact_summary: str | None = Field(None, max_length=4000)
@@ -1871,6 +1874,7 @@ class ActorsGetResponseProfile(APIModel):
 
 class CasesGetResponseCase(APIModel):
     """CasesGetResponseCase version-1 API fields."""
+    tlp: Literal['TLP:RED', 'TLP:AMBER+STRICT', 'TLP:AMBER', 'TLP:GREEN', 'TLP:CLEAR'] = ...
     impact_confirmed: bool | None = None
     impact_type: Literal['detection', 'discovery', 'both', None] | None = None
     impact_summary: str | None = Field(None, max_length=4000)

@@ -1,4 +1,6 @@
+{% from 'components/tlp.html' import marker with context %}
 {% extends 'base.html' %}{% from 'base.html' import token %}{% block content %}
+<p role="status" data-workspace-feedback data-board-tlp-status></p>
 <div class="heading dashboard-heading">
   <div>
     <span class="eyebrow">DELIVERABLE WORKSPACE</span>
@@ -53,7 +55,7 @@
     <tbody role="rowgroup">
       {% for c in cases %}
       <tr role="row">
-        <td role="cell" data-label="Case number" class="mip-table-number">{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% else %} <span class="mip-table-reference muted">None</span>{% endif %}</td>
+        <td role="cell" data-label="Case number" class="mip-table-number">{{marker(c.tlp,c.id)}}{{c.number}}{% if c.external_number %} <span class="mip-table-reference">{{c.external_system}}: {{c.external_number}}</span>{% else %} <span class="mip-table-reference muted">None</span>{% endif %}</td>
         <td role="cell" data-label="Case title" class="mip-table-title"><a href="{{request.script_root}}/cases/{{c.id}}" title="{{c.name}}">{{c.name}}</a></td>
         <td role="cell" data-label="Impact" class="mip-table-impact">{% include 'board_impact_status.html' %}</td>
         {% set owner_label = (c.owner_name or 'Unassigned') ~ (' (disabled)' if c.owner_name and not c.owner_active else '') %}
@@ -80,7 +82,7 @@
   {% for c in cases %}
   <article class="panel case-card mip-card">
     <div class="heading impact-card-heading">
-      <a class="eyebrow" href="{{url_for('detail',cid=c.id)}}">{{c.number}}</a>
+      <a class="eyebrow" href="{{url_for('detail',cid=c.id)}}">{{marker(c.tlp,c.id)}}{{c.number}}</a>
       <div class="impact-card-status">{% include 'impact_badge.html' %}<span class="state {{'state-populated' if c.stage==stages|length-1 else 'state-pending'}}">{{'Completed' if c.stage==stages|length-1 else 'In progress' if c.stage else 'New'}}</span></div>
     </div>
     <a class="case-card-link" href="{{url_for('detail',cid=c.id)}}">

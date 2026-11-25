@@ -36,7 +36,7 @@ with app.app_context():
             cid = (
                 db()
                 .execute(
-                    "INSERT INTO cases(number,name,stage,created) VALUES(?,?,?,?)",
+                    "INSERT INTO cases(number,name,stage,created,tlp) VALUES(?,?,?,?,'TLP:CLEAR')",
                     (str(i), "PRIVATE CASE", 1 if i % 2 else 2, now()),
                 )
                 .lastrowid

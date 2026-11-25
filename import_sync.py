@@ -1,3 +1,4 @@
+import case_tlp
 """Account-bound staged imports, per-case decisions, and recoverable replacement."""
 import case_impact
 from base_path import app_url
@@ -130,6 +131,7 @@ class ImportSync:
             "classification": "review",
             "suggestions": [],
         }
+        result['tlp_assumption'] = 'Archive has no TLP designation: new Cases receive TLP:AMBER (default assignment, not a historical analyst assessment). Existing destination TLP is retained.' if 'tlp' not in validated[0] else ''
         source = meta.get("sync")
         nodes = {}
         if source is not None:
@@ -228,6 +230,10 @@ class ImportSync:
                         (validated[0]["name"], validated[0].get("external_number", "")),
                     )
                 ]
+        if result['destination_id'] and result['classification'] in ('update','unchanged'):
+            local_tlp = self.db().execute('SELECT tlp FROM cases WHERE id=?',(result['destination_id'],)).fetchone()[0]
+            if local_tlp != case_tlp.archived(validated[0]):
+                result.update(classification='conflict', reason='Case TLP designations differ; explicitly keep local or replace with incoming content.')
         mapped = self.owner(validated[0])
         result["owner_warning"] = (
             "Incoming owner maps to an existing account."
@@ -257,6 +263,8 @@ class ImportSync:
         snapshot = self.sync.snapshot(cid)
         before, after = snapshot["files"], incoming["files"]
         result.update(destination_id=cid, destination_number=local["number"])
+        if snapshot['case'].get('tlp',case_tlp.DEFAULT) != incoming['case'].get('tlp',case_tlp.DEFAULT):
+            result['tlp_conflict'] = {'local':snapshot['case'].get('tlp',case_tlp.DEFAULT),'incoming':incoming['case'].get('tlp',case_tlp.DEFAULT)}
         result["summary"] = {
             "metadata_fields": [
                 key
@@ -281,6 +289,9 @@ class ImportSync:
                 for key, rows in incoming["records"].items()
             },
         }
+
+        if result.get('tlp_conflict') and 'tlp' not in result['summary']['metadata_fields']:
+            result['summary']['metadata_fields'].append('tlp')
 
     def preview(self, upload, single):
         self.permission()
@@ -710,6 +721,10 @@ class ImportSync:
         if cid and not any(key in validated[0] for key in case_impact.FIELDS):
             local = self.db().execute('SELECT * FROM cases WHERE id=?', (cid,)).fetchone()
             canonical['case'].update(case_impact.snapshot_fields(local))
+        if cid and 'tlp' not in validated[0]:
+            local = self.db().execute('SELECT * FROM cases WHERE id=?',(cid,)).fetchone()
+            canonical['case'].pop('tlp',None)
+            canonical['case'].update(case_tlp.snapshot_fields(local))
         canonical_hash = fingerprint(canonical)
         c = validated[0]
         owner = self.owner(c)
@@ -844,6 +859,8 @@ class ImportSync:
                     (key, cid, None, revision, key, "prepared"),
                 )
                 outcome["recovery"] = key
+            if new or 'tlp' in c:
+                con.execute('UPDATE cases SET tlp=? WHERE id=?',(case_tlp.archived(c),cid))
             if new or any(key in c for key in case_impact.FIELDS):
                 case_impact.write(con, cid, case_impact.archived(c))
             from content_metrics import restore_events, collect_case, restoring

@@ -20,6 +20,8 @@
     <link rel="stylesheet" href="{{url_for('static',filename='application-shell.css')}}" />
     <script defer src="{{url_for('static',filename='application-shell.js')}}"></script>
     <script defer src="{{url_for('static',filename='settings-navigation.js')}}"></script>
+    <link rel="stylesheet" href="{{url_for('static',filename='tlp.css')}}">
+    <script defer src="{{url_for('static',filename='tlp.js')}}"></script>
   </head>
   <body class="{{'application-shell' if user else ''}}" data-user-layout="{{user.user_uuid if user else 'anonymous'}}" data-autosave-enabled="{{1 if user and user.autosave_enabled else 0}}" data-autosave-minutes="{{user.autosave_minutes if user else 5}}">
     {% if user %}{% include 'sidebar.html' %}{% endif %}

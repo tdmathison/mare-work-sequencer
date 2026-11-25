@@ -1,3 +1,4 @@
+import case_tlp
 """Case snapshot identities and validated revision DAGs; no automatic merging."""
 import case_impact
 
@@ -145,6 +146,7 @@ def logical_snapshot(validated, folder):
     }
 
     result["case"].update(case_impact.snapshot_fields(c))
+    result["case"].update(case_tlp.snapshot_fields(c))
     return result
 
 
@@ -395,6 +397,7 @@ class CaseSync:
         """
         )
         case_impact.track_sync(con)
+        case_tlp.track_sync(con)
         self.installation()
         for row in con.execute("SELECT id FROM cases").fetchall():
             state = self.ensure(row["id"])

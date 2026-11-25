@@ -5,7 +5,7 @@ from cases_dashboard import snapshot
 
 def add(number, stage, completed=None, description='<script>private()</script>'):
     connection = db()
-    cid = connection.execute('INSERT INTO cases(number,name,description,stage,created,external_number) VALUES(?,?,?,?,?,?)',
+    cid = connection.execute('INSERT INTO cases(number,name,description,stage,created,external_number,tlp) VALUES(?,?,?,?,?,?,\'TLP:CLEAR\')',
                              (number, '<img src=x onerror=alert(1)>', description, stage, '2026-01-01', 'SECRET')).lastrowid
     if completed:
         connection.execute("INSERT INTO history(case_id,stage,created,outcome,author) VALUES(?,2,?,'Done','SECRET')", (cid, completed))

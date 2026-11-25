@@ -183,3 +183,14 @@ trims the summary and manages read-only `impact_confirmed_at`. Disabling with
 details and first confirmation time. Omitted fields remain unchanged. Impact-only
 updates use `cases:update` and work at every workflow stage. See the application
 Case Impact guide for historical reporting and backup behavior.
+
+### Case TLP
+
+Case responses include `tlp`, using the exact FIRST TLP 2.0 labels:
+`TLP:RED`, `TLP:AMBER+STRICT`, `TLP:AMBER`, `TLP:GREEN`, or `TLP:CLEAR`.
+Pass it through `cases.create(data={"name": "Investigation", "tlp": "TLP:AMBER"})`
+or `cases.update(case_id, data={"tlp": "TLP:GREEN"})`. Omitting it on create uses
+the configured system default; omitting it on update preserves the saved value.
+Explicit null/blank/unsupported values are rejected by the server. TLP is a sharing
+boundary, not severity or a replacement for Case permissions. Completed Cases
+must be reopened before changing TLP.

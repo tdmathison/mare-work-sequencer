@@ -31,7 +31,7 @@ def case(number, stage, tags):
     cid = (
         db()
         .execute(
-            "INSERT INTO cases(number,name,stage,created) VALUES(?,?,?,?)",
+            "INSERT INTO cases(number,name,stage,created,tlp) VALUES(?,?,?,?,'TLP:CLEAR')",
             (number, "PRIVATE CASE", stage, "2026"),
         )
         .lastrowid

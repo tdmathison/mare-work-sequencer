@@ -173,9 +173,9 @@ with app.app_context():
     await descending.focus();assert.equal(await descending.evaluate(el=>getComputedStyle(el).outlineStyle),'solid');
     await Promise.all([page.waitForNavigation(),descending.press('Enter')]);
     assert.equal(await page.locator('th[aria-sort="descending"] .mip-sort-label').textContent(),label);
-    const tableOrder=await page.locator('.mip-table tbody td.mip-table-number').evaluateAll(cells=>cells.map(cell=>cell.firstChild.textContent.trim()));
+    const tableOrder=await page.locator('.mip-table tbody td.mip-table-number').evaluateAll(cells=>cells.map(cell=>[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim()).textContent.trim()));
     await page.getByRole('link',{name:'Card view',exact:true}).click();
-    assert.deepEqual(await page.locator('.mip-board .case-card .eyebrow').allTextContents(),tableOrder);
+    assert.deepEqual(await page.locator('.mip-board .case-card .eyebrow').evaluateAll(cells=>cells.map(cell=>[...cell.childNodes].find(node=>node.nodeType===Node.TEXT_NODE&&node.textContent.trim()).textContent.trim())),tableOrder);
   }
   await page.goto(base+'/?view=table&q=not-a-matching-case');
   assert.equal(await page.locator('.mip-table tbody td').getAttribute('colspan'), '7');

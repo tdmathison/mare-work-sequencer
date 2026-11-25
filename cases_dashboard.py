@@ -18,7 +18,7 @@ PUBLIC_CTE = '''WITH public_cases AS (
   AND julianday(h.created)<=julianday(:now)) AS completed_jd,
  (SELECT max(julianday(h.created)) FROM history h WHERE h.case_id=c.id
   AND julianday(h.created)<=julianday(:now)) AS changed_jd
- FROM cases c WHERE c.stage BETWEEN 0 AND 3
+ FROM cases c WHERE c.tlp='TLP:CLEAR' AND c.stage BETWEEN 0 AND 3
 ) '''
 STATES = ('Not Started', 'Malware Analysis', 'Packaging & Delivery', 'Completed')
 

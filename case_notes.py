@@ -313,12 +313,13 @@ def activity(con, cid, event_type, message, metadata=None, source_id=None):
 
 
 def snapshot(con, cid):
-    c = con.execute("SELECT stage,owner FROM cases WHERE id=?", (cid,)).fetchone()
+    c = con.execute("SELECT stage,owner,tlp FROM cases WHERE id=?", (cid,)).fetchone()
     owner = con.execute(
         "SELECT username FROM users WHERE id=?", (c["owner"],)
     ).fetchone()
     state = dict(
         stage=c["stage"],
+        tlp=c["tlp"],
         owner=c["owner"],
         owner_name=owner[0] if owner else "Unassigned",
         groups={},
@@ -391,6 +392,8 @@ def collect(con, cid):
                     f"Stage changed from {STAGES[before['stage']]} to {STAGES[current['stage']] }.",
                     {"from": before["stage"], "to": current["stage"]},
                 )
+            if before.get('tlp','TLP:AMBER') != current['tlp']:
+                activity(con,cid,'case.tlp_changed',f"TLP changed from {before.get('tlp','TLP:AMBER')} to {current['tlp']}.",{'from':before.get('tlp','TLP:AMBER'),'to':current['tlp']})
             if before["owner"] != current["owner"]:
                 activity(
                     con,
